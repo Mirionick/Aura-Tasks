@@ -6,6 +6,7 @@ I dati restano nel `localStorage` del dispositivo: non c'è nessun server.
 
 Oggi l'app sa: aggiungere, completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
 Ha anche la lista divisa per giorno, il riepilogo nell'intestazione, il tema Automatico/Chiaro/Scuro e l'uso offline.
+Ogni attività completata dà **punti**. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi "Punti e serie di giorni").
 
 ---
 
@@ -69,14 +70,17 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 | `js/theme.js` | Tema Automatico/Chiaro/Scuro. Caricato nel `<head>` **senza `defer`** per applicare il tema prima del primo disegno (niente lampi) |
 | `js/utils.js` | Date locali, formattazione in italiano, saluto, id univoci |
 | `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, completamento, eliminazione e ripristino, sezioni, riepilogo |
-| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia dei dati |
-| `js/app.js` | Interfaccia: disegno, eventi, fogli, avvisi con "Annulla", registrazione del service worker. Unico file che tocca la pagina |
+| `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione |
+| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro |
+| `js/app.js` | Interfaccia: disegno, eventi, fogli, avvisi con "Annulla", riquadri di serie e punti con i loro effetti, registrazione del service worker. Unico file che tocca la pagina |
 | `sw.js` | Service worker per l'uso offline |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
-| `tests/` | Test della logica pura: si aprono con `tests/index.html` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`): si aprono con `tests/index.html` |
 
-**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `storage.js` → `app.js`. Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.storage`).
+**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `points.js` → `storage.js` → `app.js`.
+- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.points`, `Aura.storage`).
+- `points.js` va prima di `storage.js`, che lo usa per la migrazione.
 
 Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 1. in `index.html`, con `defer`, prima di `app.js`;
@@ -88,7 +92,7 @@ Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 La chiave `aura-tasks:data` contiene:
 ```json
 {
-  "version": 1,
+  "version": 2,
   "tasks": [
     {
       "id": "3f2c9a…",
@@ -96,23 +100,44 @@ La chiave `aura-tasks:data` contiene:
       "duration": 30,
       "energy": "medium",
       "date": "2026-10-30",
-      "done": false,
+      "done": true,
       "createdAt": 1793258400000,
-      "completedAt": null
+      "completedAt": 1793290000000,
+      "pointsAwarded": 24
     }
-  ]
+  ],
+  "stats": {
+    "totalPoints": 24,
+    "bestStreak": 1,
+    "milestones": [],
+    "days": { "2026-10-29": { "done": 1, "points": 24 } }
+  }
 }
 ```
 - `duration`: minuti interi tra 1 e 600 (`Aura.tasks.LIMITS`).
 - `energy`: `low` | `medium` | `high`. Etichetta, ordine (1/2/3) e frase d'aiuto sono in `Aura.tasks.ENERGY`.
 - `date`: `'YYYY-MM-DD'` **locale** oppure `null`.
 - `createdAt` e `completedAt`: millisecondi (`Date.now()`). `completedAt` vale `null` se l'attività non è completata.
+- `pointsAwarded`: punti dati al completamento, oppure `null` se l'attività non è completata. "Annulla" toglie esattamente questo valore.
+- `stats` è il registro di punti e serie. È **separato dalle attività**: eliminarle o usare "Svuota" non cancella la storia.
+  - `days`: completamenti e punti per giorno, dove il giorno è quello locale di `completedAt`. Un giorno che torna a 0 completamenti viene tolto.
+  - **Non sfoltire mai `days`**: serie e record si calcolano da qui.
+  - `totalPoints`: il totale dei punti.
+  - `bestStreak`: il record, cioè la serie più lunga in `days`. Si ricalcola a ogni modifica.
+  - `milestones`: i traguardi già festeggiati. Restano anche dopo "Annulla", così la festa non si ripete.
 - Le altre chiavi sono `aura-tasks:theme` (`auto` | `light` | `dark`) e `aura-tasks:backup-<timestamp>`. Quest'ultima è la copia di dati illeggibili trovati all'avvio: l'app la crea e riparte da una lista vuota.
+
+**Dalla v1 alla v2**:
+1. `migrate()` mette `stats = null`.
+2. `parse()` ripulisce le attività e `sanitizeTask()` assegna `pointsAwarded` alle completate che non ce l'hanno.
+3. `parse()` ricostruisce `stats` con `Aura.points.rebuildStats()`. I traguardi già superati si segnano senza festa.
+
+I dati migrati vengono salvati alla prima modifica.
 
 ### Cambiare lo schema
 1. Aumenta `SCHEMA_VERSION` in `js/storage.js`.
 2. In `migrate()` aggiungi un passo `if (state.version === N) { …; state.version = N + 1; }`. I passi si eseguono in ordine: un utente fermo alla v1 deve arrivare all'ultima versione.
-3. Se aggiungi campi alle attività, aggiorna `sanitizeTask()` e scrivi i test della migrazione.
+3. Se aggiungi campi alle attività, aggiorna `sanitizeTask()`; se cambi il registro, `sanitizeStats()`. Poi scrivi i test della migrazione.
 4. **Non cambiare mai il significato di un campo esistente**: aggiungine uno nuovo.
 
 `parse()` conserva i campi che non conosce e non abbassa mai il numero di versione. Così una versione più vecchia dell'app non rovina i dati scritti da una più nuova.
@@ -156,6 +181,8 @@ Nel `<title>` dell'output compare `PASS` oppure `FAIL`. Il `| Out-String` serve:
 
 Note per i controlli automatici con Edge headless:
 - Con `--virtual-time-budget` gli eventi `close` dei `<dialog>` e `animationend` non arrivano, e le animazioni infinite bloccano la pagina.
+- Con il tempo virtuale anche le Web Animations (`element.animate`) restano ferme e `requestAnimationFrame` è inaffidabile. Per questo ogni effetto ha un timer di riserva che porta allo stato finale.
+- Per fotografare un'animazione a metà: `document.getAnimations()`, poi `pause()` e `currentTime = …` su ciascuna.
 - I service worker vanno provati in tempo reale, su `http://localhost`.
 - La finestra headless è larga almeno 500 px: per simulare un telefono, carica l'app in un `<iframe>` largo 390 px.
 
@@ -169,6 +196,15 @@ Note per i controlli automatici con Edge headless:
   - accento schiarito (`--accent-text`);
   - colori dell'energia ricalibrati su sfondi tenui.
 - **Energia**: verde acqua per bassa, ambra per media, rosa per alta. C'è sempre l'icona a barre più il testo, mai solo il colore.
+- **Serie e punti**: seconda riga di riquadri nell'intestazione.
+  - Serie "accesa" quando oggi c'è già un completamento: gradiente caldo arancio-rosa e fiamma colorata.
+  - Serie "da accendere" negli altri casi: fiamma grigia.
+  - Per il testo sul riquadro acceso: `--streak-tile-a/b` sono scelti per il contrasto ≥ 4,5:1 col bianco.
+  - Fiamma e stella sono SVG scritti direttamente in `index.html`, non nello sprite, perché il CSS ne cambia i colori in base allo stato.
+  - Gli effetti (anello sulla spunta, "+N" che vola nel riquadro dei punti, conteggio, fiamma che si accende, coriandoli ai traguardi):
+    - sono brevi e finiti;
+    - si spengono con "Riduci movimento";
+    - animano il **contenuto** dei riquadri, non il riquadro con `backdrop-filter`, perché su Safari sfarfalla.
 - Font di sistema. Le icone SVG stanno nello sprite di `index.html` (`<use href="#i-…">`) e il tratto usa `currentColor`.
 - **Icone dell'app**:
   - le PNG derivano da `icons/icon.svg`;
@@ -178,47 +214,51 @@ Note per i controlli automatici con Edge headless:
 
 ---
 
-## Funzioni future
+## Punti e serie di giorni (realizzata, gratuita)
 
-Per ciascuna funzione sono indicati comportamento, dati, file previsti e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo qui (vedi "Funzioni premium").
-
-### 1. Punti e serie di giorni
-**Obiettivo**: motivare con piccole ricompense quotidiane.
+**Obiettivo**: motivare con piccole ricompense quotidiane. La logica pura sta in `js/points.js` e le regole in `POINTS`.
 
 **Punti**
-- Le regole stanno in un unico oggetto `POINTS`, in un nuovo `js/points.js` con logica pura.
-- Formula proposta: `punti = Math.round((10 + Math.min(durata, 120) / 5) × moltiplicatore)`, con moltiplicatore 1 per energia bassa, 1,5 per media e 2 per alta.
+- Formula: `Math.round((10 + Math.min(durata, 120) / 5) × moltiplicatore)`, con moltiplicatore 1 per energia bassa, 1,5 per media e 2 per alta.
   - 15 min bassa → 13; 30 min media → 24; 60 min alta → 44; 120 min alta → 68.
-- Al completamento si salva `pointsAwarded` sull'attività. Se il completamento viene annullato si tolgono gli stessi punti, così non si possono accumulare spuntando e togliendo la spunta.
-- Eliminare un'attività completata (o usare "Svuota") **non** toglie punti.
-
-**Registro**
-- `stats: { totalPoints, bestStreak, milestones: [], days: { 'YYYY-MM-DD': { done, points } } }`.
-- Si aggiorna al completamento e all'annullamento. Il giorno è quello locale di `completedAt`.
-- È separato dalle attività: eliminarle non cancella la storia.
+- Al completamento i punti si salvano su `pointsAwarded`.
+- "Annulla", o togliere la spunta, sottrae gli stessi punti dal giorno in cui erano stati dati: spuntare e togliere la spunta non fa accumulare.
+- Eliminare un'attività completata o usare "Svuota" **non** toglie punti.
 
 **Serie**
-- È il numero di giorni consecutivi con `done ≥ 1`, contati all'indietro da oggi.
-- Se oggi non c'è ancora nessun completamento si parte da ieri: la serie resta "viva" fino a mezzanotte.
-- Si aggiorna `bestStreak`.
+- È il numero di giorni consecutivi con almeno un completamento, contati all'indietro da oggi.
+- Se oggi non c'è ancora nessun completamento si parte da ieri: la serie resta "viva", ma "da accendere", fino a mezzanotte.
+- Il record (`bestStreak`) è la serie più lunga del registro.
 
-**Traguardi**: a 3, 7, 14, 30 e 100 giorni compare un avviso festoso, una volta sola (`stats.milestones`).
-
-**Schema v2**: una migrazione crea `stats` e ricostruisce `days` e i punti dalle attività già completate.
+**Traguardi**
+- A 3, 7, 14, 30 e 100 giorni partono coriandoli, un avviso festoso e, su Android, una vibrazione.
+- Succede una volta sola per traguardo (`stats.milestones`).
 
 **Interfaccia**
-- Nell'intestazione compaiono i riquadri 🔥 serie e ⭐ punti, al posto di uno dei tre attuali oppure in una seconda riga.
-- Al completamento un "+24" sale dalla spunta e l'avviso diventa "Completata · +24 punti".
+- Riquadro "Serie" (vedi "Design"):
+  - giorni e fiamma;
+  - etichetta "🏆 record N", oppure "🏆 record!" quando la serie in corso è il record, da 3 giorni in su;
+  - barra e scritta verso il prossimo traguardo, oppure "Accendila oggi" / "Tienila accesa oggi".
+- Riquadro "Punti": totale, che sale contando, e "+N oggi".
+- "Fatte oggi" legge il registro, non l'elenco delle attività.
+- Avvisi al completamento:
+  - "Completata · +24 punti";
+  - al primo completamento del giorno: "🔥 Serie iniziata · …" oppure "🔥 4 giorni di fila · …";
+  - ai traguardi: "🎉 7 giorni di fila! · …".
 
-**Casi limite**
-- Completamenti a cavallo di mezzanotte: fa fede `completedAt`.
-- Annullare un completamento fatto ieri: si sottrae dal giorno giusto.
-- Cambio d'ora: usare `daysBetween`.
-- Cambio di fuso orario.
+**Casi limite (coperti dai test)**
+- Completamenti a cavallo di mezzanotte: fa fede il giorno locale di `completedAt`.
+- Annullare un completamento di ieri: si sottrae da ieri.
+- Cambio d'ora e capodanno: si usano `addDays` e `daysBetween`.
+- Cambio di fuso orario: i giorni restano quelli registrati quando si è completato.
 
-**Test**: formula; serie con buchi, con oggi vuoto, a cavallo del cambio d'ora; migrazione da v1 a v2.
+**Idee per dopo**: livelli, statistiche settimanali dal registro, bonus punti per il focus.
 
-### 2. Modalità focus con timer
+## Funzioni future
+
+Per ciascuna funzione sono indicati comportamento, dati, file previsti e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo nella tabella di "Funzioni premium".
+
+### 1. Modalità focus con timer
 **Avvio**: pulsante ▶ "Focus" sulla card, oppure "Inizia" dalla proposta di "Cosa faccio adesso?".
 
 **Interfaccia**
@@ -244,7 +284,7 @@ Per ciascuna funzione sono indicati comportamento, dati, file previsti e casi li
 
 **Idee in più**: modalità Pomodoro (25/5); minuti di focus nelle statistiche, con un eventuale bonus punti.
 
-### 3. "Cosa faccio adesso?"
+### 2. "Cosa faccio adesso?"
 **Interfaccia**
 - Pulsante ben visibile nell'intestazione, che apre un foglio con due domande:
   - "Quanto tempo hai?", con i chip 10/15/30/45/60/90/120+;
@@ -265,7 +305,7 @@ Per ciascuna funzione sono indicati comportamento, dati, file previsti e casi li
 
 **Nessuna candidata**: un messaggio gentile con un suggerimento ("Hai più tempo?", "Una pausa ☕?") oppure l'attività più breve.
 
-### 4. Inserimento in linguaggio naturale
+### 3. Inserimento in linguaggio naturale
 **Interfaccia**: un campo "Scrivi in una frase…" in cima al foglio "Nuova attività". Mentre scrivi, l'anteprima compila i campi sotto, che restano modificabili.
 
 **Parser**: funzione pura `parseTaskText(text, today)` in `js/nlp.js`, a regole e offline, senza API.
@@ -306,7 +346,12 @@ Per ciascuna funzione sono indicati comportamento, dati, file previsti e casi li
 
 In futuro alcune funzioni saranno **premium**, sbloccate con un **codice di licenza**.
 
-Quali funzioni saranno premium è ancora da decidere. Quando si decide, va annotato qui in una tabella "funzione → gratuita/premium", e ogni nuova funzione deve dichiarare la sua categoria.
+Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
+
+| Funzione | Categoria |
+|---|---|
+| Base: attività, lista per giorno, tema, uso offline | gratuita |
+| Punti e serie di giorni | gratuita |
 
 ### Regola fondamentale
 **Tutti i controlli passano da un'unica funzione `isPremium()`.**
@@ -344,10 +389,10 @@ Quali funzioni saranno premium è ancora da decidere. Quando si decide, va annot
 - Promemoria, statistiche settimanali, ordinamento manuale con trascinamento, scorrimento laterale per completare o eliminare.
 
 ## Ordine consigliato
-1. **Punti e serie di giorni**: è piccola e introduce la prima migrazione dello schema.
-2. **"Cosa faccio adesso?"**: è il cuore dell'app.
-3. **Modalità focus**: si collega a "Inizia focus".
-4. **Linguaggio naturale**.
+Punti e serie di giorni: fatto (schema v2). Poi:
+1. **"Cosa faccio adesso?"**: è il cuore dell'app.
+2. **Modalità focus**: si collega a "Inizia focus".
+3. **Linguaggio naturale**.
 
 Licenza premium e backup vanno fatti quando servono. Il backup conviene prima di far usare l'app ad altre persone.
 

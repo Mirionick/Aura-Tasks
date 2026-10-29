@@ -64,15 +64,19 @@
       date: value.date || null,
       done: false,
       createdAt: now,
-      completedAt: null
+      completedAt: null,
+      pointsAwarded: null
     };
   }
 
-  /** Segna un'attività come completata (done = true) o di nuovo da fare (done = false). */
-  function setDone(tasks, id, done, now) {
+  /**
+   * Segna un'attività come completata (done = true) o di nuovo da fare (done = false).
+   * `pointsAwarded` sono i punti dati al completamento (li calcola points.js).
+   */
+  function setDone(tasks, id, done, now, pointsAwarded = null) {
     return tasks.map(task => {
       if (task.id !== id || task.done === done) return task;
-      return { ...task, done, completedAt: done ? now : null };
+      return { ...task, done, completedAt: done ? now : null, pointsAwarded: done ? pointsAwarded : null };
     });
   }
 
@@ -156,11 +160,10 @@
     return { sections, completed };
   }
 
-  /** Numeri dell'intestazione: attività da fare, loro durata totale, completate oggi. */
-  function summarize(tasks, today) {
+  /** Numeri dell'intestazione: attività da fare e loro durata totale. Le fatte oggi vengono dal registro (points.js). */
+  function summarize(tasks) {
     const open = tasks.filter(task => !task.done);
-    const doneToday = tasks.filter(task => task.done && task.completedAt && utils.todayISO(task.completedAt) === today);
-    return { openCount: open.length, openMinutes: totalMinutes(open), doneToday: doneToday.length };
+    return { openCount: open.length, openMinutes: totalMinutes(open) };
   }
 
   Aura.tasks = {
