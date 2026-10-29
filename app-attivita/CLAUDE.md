@@ -49,7 +49,9 @@ Quando l'utente dice **"pubblica"**:
 2. Esegui i test (vedi "Test"): devono essere tutti verdi.
    - Se sono cambiati file dell'app, controlla anche `sw.js` (`APP_FILES`, `CACHE_VERSION`).
 3. Fai il commit con un messaggio chiaro in italiano: la prima riga dice cosa cambia per chi usa l'app, le righe dopo danno i dettagli.
+   - Su Windows PowerShell 5.1 scrivi il messaggio in un file UTF-8 e usa `git commit -F <file>`. Con `-m`, le virgolette dentro il messaggio si perdono o fanno fallire il comando.
 4. Esegui `git push`. Se Git chiede di accedere a GitHub, avvisa l'utente: farà il login dalla finestra del browser.
+   - Dagli strumenti di Claude la finestra di login non si apre (`GCM_INTERACTIVE=never`): chiedi all'utente di eseguire `git push` una volta dal suo terminale. Dopo il login le credenziali restano salvate in Windows e i push successivi funzionano anche da qui.
 
 Il telefono scarica la nuova versione alla prima apertura con internet, perché il service worker prova prima la rete.
 
