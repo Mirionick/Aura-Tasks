@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test · Aura Tasks</title>
+  <style>
+    body { margin: 0; padding: 24px; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #17152b; background: #f4f3fa; }
+    h1 { margin: 0 0 12px; font-size: 20px; }
+    #summary { display: inline-block; margin: 0 0 16px; padding: 8px 14px; border-radius: 10px; font-weight: 700; background: #e7e4f1; }
+    #summary.pass { background: #dcf3e9; color: #0a5c45; }
+    #summary.fail { background: #fde4ea; color: #9b1c3c; }
+    ul { margin: 0; padding-left: 22px; }
+    li.pass::marker { content: '✓  '; color: #0a7a5c; }
+    li.fail { color: #9b1c3c; }
+    li.fail::marker { content: '✗  '; }
+    pre { margin: 2px 0 8px; white-space: pre-wrap; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>Test di Aura Tasks</h1>
+  <p id="summary">Test in esecuzione…</p>
+  <ul id="results"></ul>
+
+  <script>
+    // Mini libreria di test, senza installazioni. Il risultato compare nella pagina e nel titolo (PASS / FAIL).
+    window.AuraTest = (function () {
+      const tests = [];
+      const loadErrors = [];
+
+      // Un file con un errore di sintassi non registrerebbe i suoi test: va segnalato come fallimento.
+      window.addEventListener('error', function (event) {
+        loadErrors.push((event.filename || 'script') + ': ' + event.message);
+      });
+
+      function test(name, fn) {
+        tests.push({ name: name, fn: fn });
+      }
+
+      function assert(condition, message) {
+        if (!condition) throw new Error(message || 'Condizione non vera');
+      }
+
+      function assertEqual(actual, expected, message) {
+        const a = JSON.stringify(actual);
+        const e = JSON.stringify(expected);
+        if (a !== e) throw new Error((message ? message + ': ' : '') + 'atteso ' + e + ', ottenuto ' + a);
+      }
+
+      function addResult(name, error) {
+        const li = document.createElement('li');
+        li.textContent = name;
+        li.className = error ? 'fail' : 'pass';
+        if (error) {
+          const pre = document.createElement('pre');
+          pre.textContent = error;
+          li.appendChild(pre);
+        }
+        document.getElementById('results').appendChild(li);
+      }
+
+      window.addEventListener('load', function () {
+        let failed = 0;
+        loadErrors.forEach(function (message) {
+          failed++;
+          addResult('Caricamento dei file', message);
+        });
+        tests.forEach(function (t) {
+          try {
+            t.fn();
+            addResult(t.name, null);
+          } catch (err) {
+            failed++;
+            addResult(t.name, err && err.message ? err.message : String(err));
+          }
+        });
+        const summary = document.getElementById('summary');
+        summary.textContent = failed ? failed + ' test falliti su ' + (tests.length + loadErrors.length) : 'Tutti i ' + tests.length + ' test superati';
+        summary.className = failed ? 'fail' : 'pass';
+        document.title = (failed ? 'FAIL' : 'PASS') + ' · Test Aura Tasks';
+      });
+
+      return { test: test, assert: assert, assertEqual: assertEqual };
+    })();
+  </script>
+
+  <!-- File dell'app da testare (solo logica pura), poi i test. -->
+  <script src="../js/utils.js"></script>
+  <script src="../js/tasks.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="core.test.js"></script>
+</body>
+</html>
