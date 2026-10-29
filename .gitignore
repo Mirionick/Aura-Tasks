@@ -1,0 +1,3 @@
+# Impostazioni dell'editor e file di sistema: non fanno parte dell'app
+.vscode/
+Thumbs.db
