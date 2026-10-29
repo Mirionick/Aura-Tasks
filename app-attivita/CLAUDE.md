@@ -118,7 +118,8 @@ La chiave `aura-tasks:data` contiene:
   - colori, ombre e raggi passano solo dalle variabili in `:root` (tema chiaro) e `:root[data-theme="dark"]` (tema scuro);
   - un colore nuovo va definito **in entrambi i temi** e verificato col contrasto **WCAG AA** (testo ≥ 4,5:1);
   - nel tema scuro le ombre non bastano: servono bordi sottili e superfici più chiare;
-  - `--hero-top` deve restare uguale a `BAR_COLORS` in `theme.js`, che dà il colore della barra di stato.
+  - `--hero-top` deve restare uguale a `BAR_COLORS` in `theme.js`, che dà il colore della barra di stato;
+  - nei contenitori flex in colonna senza altezza fissa (come i fogli `<dialog>`) usa `flex: 1 1 auto`, mai `flex: 1`: su Safari la base 0% fa collassare l'elemento a 0 px e il foglio diventa invisibile.
 - **Telefono**:
   - testo dei campi ≥ 16 px, altrimenti iOS ingrandisce la pagina;
   - aree di tocco ≥ 44 px;
@@ -137,9 +138,9 @@ Per eseguirli da terminale su Windows:
 ```powershell
 & "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu `
   --user-data-dir="$env:TEMP\aura-test" --virtual-time-budget=3000 `
-  --dump-dom "file:///C:/Users/Valentino.Battilana/Documents/app-attivita/tests/index.html"
+  --dump-dom "file:///C:/Users/Valentino.Battilana/Documents/app-attivita/tests/index.html" | Out-String
 ```
-Nel `<title>` dell'output compare `PASS` oppure `FAIL`. I nuovi file di test si chiamano `tests/<nome>.test.js` e vanno aggiunti in `tests/index.html`.
+Nel `<title>` dell'output compare `PASS` oppure `FAIL`. Il `| Out-String` serve: `msedge.exe` è un programma grafico e senza una pipe PowerShell non aspetta che finisca, quindi l'output si perde. I nuovi file di test si chiamano `tests/<nome>.test.js` e vanno aggiunti in `tests/index.html`.
 
 Note per i controlli automatici con Edge headless:
 - Con `--virtual-time-budget` gli eventi `close` dei `<dialog>` e `animationend` non arrivano, e le animazioni infinite bloccano la pagina.
