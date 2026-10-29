@@ -9,6 +9,12 @@ Ha anche la lista divisa per giorno, il riepilogo nell'intestazione, il tema Aut
 
 ---
 
+## Note per Claude
+
+- Rispondi all'utente **in italiano**.
+- L'utente prova l'app su un **iPhone vero**. I controlli automatici su questo PC usano solo Edge headless, che non riproduce i difetti di Safari/WebKit. Quando una modifica tocca layout, animazioni o API del browser, di' chiaramente che cosa va provato sull'iPhone.
+- Quando l'utente dice **"pubblica"**, segui i passi di "Pubblicare con Git".
+
 ## Vincoli da rispettare sempre
 
 - **Solo HTML, CSS e JavaScript "vanilla"**: niente framework, librerie, npm, build, CDN o font esterni.
@@ -29,16 +35,22 @@ Doppio clic su `index.html` (Edge, Chrome, Firefox o Safari).
 
 Per provare la PWA (offline, installazione) serve un indirizzo `http://localhost` o `https://`.
 
-### Pubblicare gratis (serve per usarla sul telefono)
-**GitHub Pages**, tutto dal browser, senza installare nulla:
-1. Crea un account su github.com e un nuovo repository pubblico, per esempio `aura-tasks`.
-2. Usa "Add file → Upload files" e trascina **tutto il contenuto** della cartella, sottocartelle comprese (`css`, `js`, `icons`, `tests`).
-3. In Settings → Pages scegli Source "Deploy from a branch", branch `main`, cartella `/ (root)`, poi Save.
-4. Dopo circa un minuto l'app è su `https://<utente>.github.io/aura-tasks/`.
+### Pubblicare con Git
+- **Repository**: https://github.com/Mirionick/Aura-Tasks (pubblico, ramo `main`).
+  - L'app sta in `app-attivita/`.
+  - Alla radice ci sono solo `CLAUDE.md`, che rimanda a questo file, e `.gitignore`.
+- **Copia di lavoro**: `C:\Users\Valentino.Battilana\Documents\Aura-Tasks`.
+- **Sito**: https://mirionick.github.io/Aura-Tasks/app-attivita/, servito da GitHub Pages ("Deploy from a branch", `main`, `/ (root)`). Si aggiorna circa un minuto dopo il push.
+- **Identità dei commit**: è impostata solo in questo repository, con `Mirionick` e l'indirizzo noreply di GitHub. Non usare l'email personale: il repository è pubblico.
 
-In alternativa c'è **Netlify Drop** (app.netlify.com/drop): trascini la cartella e ottieni un indirizzo `https`.
+Quando l'utente dice **"pubblica"**:
+1. Controlla `git status`: cosa è cambiato, e che non ci siano file estranei.
+2. Esegui i test (vedi "Test"): devono essere tutti verdi.
+   - Se sono cambiati file dell'app, controlla anche `sw.js` (`APP_FILES`, `CACHE_VERSION`).
+3. Fai il commit con un messaggio chiaro in italiano: la prima riga dice cosa cambia per chi usa l'app, le righe dopo danno i dettagli.
+4. Esegui `git push`. Se Git chiede di accedere a GitHub, avvisa l'utente: farà il login dalla finestra del browser.
 
-Dopo un aggiornamento dei file, il telefono scarica la nuova versione alla prima apertura con internet, perché il service worker prova prima la rete.
+Il telefono scarica la nuova versione alla prima apertura con internet, perché il service worker prova prima la rete.
 
 ### Installare sul telefono
 - **iPhone (Safari)**: apri l'indirizzo → Condividi → "Aggiungi alla schermata Home".
@@ -134,11 +146,11 @@ La chiave `aura-tasks:data` contiene:
 
 Apri `tests/index.html` nel browser: in alto compare il riepilogo, e tutti verdi significa che va tutto bene.
 
-Per eseguirli da terminale su Windows:
+Per eseguirli da terminale su Windows, dalla cartella `app-attivita`:
 ```powershell
+$page = 'file:///' + ((Resolve-Path tests\index.html).Path -replace '\\', '/')
 & "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu `
-  --user-data-dir="$env:TEMP\aura-test" --virtual-time-budget=3000 `
-  --dump-dom "file:///C:/Users/Valentino.Battilana/Documents/app-attivita/tests/index.html" | Out-String
+  --user-data-dir="$env:TEMP\aura-test" --virtual-time-budget=3000 --dump-dom $page | Out-String
 ```
 Nel `<title>` dell'output compare `PASS` oppure `FAIL`. Il `| Out-String` serve: `msedge.exe` è un programma grafico e senza una pipe PowerShell non aspetta che finisca, quindi l'output si perde. I nuovi file di test si chiamano `tests/<nome>.test.js` e vanno aggiunti in `tests/index.html`.
 
@@ -342,6 +354,7 @@ Licenza premium e backup vanno fatti quando servono. Il backup conviene prima di
 ## Checklist prima di chiudere una modifica
 - [ ] `tests/index.html` è tutto verde, con test nuovi per la logica nuova.
 - [ ] Provato a 375–390 px di larghezza e su desktop, **in tema chiaro e scuro**.
+- [ ] Se sono cambiati layout o animazioni: detto all'utente cosa provare sull'iPhone.
 - [ ] Nessun errore in console, sia aprendo da `file://` sia da `http://localhost`.
 - [ ] `sw.js` è aggiornato (`APP_FILES`, `CACHE_VERSION`) se sono cambiati file.
 - [ ] Se lo schema è cambiato: `SCHEMA_VERSION` aumentato e passo aggiunto in `migrate()`.
