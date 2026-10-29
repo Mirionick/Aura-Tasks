@@ -1,12 +1,12 @@
 /*
  * Aura Tasks — interfaccia.
  * Unico file che tocca la pagina: disegna la lista partendo da `state` e trasforma i gesti
- * dell'utente in chiamate ad Aura.tasks e Aura.storage. Ogni modifica passa da commit().
+ * dell'utente in chiamate ad Aura.tasks, Aura.points e Aura.storage. Ogni modifica passa da commit().
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, storage, theme } = Aura;
+  const { utils, tasks: T, points: P, storage, theme } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -20,6 +20,15 @@
     statOpen: byId('stat-open'),
     statTime: byId('stat-time'),
     statDone: byId('stat-done'),
+    statStreak: byId('stat-streak'),
+    streakValue: byId('streak-value'),
+    streakRecord: byId('streak-record'),
+    streakRecordText: byId('streak-record-text'),
+    streakNote: byId('streak-note'),
+    streakProgress: byId('streak-progress'),
+    statPoints: byId('stat-points'),
+    pointsValue: byId('points-value'),
+    pointsToday: byId('points-today'),
     main: byId('main'),
     sections: byId('sections'),
     empty: byId('empty-state'),
@@ -63,9 +72,12 @@
 
   /* ---------- Stato ---------- */
 
-  /** Applica un nuovo elenco: salva e ridisegna. Restituisce false (e avvisa) se il salvataggio non riesce. */
-  function commit(nextTasks) {
-    state = { ...state, tasks: nextTasks };
+  /**
+   * Applica un nuovo elenco (e il registro dei punti, se cambia): salva e ridisegna.
+   * Restituisce false (e avvisa) se il salvataggio non riesce.
+   */
+  function commit(nextTasks, nextStats = state.stats) {
+    state = { ...state, tasks: nextTasks, stats: nextStats };
     const saved = storage.save(state);
     render();
     if (!saved) showToast('Impossibile salvare: la memoria del browser è piena o disattivata.', { duration: 6000 });
@@ -83,7 +95,7 @@
     renderHeader(now, today);
     renderSections(sections, today);
     renderCompleted(completed, today);
-    renderEmpty(sections.length === 0, completed.length);
+    renderEmpty(sections.length === 0, completed.length, today);
 
     // Se l'elemento che aveva il focus è stato ridisegnato, il focus resta nella lista (utile da tastiera).
     if (hadFocus && !els.main.contains(document.activeElement)) els.main.focus({ preventScroll: true });
@@ -92,12 +104,67 @@
   }
 
   function renderHeader(now, today) {
-    const summary = T.summarize(state.tasks, today);
+    const summary = T.summarize(state.tasks);
+    const todayTotals = P.dayTotals(state.stats, today);
     els.greeting.textContent = utils.greeting(now);
     els.today.textContent = utils.formatLongDate(now);
     els.statOpen.textContent = summary.openCount;
     els.statTime.textContent = utils.formatDuration(summary.openMinutes);
-    els.statDone.textContent = summary.doneToday;
+    els.statDone.textContent = todayTotals.done; // dal registro: "Svuota" non lo azzera
+    renderRewards(today, todayTotals);
+  }
+
+  const daysLabel = count => (count === 1 ? '1 giorno' : count + ' giorni');
+
+  /** Riquadri della serie (accesa se oggi c'è già un completamento) e dei punti. */
+  function renderRewards(today, todayTotals) {
+    const { stats } = state;
+    const streak = P.currentStreak(stats.days, today);
+    const lit = todayTotals.done > 0;
+    const next = P.nextMilestone(streak);
+    const isRecord = streak >= 3 && streak >= stats.bestStreak;
+
+    els.statStreak.classList.toggle('is-lit', lit);
+    els.streakValue.textContent = daysLabel(streak);
+    els.streakRecord.hidden = !isRecord && !(stats.bestStreak > streak && stats.bestStreak >= 2);
+    els.streakRecordText.textContent = isRecord ? 'record!' : 'record ' + stats.bestStreak;
+    els.streakProgress.style.transform = 'scaleX(' + (next ? streak / next : 1) + ')';
+    if (!lit) els.streakNote.textContent = streak > 0 ? 'Tienila accesa oggi' : 'Accendila oggi';
+    else els.streakNote.textContent = next ? 'Traguardo: ' + daysLabel(next) : 'Tutti i traguardi!';
+
+    els.pointsToday.textContent = '+' + utils.formatNumber(todayTotals.points) + ' oggi';
+    showPoints(stats.totalPoints);
+  }
+
+  let shownPoints = null; // valore mostrato nel riquadro dei punti
+  let countFrame = 0;
+  let countTimer = null;
+
+  /** Aggiorna il totale dei punti contando (circa 0,65 s), così si vede salire. */
+  function showPoints(total) {
+    const from = shownPoints;
+    shownPoints = total;
+    cancelAnimationFrame(countFrame);
+    clearTimeout(countTimer);
+    const show = value => { els.pointsValue.textContent = utils.formatNumber(value); };
+    if (from === null || from === total || reducedMotion.matches || document.hidden) {
+      show(total);
+      return;
+    }
+    let start = null;
+    const step = now => {
+      // Si parte dal primo fotogramma: misurare l'inizio con un altro orologio può dare tempi negativi.
+      if (start === null) start = now;
+      const progress = Math.min(1, (now - start) / 650);
+      show(Math.round(from + (total - from) * (1 - Math.pow(1 - progress, 3))));
+      if (progress < 1) countFrame = requestAnimationFrame(step);
+    };
+    countFrame = requestAnimationFrame(step);
+    // Rete di sicurezza: se i fotogrammi si fermano (pagina in background), il valore finale arriva lo stesso.
+    countTimer = setTimeout(() => {
+      cancelAnimationFrame(countFrame);
+      show(total);
+    }, 800);
   }
 
   function renderSections(sections, today) {
@@ -135,14 +202,16 @@
     els.completedList.replaceChildren(...completed.map(task => buildTask(task, today, false)));
   }
 
-  function renderEmpty(isEmpty, completedCount) {
+  function renderEmpty(isEmpty, completedCount, today) {
     els.empty.hidden = !isEmpty;
     if (!isEmpty) return;
     const allDone = completedCount > 0;
+    const streak = P.currentStreak(state.stats.days, today);
+    const lit = P.dayTotals(state.stats, today).done > 0;
     els.emptyTitle.textContent = allDone ? 'Hai fatto tutto! 🎉' : 'Tutto libero ✨';
-    els.emptyText.textContent = allDone
-      ? 'Goditi il momento, oppure aggiungi una nuova attività.'
-      : 'Aggiungi la tua prima attività con il pulsante qui sotto.';
+    if (!allDone) els.emptyText.textContent = 'Aggiungi la tua prima attività con il pulsante qui sotto.';
+    else if (lit && streak >= 2) els.emptyText.textContent = 'Serie di ' + daysLabel(streak) + ' 🔥: domani continuala.';
+    else els.emptyText.textContent = 'Goditi il momento, oppure aggiungi una nuova attività.';
   }
 
   /** Card di un'attività, copiata dal <template> e riempita con textContent. */
@@ -200,15 +269,131 @@
     if (done) {
       vibrate(12);
       node.classList.add('task--completing');
+      const task = state.tasks.find(t => t.id === id);
+      if (task) floatPoints(P.pointsFor(task), node.querySelector('.check'));
     }
     later(done ? 450 : 0, () => {
       busy.delete(id);
-      if (!commit(T.setDone(state.tasks, id, done, Date.now())) || !done) return;
-      showToast('Completata 🎉', {
-        action: 'Annulla',
-        onAction: () => commit(T.setDone(state.tasks, id, false, Date.now()))
-      });
+      const firstToday = done && P.dayTotals(state.stats, utils.todayISO()).done === 0;
+      const result = P.setDone(state, id, done, Date.now());
+      if (result.tasks === state.tasks) return; // niente da cambiare
+      if (!commit(result.tasks, result.stats) || !done) return;
+      celebrate(id, result, firstToday);
     });
+  }
+
+  /** Dopo un completamento: avviso con i punti, e festa se la serie si accende o tocca un traguardo. */
+  function celebrate(id, result, firstToday) {
+    const milestone = result.reached.length ? Math.max(...result.reached) : 0;
+    if (firstToday) flash(els.statStreak, 'is-igniting', 3200);
+    if (milestone) {
+      vibrate([20, 60, 30, 60, 50]);
+      flash(els.statStreak, 'is-celebrating', 1100);
+      const tile = els.statStreak.getBoundingClientRect();
+      const tileVisible = tile.bottom > 0;
+      burstConfetti(tileVisible ? tile.left + tile.width / 2 : window.innerWidth / 2, tileVisible ? tile.top + tile.height / 2 : 96);
+    }
+
+    const points = '+' + result.points + ' punti';
+    let message = 'Completata · ' + points;
+    if (milestone) message = '🎉 ' + daysLabel(milestone) + ' di fila! · ' + points;
+    else if (firstToday) message = (result.streak === 1 ? '🔥 Serie iniziata · ' : '🔥 ' + daysLabel(result.streak) + ' di fila · ') + points;
+
+    showToast(message, {
+      action: 'Annulla',
+      duration: milestone ? 6500 : undefined,
+      onAction: () => {
+        const undo = P.setDone(state, id, false, Date.now());
+        commit(undo.tasks, undo.stats);
+      }
+    });
+  }
+
+  /** Aggiunge per un attimo una classe che fa partire un'animazione CSS, poi la toglie (così si può ripetere). */
+  function flash(el, className, ms) {
+    if (reducedMotion.matches) return;
+    el.classList.remove(className);
+    void el.offsetWidth; // ricomincia l'animazione se era già in corso
+    el.classList.add(className);
+    setTimeout(() => el.classList.remove(className), ms);
+  }
+
+  const canAnimate = () => !reducedMotion.matches && typeof Element.prototype.animate === 'function';
+
+  /** "+24" che sale dalla spunta e, se l'intestazione si vede, vola nel riquadro dei punti. */
+  function floatPoints(points, fromEl) {
+    if (!canAnimate() || !fromEl) return;
+    const from = fromEl.getBoundingClientRect();
+    const target = els.statPoints.getBoundingClientRect();
+    const toTile = target.bottom > 0 && target.top < window.innerHeight;
+    const chip = document.createElement('div');
+    chip.className = 'points-float';
+    chip.setAttribute('aria-hidden', 'true');
+    chip.textContent = '+' + points;
+    chip.style.left = from.left + from.width / 2 + 'px';
+    chip.style.top = from.top + from.height / 2 + 'px';
+    document.body.appendChild(chip);
+
+    // Stessa sequenza di funzioni in ogni fotogramma: l'interpolazione resta lineare anche su Safari.
+    const frame = (x, y, scale, opacity, offset) =>
+      ({ transform: 'translate(-50%, -50%) translate(' + x + 'px, ' + y + 'px) scale(' + scale + ')', opacity, offset });
+    const dx = target.left + target.width / 2 - (from.left + from.width / 2);
+    const dy = target.top + target.height / 2 - (from.top + from.height / 2);
+    const animation = chip.animate([
+      frame(0, 0, 0.5, 0, 0),
+      frame(0, -34, 1.12, 1, 0.25),
+      frame(0, -46, 1, 1, 0.45),
+      toTile ? frame(dx, dy, 0.45, 0.2, 1) : frame(0, -84, 0.9, 0, 1)
+    ], { duration: toTile ? 1050 : 900, easing: 'cubic-bezier(.45, 0, .25, 1)', fill: 'forwards' });
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      chip.remove();
+      if (toTile) flash(els.statPoints, 'is-bumping', 650);
+    };
+    animation.finished.then(finish, finish);
+    setTimeout(finish, 1500); // rete di sicurezza
+  }
+
+  const CONFETTI_PIECES = 28;
+
+  /** Pioggia di coriandoli per i traguardi: dura poco più di un secondo, poi sparisce. */
+  function burstConfetti(x, y) {
+    if (!canAnimate()) return;
+    const layer = document.createElement('div');
+    layer.className = 'confetti';
+    layer.setAttribute('aria-hidden', 'true');
+    layer.style.left = x + 'px';
+    layer.style.top = y + 'px';
+    document.body.appendChild(layer);
+
+    const animations = [];
+    for (let i = 0; i < CONFETTI_PIECES; i++) {
+      const piece = document.createElement('span');
+      piece.className = 'confetti__piece';
+      layer.appendChild(piece);
+      const angle = (i / CONFETTI_PIECES) * Math.PI * 2 + Math.random() * 0.5;
+      const distance = 60 + Math.random() * 80;
+      const dx = Math.cos(angle) * distance;
+      const dy = Math.sin(angle) * distance * 0.8 - 30;
+      const spin = (Math.random() < 0.5 ? -1 : 1) * (240 + Math.random() * 360);
+      animations.push(piece.animate([
+        { transform: 'translate(0px, 0px) rotate(0deg) scale(.6)', opacity: 1 },
+        { transform: 'translate(' + dx + 'px, ' + dy + 'px) rotate(' + spin * 0.6 + 'deg) scale(1)', opacity: 1, offset: 0.55 },
+        { transform: 'translate(' + dx * 1.15 + 'px, ' + (dy + 110) + 'px) rotate(' + spin + 'deg) scale(.9)', opacity: 0 }
+      ], { duration: 1100 + Math.random() * 300, easing: 'cubic-bezier(.2, .6, .35, 1)', fill: 'forwards' }));
+    }
+
+    let removed = false;
+    const cleanup = () => {
+      if (removed) return;
+      removed = true;
+      layer.remove();
+    };
+    Promise.all(animations.map(animation => animation.finished)).then(cleanup, cleanup);
+    setTimeout(cleanup, 2000); // rete di sicurezza
   }
 
   function onDelete(id, node) {
@@ -585,5 +770,7 @@
   syncThemeUI();
   measureHero();
   registerServiceWorker();
+  // All'apertura la fiamma accesa fa qualche guizzo, poi si ferma (niente animazioni infinite).
+  if (els.statStreak.classList.contains('is-lit')) flash(els.statStreak, 'is-flickering', 3800);
   if (loaded.warning) showToast(loaded.warning, { duration: 8000 });
 })(window.Aura = window.Aura || {});

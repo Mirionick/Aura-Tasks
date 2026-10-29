@@ -11,6 +11,7 @@
   const shortDate = new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
   const shortDateWithYear = new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   const longDate = new Intl.DateTimeFormat('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+  const wholeNumber = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 });
 
   function pad2(n) {
     return String(n).padStart(2, '0');
@@ -73,6 +74,11 @@
     return (sameYear ? shortDate : shortDateWithYear).format(parseISODate(iso));
   }
 
+  /** 12345 → "12.345" (separatore delle migliaia italiano; con 4 cifre di solito non si mette: "1240"). */
+  function formatNumber(value) {
+    return wholeNumber.format(value);
+  }
+
   function capitalize(text) {
     return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
   }
@@ -107,6 +113,7 @@
     formatDuration,
     formatDateLabel,
     formatLongDate,
+    formatNumber,
     capitalize,
     greeting,
     uid

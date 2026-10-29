@@ -20,6 +20,7 @@
   <script src="js/theme.js"></script>
   <script src="js/utils.js" defer></script>
   <script src="js/tasks.js" defer></script>
+  <script src="js/points.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
@@ -74,6 +75,37 @@
         <div class="stat">
           <dt class="stat__label">Fatte oggi</dt>
           <dd class="stat__value" id="stat-done">0</dd>
+        </div>
+      </dl>
+
+      <!-- Serie e punti: app.js li aggiorna e li anima (vedi CLAUDE.md, "Punti e serie di giorni"). -->
+      <dl class="stats stats--rewards">
+        <div class="stat stat--streak" id="stat-streak">
+          <dt class="stat__label">
+            <span class="stat__name">Serie</span>
+            <span class="stat__badge" id="streak-record" hidden><span aria-hidden="true">🏆</span> <span id="streak-record-text"></span></span>
+          </dt>
+          <dd class="stat__value">
+            <svg class="stat__icon flame" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path class="flame__outer" d="M12 2c.6 3.1 3.2 4.9 4.9 7.6 1.1 1.7 1.6 3.3 1.6 5 0 3.8-2.9 6.9-6.5 6.9s-6.5-3.1-6.5-6.7c0-2.2.9-4.2 2.4-5.7.1 1.5.8 2.6 2 3.2C9.6 8.4 10.4 5 12 2z"/>
+              <path class="flame__core" d="M12 21.5c-2.1 0-3.7-1.7-3.7-3.8 0-1.7 1-3.1 2.3-4.3.2 1.2.9 2 1.8 2.4.2-1.2 0-2.4-.4-3.6 2.1 1.3 3.7 3.2 3.7 5.5 0 2.1-1.6 3.8-3.7 3.8z"/>
+            </svg>
+            <span id="streak-value">0 giorni</span>
+          </dd>
+          <dd class="stat__note">
+            <span id="streak-note">Accendila oggi</span>
+            <span class="stat__progress" aria-hidden="true"><span class="stat__progress-fill" id="streak-progress"></span></span>
+          </dd>
+        </div>
+        <div class="stat stat--points" id="stat-points">
+          <dt class="stat__label"><span class="stat__name">Punti</span></dt>
+          <dd class="stat__value">
+            <svg class="stat__icon star" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 2.6l2.83 5.73 6.32.92-4.57 4.46 1.08 6.29L12 17.03l-5.66 2.97 1.08-6.29-4.57-4.46 6.32-.92z"/>
+            </svg>
+            <span id="points-value">0</span>
+          </dd>
+          <dd class="stat__note" id="points-today">+0 oggi</dd>
         </div>
       </dl>
     </div>

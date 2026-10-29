@@ -3,7 +3,7 @@
   'use strict';
 
   const { test, assert, assertEqual } = window.AuraTest;
-  const { utils, tasks: T, storage } = window.Aura;
+  const { utils, tasks: T, points: P, storage } = window.Aura;
 
   // Attività di prova con tutti i campi; `overrides` cambia solo quelli che servono.
   function make(overrides) {
@@ -16,6 +16,7 @@
       done: false,
       createdAt: 1,
       completedAt: null,
+      pointsAwarded: null,
       ...overrides
     };
   }
@@ -73,6 +74,14 @@
     assertEqual(utils.formatDateLabel('2027-01-04', today), 'lun 4 gen 2027');
   });
 
+  test('formatNumber usa il separatore delle migliaia italiano', () => {
+    // Con 4 cifre l'italiano di solito non separa ("1240"): si controllano solo i casi certi.
+    assertEqual(utils.formatNumber(0), '0');
+    assertEqual(utils.formatNumber(240), '240');
+    assertEqual(utils.formatNumber(12345), '12.345');
+    assertEqual(utils.formatNumber(1234567), '1.234.567');
+  });
+
   test('formatLongDate e greeting', () => {
     assertEqual(utils.formatLongDate(new Date(2026, 9, 29)), 'Giovedì 29 ottobre');
     assertEqual(utils.greeting(new Date(2026, 9, 29, 8)), 'Buongiorno');
@@ -105,18 +114,18 @@
     assert(typeof task.id === 'string' && task.id.length > 0, 'id presente');
     assertEqual({ ...task, id: 'x' }, {
       id: 'x', title: 'Leggere', duration: 20, energy: 'low', date: '2026-10-30',
-      done: false, createdAt: 1000, completedAt: null
+      done: false, createdAt: 1000, completedAt: null, pointsAwarded: null
     });
   });
 
-  test('setDone imposta e azzera completedAt senza modificare l\'originale', () => {
+  test('setDone imposta e azzera completedAt e punti senza modificare l\'originale', () => {
     const list = [make({ id: 'a' }), make({ id: 'b' })];
-    const done = T.setDone(list, 'a', true, 5000);
-    assertEqual([done[0].done, done[0].completedAt], [true, 5000]);
+    const done = T.setDone(list, 'a', true, 5000, 24);
+    assertEqual([done[0].done, done[0].completedAt, done[0].pointsAwarded], [true, 5000, 24]);
     assertEqual(list[0].done, false, 'originale intatto');
     assert(done[1] === list[1], 'le altre attività restano le stesse');
     const undone = T.setDone(done, 'a', false, 6000);
-    assertEqual([undone[0].done, undone[0].completedAt], [false, null]);
+    assertEqual([undone[0].done, undone[0].completedAt, undone[0].pointsAwarded], [false, null, null]);
   });
 
   test('removeTask + restoreTask rimettono l\'attività al suo posto', () => {
@@ -174,23 +183,22 @@
     assertEqual(completed.map(t => t.id), ['y', 'x']);
   });
 
-  test('summarize conta solo le completate di oggi', () => {
-    const thisMorning = new Date(2026, 9, 29, 10).getTime();
-    const lastNight = new Date(2026, 9, 28, 23, 50).getTime();
+  test('summarize conta le attività da fare e la loro durata', () => {
     const list = [
       make({ duration: 20 }),
       make({ duration: 25 }),
-      make({ done: true, completedAt: thisMorning }),
-      make({ done: true, completedAt: lastNight })
+      make({ done: true, completedAt: 9, pointsAwarded: 24 })
     ];
-    assertEqual(T.summarize(list, '2026-10-29'), { openCount: 2, openMinutes: 45, doneToday: 1 });
+    assertEqual(T.summarize(list), { openCount: 2, openMinutes: 45 });
   });
 
   /* ---------- Salvataggio ---------- */
 
-  test('storage.parse: nessun dato → elenco vuoto', () => {
-    assertEqual(storage.parse(null), { version: storage.SCHEMA_VERSION, tasks: [] });
-    assertEqual(storage.parse(''), { version: storage.SCHEMA_VERSION, tasks: [] });
+  test('storage.parse: nessun dato → elenco vuoto e registro vuoto', () => {
+    const empty = { version: storage.SCHEMA_VERSION, tasks: [], stats: P.emptyStats() };
+    assertEqual(storage.parse(null), empty);
+    assertEqual(storage.parse(''), empty);
+    assertEqual(storage.SCHEMA_VERSION, 2);
   });
 
   test('storage.parse: testo illeggibile o formato sbagliato → errore', () => {
@@ -226,12 +234,14 @@
   test('storage.parse: conserva i campi sconosciuti e non abbassa la versione', () => {
     const raw = JSON.stringify({
       version: 7,
-      stats: { points: 10 },
+      future: { x: 1 },
+      stats: { totalPoints: 10, bestStreak: 1, milestones: [], days: { '2026-10-29': { done: 1, points: 10 } }, level: 2 },
       tasks: [{ id: 'a', title: 'X', duration: 10, energy: 'low', date: null, done: false, createdAt: 1, completedAt: null, extra: 'ok' }]
     });
     const state = storage.parse(raw);
     assertEqual(state.version, 7);
-    assertEqual(state.stats, { points: 10 });
+    assertEqual(state.future, { x: 1 });
+    assertEqual([state.stats.totalPoints, state.stats.level], [10, 2], 'registro e suoi campi sconosciuti');
     assertEqual(state.tasks[0].extra, 'ok');
   });
 
@@ -239,8 +249,57 @@
     assertEqual(storage.parse(JSON.stringify({ tasks: [] })).version, storage.SCHEMA_VERSION);
   });
 
+  test('storage.parse: dalla v1 alla v2 ricostruisce punti e registro', () => {
+    const at = (day, hour) => new Date(2026, 9, day, hour).getTime();
+    const raw = JSON.stringify({
+      version: 1,
+      tasks: [
+        { id: 'a', title: 'Spesa', duration: 30, energy: 'medium', date: null, done: true, createdAt: 1, completedAt: at(27, 18) },
+        { id: 'b', title: 'Palestra', duration: 60, energy: 'high', date: null, done: true, createdAt: 1, completedAt: at(28, 9) },
+        { id: 'c', title: 'Email', duration: 15, energy: 'low', date: null, done: true, createdAt: 1, completedAt: at(29, 8) },
+        { id: 'd', title: 'Libro', duration: 15, energy: 'low', date: null, done: true, createdAt: 1, completedAt: at(29, 23) },
+        { id: 'e', title: 'Da fare', duration: 20, energy: 'low', date: null, done: false, createdAt: 1, completedAt: null }
+      ]
+    });
+    const state = storage.parse(raw);
+    assertEqual(state.version, 2);
+    assertEqual(state.tasks.map(t => t.pointsAwarded), [24, 44, 13, 13, null]);
+    assertEqual(state.stats.days, {
+      '2026-10-27': { done: 1, points: 24 },
+      '2026-10-28': { done: 1, points: 44 },
+      '2026-10-29': { done: 2, points: 26 }
+    });
+    assertEqual([state.stats.totalPoints, state.stats.bestStreak], [94, 3]);
+    assertEqual(state.stats.milestones, [3], 'traguardo già superato: segnato senza festa');
+  });
+
+  test('storage.sanitizeStats scarta i giorni non validi e conserva i campi sconosciuti', () => {
+    const stats = storage.sanitizeStats({
+      totalPoints: -5,
+      bestStreak: 'tanti',
+      milestones: [7, 3, 3, 0, 'x'],
+      days: {
+        '2026-10-28': { done: 1, points: 24 },
+        '2026-10-29': { done: 2, points: -1, note: 'ok' },
+        '2026-02-30': { done: 1, points: 10 },
+        '2026-10-27': { done: 0, points: 10 },
+        ieri: { done: 1, points: 5 }
+      },
+      future: true
+    });
+    assertEqual(Object.keys(stats.days).sort(), ['2026-10-28', '2026-10-29']);
+    assertEqual(stats.days['2026-10-29'], { done: 2, points: 0, note: 'ok' });
+    assertEqual([stats.totalPoints, stats.bestStreak], [24, 2], 'totale e record ricalcolati dai giorni');
+    assertEqual(stats.milestones, [3, 7]);
+    assertEqual(stats.future, true);
+  });
+
   test('storage: serialize e parse sono l\'uno l\'inverso dell\'altro', () => {
-    const state = { version: storage.SCHEMA_VERSION, tasks: [make({ id: 'a', title: 'Andata e ritorno' })] };
+    const state = {
+      version: storage.SCHEMA_VERSION,
+      tasks: [make({ id: 'a', title: 'Andata e ritorno' }), make({ id: 'b', done: true, completedAt: 9, pointsAwarded: 24 })],
+      stats: { totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } } }
+    };
     assertEqual(storage.parse(storage.serialize(state)), state);
   });
 })();

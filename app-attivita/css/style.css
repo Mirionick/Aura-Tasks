@@ -62,6 +62,23 @@
   --glass-border: rgba(255, 255, 255, .18);
   --glass-hover: rgba(255, 255, 255, .14);
 
+  /* Ricompense: serie (fiamma) e punti (stella). Il testo bianco sul riquadro acceso resta ≥ 4,5:1 */
+  --streak-tile-a: #c2410c;
+  --streak-tile-b: #be185d;
+  --streak-border: rgba(255, 200, 150, .55);
+  --streak-glow: rgba(255, 128, 64, .6);
+  --streak-ring: rgba(255, 214, 140, .95);
+  --flame-off: rgba(255, 255, 255, .42);
+  --flame-outer: #ffc94d;
+  --flame-core: #fff5d6;
+  --star: #ffd23f;
+  --badge-bg: rgba(20, 8, 50, .3);
+  --progress-track: rgba(255, 255, 255, .16);
+  --progress-fill: #ffd78a;
+  --points-chip-bg: #ffd23f;
+  --points-chip-text: #3a2700;
+  --shadow-points-chip: 0 6px 18px rgba(150, 90, 0, .35);
+
   /* Profondità: nel chiaro ombre morbide */
   --card-border: rgba(23, 21, 43, .04);
   --shadow-card: 0 1px 2px rgba(23, 21, 43, .05), 0 2px 8px rgba(40, 30, 110, .05);
@@ -145,6 +162,22 @@
   --glass: rgba(255, 255, 255, .06);
   --glass-border: rgba(255, 255, 255, .1);
   --glass-hover: rgba(255, 255, 255, .11);
+
+  --streak-tile-a: #b23a0e;
+  --streak-tile-b: #a8174f;
+  --streak-border: rgba(255, 170, 120, .35);
+  --streak-glow: rgba(255, 110, 60, .45);
+  --streak-ring: rgba(255, 200, 130, .85);
+  --flame-off: rgba(244, 242, 255, .35);
+  --flame-outer: #ffc24a;
+  --flame-core: #fff1cc;
+  --star: #ffcf3d;
+  --badge-bg: rgba(0, 0, 0, .3);
+  --progress-track: rgba(255, 255, 255, .12);
+  --progress-fill: #ffcf7a;
+  --points-chip-bg: #ffcf3d;
+  --points-chip-text: #2e1f00;
+  --shadow-points-chip: 0 6px 18px rgba(0, 0, 0, .5);
 
   --card-border: rgba(255, 255, 255, .06);
   --shadow-card: none;
@@ -323,6 +356,71 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+/* Serie e punti: seconda riga di riquadri. Solo flex in riga e grid (niente flex: 1 in colonna, vedi Safari) */
+.stats--rewards { grid-template-columns: 1fr 1fr; margin-top: 8px; }
+.stats--rewards .stat { position: relative; overflow: hidden; isolation: isolate; }
+
+.stats--rewards .stat__label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.stat__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.stat__badge {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--badge-bg);
+  color: var(--hero-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.stats--rewards .stat__value { display: flex; align-items: center; gap: 6px; transform-origin: left center; }
+.stat__icon { flex: none; width: 22px; height: 22px; }
+
+.stat__note {
+  margin: 1px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hero-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Barra verso il prossimo traguardo, sul bordo inferiore del riquadro */
+.stat__progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--progress-track); }
+.stat__progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--progress-fill);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform .6s var(--ease-out);
+}
+
+/* Serie "accesa" (oggi c'è già un completamento): il riquadro si scalda */
+.stat--streak::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(135deg, var(--streak-tile-a), var(--streak-tile-b));
+  opacity: 0;
+  transition: opacity .5s ease;
+}
+.stat--streak.is-lit { border-color: var(--streak-border); }
+.stat--streak.is-lit::before { opacity: 1; }
+.stat--streak.is-lit .stat__label,
+.stat--streak.is-lit .stat__note { color: var(--hero-text); }
+
+.flame { transform-origin: 50% 85%; }
+.flame__outer { fill: var(--flame-off); transition: fill .4s ease; }
+.flame__core { fill: transparent; transition: fill .4s ease; }
+.is-lit .flame__outer { fill: var(--flame-outer); }
+.is-lit .flame__core { fill: var(--flame-core); }
+
+.star { fill: var(--star); }
+
 /* ---------- 4. Lista, sezioni e card ---------- */
 
 .content {
@@ -408,6 +506,7 @@ button {
 }
 
 .check__box {
+  position: relative;
   display: grid;
   place-items: center;
   width: 26px;
@@ -434,6 +533,17 @@ button {
 .check__input:checked + .check__box { background: var(--accent); border-color: var(--accent); }
 .check__input:checked + .check__box .icon { opacity: 1; transform: none; }
 .check__input:focus-visible + .check__box { outline: 2px solid var(--accent-text); outline-offset: 3px; }
+
+/* Anello che si allarga quando si completa un'attività */
+.check__box::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
 
 .task__body { flex: 1; min-width: 0; padding: 11px 0 9px; }
 
@@ -986,6 +1096,41 @@ button {
   .toast__action:hover { background: var(--glass-hover); }
 }
 
+/* "+24" che sale dalla spunta e coriandoli dei traguardi: app.js li crea, li anima e li toglie */
+.points-float {
+  position: fixed;
+  z-index: 45;
+  top: 0;
+  left: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--points-chip-bg);
+  color: var(--points-chip-text);
+  box-shadow: var(--shadow-points-chip);
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.confetti { position: fixed; z-index: 45; top: 0; left: 0; width: 0; height: 0; pointer-events: none; }
+.confetti__piece {
+  position: absolute;
+  top: -5px;
+  left: -3.5px;
+  width: 7px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.confetti__piece:nth-child(5n + 1) { background: var(--flame-outer); }
+.confetti__piece:nth-child(5n + 2) { background: var(--high); }
+.confetti__piece:nth-child(5n + 3) { background: var(--low); }
+.confetti__piece:nth-child(5n + 4) { background: var(--star); }
+.confetti__piece:nth-child(3n) { width: 8px; height: 8px; border-radius: 50%; }
+
 /* Lista vuota */
 .empty { padding: 28px 16px 8px; text-align: center; }
 .empty__art { display: block; width: 168px; height: 148px; margin: 0 auto 8px; }
@@ -1039,10 +1184,29 @@ button {
 @keyframes task-glow { 0%, 35% { box-shadow: 0 0 0 2px var(--accent), 0 8px 24px var(--focus-ring); } }
 .task--new { animation: task-in .4s var(--ease-out), task-glow 1.8s ease-out; }
 
-/* Completamento: la spunta "salta", il titolo si barra */
+/* Completamento: la spunta "salta" ed emette un anello, il titolo si barra */
 @keyframes check-pop { 45% { transform: scale(1.22); } }
+@keyframes check-ring { from { opacity: .75; transform: scale(.8); } to { opacity: 0; transform: scale(2.1); } }
 .task--completing .check__box { animation: check-pop .38s var(--ease-spring); }
+.task--completing .check__box::after { animation: check-ring .45s var(--ease-out); }
 .task--completing .task__title { color: var(--text-3); text-decoration: line-through; }
+
+/* Ricompense. Si anima solo il contenuto dei riquadri: animare un elemento con backdrop-filter fa sfarfallare Safari */
+@keyframes flame-ignite { 0% { transform: scale(.3); opacity: .3; } 55% { transform: scale(1.35); opacity: 1; } }
+@keyframes flame-flicker {
+  30% { transform: scale(1.07, .94) rotate(-4deg); }
+  65% { transform: scale(.95, 1.07) rotate(3deg); }
+}
+@keyframes value-pop { 35% { transform: scale(1.12); } }
+@keyframes tile-glow { 30% { box-shadow: 0 0 0 2px var(--streak-ring), 0 0 32px 6px var(--streak-glow); } }
+@keyframes star-spin { 60% { transform: rotate(160deg) scale(1.3); } to { transform: rotate(144deg); } }
+
+.stat--streak.is-flickering .flame { animation: flame-flicker 1.2s ease-in-out 3; }
+.stat--streak.is-igniting .flame { animation: flame-ignite .6s var(--ease-spring), flame-flicker 1.2s ease-in-out .6s 2; }
+.stat--streak.is-celebrating { animation: tile-glow 1s ease-out; }
+.stat--streak.is-celebrating .stat__value { animation: value-pop .6s var(--ease-spring); }
+.stat--points.is-bumping .stat__value { animation: value-pop .45s var(--ease-spring); }
+.stat--points.is-bumping .star { animation: star-spin .6s var(--ease-out); }
 
 /* Eliminazione: la card scivola via */
 @keyframes task-out { to { opacity: 0; transform: translateX(28px); } }
