@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>Aura Tasks</title>
+  <meta name="description" content="Aura Tasks: le tue attività quotidiane, con durata stimata ed energia richiesta.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#4b2fd0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Aura Tasks">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Il tema va applicato prima che la pagina appaia: per questo theme.js non ha "defer". -->
+  <script src="js/theme.js"></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/tasks.js" defer></script>
+  <script src="js/storage.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <!-- Icone dell'app, richiamate con <use href="#…">. Il tratto usa currentColor e segue il tema. -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+    <symbol id="i-theme-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-theme-light" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6L6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-theme-dark" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  </svg>
+
+  <!-- Su iPhone, con l'app installata, la barra di stato è sopra la pagina: questa fascia la tiene leggibile quando si scorre. -->
+  <div class="statusbar-scrim" id="statusbar-scrim" aria-hidden="true"></div>
+
+  <header class="hero" id="hero">
+    <div class="hero__inner">
+      <div class="hero__bar">
+        <div class="brand">
+          <svg class="brand__logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <circle class="brand__halo" cx="16" cy="16" r="15"/>
+            <circle class="brand__core" cx="16" cy="16" r="9.5"/>
+            <path class="brand__check" d="M12 16.4l2.9 2.9 5.3-5.8"/>
+          </svg>
+          <h1 class="brand__name">Aura Tasks</h1>
+        </div>
+        <button class="icon-btn icon-btn--glass" id="theme-button" type="button" aria-haspopup="dialog" aria-label="Cambia tema">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-theme-auto"></use></svg>
+        </button>
+      </div>
+
+      <p class="hero__greeting" id="greeting">Ciao</p>
+      <p class="hero__date" id="today-label">Oggi</p>
+
+      <dl class="stats">
+        <div class="stat">
+          <dt class="stat__label">Da fare</dt>
+          <dd class="stat__value" id="stat-open">0</dd>
+        </div>
+        <div class="stat">
+          <dt class="stat__label">Tempo stimato</dt>
+          <dd class="stat__value" id="stat-time">0 min</dd>
+        </div>
+        <div class="stat">
+          <dt class="stat__label">Fatte oggi</dt>
+          <dd class="stat__value" id="stat-done">0</dd>
+        </div>
+      </dl>
+    </div>
+  </header>
+
+  <main class="content" id="main" tabindex="-1">
+    <div id="sections"></div>
+
+    <section class="empty" id="empty-state" hidden>
+      <svg class="empty__art" viewBox="0 0 160 140" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="aura-core-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" class="aura-stop-a"/>
+            <stop offset="1" class="aura-stop-b"/>
+          </linearGradient>
+        </defs>
+        <circle class="aura-ring aura-ring--outer" cx="80" cy="70" r="62"/>
+        <circle class="aura-ring aura-ring--inner" cx="80" cy="70" r="46"/>
+        <circle class="aura-core" cx="80" cy="70" r="30"/>
+        <path class="aura-check" d="M67 70.5l9 9 17-18"/>
+        <circle class="aura-dot aura-dot--pink" cx="128" cy="30" r="4"/>
+        <circle class="aura-dot aura-dot--teal" cx="30" cy="112" r="3.5"/>
+        <path class="aura-spark" d="M133 92l2.2 5.3 5.3 2.2-5.3 2.2-2.2 5.3-2.2-5.3-5.3-2.2 5.3-2.2z"/>
+        <path class="aura-spark aura-spark--small" d="M28 24l1.5 3.5 3.5 1.5-3.5 1.5-1.5 3.5-1.5-3.5-3.5-1.5 3.5-1.5z"/>
+      </svg>
+      <h2 class="empty__title" id="empty-title">Tutto libero ✨</h2>
+      <p class="empty__text" id="empty-text">Aggiungi la tua prima attività con il pulsante qui sotto.</p>
+    </section>
+
+    <details class="completed" id="completed" hidden>
+      <summary class="completed__summary">
+        <span>Completate</span>
+        <span class="badge" id="completed-count">0</span>
+        <svg class="icon completed__chevron" aria-hidden="true" focusable="false"><use href="#i-chevron"></use></svg>
+      </summary>
+      <div class="completed__toolbar">
+        <button class="btn btn--ghost btn--small" id="clear-completed" type="button">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
+          Svuota
+        </button>
+      </div>
+      <ul class="task-list" id="completed-list"></ul>
+    </details>
+
+    <p class="footnote">
+      <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"></use></svg>
+      I dati restano solo su questo dispositivo.
+    </p>
+  </main>
+
+  <button class="fab" id="add-button" type="button" aria-haspopup="dialog">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
+    <span>Nuova attività</span>
+  </button>
+
+  <div class="toast" id="toast" role="status">
+    <span class="toast__text" id="toast-text"></span>
+    <button class="toast__action" id="toast-action" type="button" hidden>Annulla</button>
+  </div>
+
+  <!-- Foglio "Nuova attività" -->
+  <dialog class="sheet" id="add-sheet" aria-labelledby="add-sheet-title">
+    <form class="sheet__panel" id="add-form" novalidate autocomplete="off">
+      <header class="sheet__header">
+        <h2 class="sheet__title" id="add-sheet-title" tabindex="-1">Nuova attività</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Chiudi">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+
+      <div class="sheet__body">
+        <div class="field">
+          <label class="field__label" for="task-title">Cosa devi fare?</label>
+          <input class="input" id="task-title" name="title" type="text" maxlength="120"
+                 placeholder="Es. Rispondere alle email" enterkeyhint="done" autocapitalize="sentences"
+                 aria-describedby="err-title">
+          <p class="field__error" id="err-title" hidden></p>
+        </div>
+
+        <fieldset class="field">
+          <legend class="field__label">Durata stimata</legend>
+          <div class="stepper">
+            <button class="stepper__btn" type="button" data-step="-1" aria-label="Togli 5 minuti">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-minus"></use></svg>
+            </button>
+            <label class="stepper__value">
+              <span class="sr-only">Minuti</span>
+              <input class="stepper__input" id="task-duration" name="duration" type="number" inputmode="numeric"
+                     min="1" max="600" step="1" value="30" enterkeyhint="done" aria-describedby="err-duration">
+              <span class="stepper__unit" aria-hidden="true">min</span>
+            </label>
+            <button class="stepper__btn" type="button" data-step="1" aria-label="Aggiungi 5 minuti">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
+            </button>
+          </div>
+          <div class="chips" id="duration-chips">
+            <button class="chip" type="button" data-minutes="5" aria-pressed="false" aria-label="5 minuti">5</button>
+            <button class="chip" type="button" data-minutes="15" aria-pressed="false" aria-label="15 minuti">15</button>
+            <button class="chip" type="button" data-minutes="30" aria-pressed="true" aria-label="30 minuti">30</button>
+            <button class="chip" type="button" data-minutes="45" aria-pressed="false" aria-label="45 minuti">45</button>
+            <button class="chip" type="button" data-minutes="60" aria-pressed="false" aria-label="60 minuti">60</button>
+            <button class="chip" type="button" data-minutes="90" aria-pressed="false" aria-label="90 minuti">90</button>
+          </div>
+          <p class="field__error" id="err-duration" hidden></p>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend class="field__label">Energia richiesta</legend>
+          <div class="segmented">
+            <label class="segment segment--low">
+              <input type="radio" name="energy" value="low" aria-describedby="energy-hint">
+              <span class="segment__body">
+                <svg class="energy-bars" data-level="1" viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+                  <rect x="0" y="7" width="3.2" height="5" rx="1.2"/><rect x="5.4" y="3.5" width="3.2" height="8.5" rx="1.2"/><rect x="10.8" y="0" width="3.2" height="12" rx="1.2"/>
+                </svg>
+                Bassa
+              </span>
+            </label>
+            <label class="segment segment--medium">
+              <input type="radio" name="energy" value="medium" checked aria-describedby="energy-hint">
+              <span class="segment__body">
+                <svg class="energy-bars" data-level="2" viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+                  <rect x="0" y="7" width="3.2" height="5" rx="1.2"/><rect x="5.4" y="3.5" width="3.2" height="8.5" rx="1.2"/><rect x="10.8" y="0" width="3.2" height="12" rx="1.2"/>
+                </svg>
+                Media
+              </span>
+            </label>
+            <label class="segment segment--high">
+              <input type="radio" name="energy" value="high" aria-describedby="energy-hint">
+              <span class="segment__body">
+                <svg class="energy-bars" data-level="3" viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+                  <rect x="0" y="7" width="3.2" height="5" rx="1.2"/><rect x="5.4" y="3.5" width="3.2" height="8.5" rx="1.2"/><rect x="10.8" y="0" width="3.2" height="12" rx="1.2"/>
+                </svg>
+                Alta
+              </span>
+            </label>
+          </div>
+          <p class="field__hint" id="energy-hint">Richiede un po' di attenzione.</p>
+          <p class="field__error" id="err-energy" hidden></p>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend class="field__label">Data <span class="field__optional">· facoltativa</span></legend>
+          <div class="chips" id="date-chips">
+            <button class="chip" type="button" data-date="none" aria-pressed="true">Nessuna</button>
+            <button class="chip" type="button" data-date="today" aria-pressed="false">Oggi</button>
+            <button class="chip" type="button" data-date="tomorrow" aria-pressed="false">Domani</button>
+          </div>
+          <div class="date-picker" id="date-picker">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-calendar"></use></svg>
+            <span class="date-picker__label" id="date-label" aria-hidden="true">Scegli un altro giorno</span>
+            <input class="date-picker__input" id="task-date" name="date" type="date"
+                   aria-label="Scegli un giorno" aria-describedby="err-date">
+          </div>
+          <p class="field__error" id="err-date" hidden></p>
+        </fieldset>
+      </div>
+
+      <footer class="sheet__footer">
+        <button class="btn btn--primary btn--block" type="submit">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
+          Aggiungi attività
+        </button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Foglio "Tema" -->
+  <dialog class="sheet sheet--small" id="theme-sheet" aria-labelledby="theme-sheet-title">
+    <div class="sheet__panel">
+      <header class="sheet__header">
+        <h2 class="sheet__title" id="theme-sheet-title" tabindex="-1">Tema</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Chiudi">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+      <div class="sheet__body">
+        <fieldset class="theme-options">
+          <legend class="sr-only">Scegli il tema</legend>
+          <label class="theme-option">
+            <input type="radio" name="theme" value="auto">
+            <span class="theme-preview theme-preview--auto" aria-hidden="true"><span></span><span></span></span>
+            <span class="theme-option__text">
+              <span class="theme-option__name">Automatico</span>
+              <span class="theme-option__desc">Segue le impostazioni del telefono</span>
+            </span>
+            <svg class="icon theme-option__check" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+          </label>
+          <label class="theme-option">
+            <input type="radio" name="theme" value="light">
+            <span class="theme-preview theme-preview--light" aria-hidden="true"><span></span><span></span></span>
+            <span class="theme-option__text">
+              <span class="theme-option__name">Chiaro</span>
+              <span class="theme-option__desc">Luminoso, ideale di giorno</span>
+            </span>
+            <svg class="icon theme-option__check" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+          </label>
+          <label class="theme-option">
+            <input type="radio" name="theme" value="dark">
+            <span class="theme-preview theme-preview--dark" aria-hidden="true"><span></span><span></span></span>
+            <span class="theme-option__text">
+              <span class="theme-option__name">Scuro</span>
+              <span class="theme-option__desc">Riposante per gli occhi, perfetto la sera</span>
+            </span>
+            <svg class="icon theme-option__check" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+          </label>
+        </fieldset>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modello di una card attività: app.js lo copia e lo riempie con textContent (mai innerHTML). -->
+  <template id="task-template">
+    <li class="task">
+      <label class="check">
+        <input class="check__input" type="checkbox">
+        <span class="check__box" aria-hidden="true">
+          <svg class="icon" focusable="false"><use href="#i-check"></use></svg>
+        </span>
+      </label>
+      <div class="task__body">
+        <p class="task__title"></p>
+        <div class="task__meta">
+          <span class="meta">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg>
+            <span class="meta__time"></span>
+          </span>
+          <span class="pill">
+            <svg class="energy-bars" viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+              <rect x="0" y="7" width="3.2" height="5" rx="1.2"/><rect x="5.4" y="3.5" width="3.2" height="8.5" rx="1.2"/><rect x="10.8" y="0" width="3.2" height="12" rx="1.2"/>
+            </svg>
+            <span class="sr-only">Energia</span>
+            <span class="pill__text"></span>
+          </span>
+          <span class="meta meta--date">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-calendar"></use></svg>
+            <span class="meta__date"></span>
+          </span>
+        </div>
+      </div>
+      <button class="icon-btn task__delete" type="button" data-action="delete">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
+      </button>
+    </li>
+  </template>
+</body>
+</html>
