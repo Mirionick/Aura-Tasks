@@ -857,7 +857,8 @@ button {
 .sheet.is-closing { animation: sheet-down .22s ease-in forwards; }
 .sheet.is-closing::backdrop { animation: fade-out .22s ease-in forwards; }
 
-.sheet__panel { display: flex; flex-direction: column; flex: 1; min-height: 0; margin: 0; }
+/* "1 1 auto" e non "flex: 1": su Safari la base 0% in un dialog ad altezza automatica fa collassare il foglio a 0 px */
+.sheet__panel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; margin: 0; }
 
 .sheet__header {
   display: flex;
@@ -869,7 +870,7 @@ button {
 .sheet__title { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
 
 .sheet__body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   padding: 10px 22px 4px;
   overflow-y: auto;
