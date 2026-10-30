@@ -6,7 +6,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, points: P, storage, theme } = Aura;
+  const { utils, tasks: T, nlp, points: P, storage, theme } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -42,6 +42,8 @@
     addSheet: byId('add-sheet'),
     addHeading: byId('add-sheet-title'),
     form: byId('add-form'),
+    phrase: byId('task-phrase'),
+    phraseSummary: byId('phrase-summary'),
     title: byId('task-title'),
     duration: byId('task-duration'),
     durationChips: byId('duration-chips'),
@@ -50,6 +52,12 @@
     datePicker: byId('date-picker'),
     dateInput: byId('task-date'),
     dateLabel: byId('date-label'),
+    timeField: byId('time-field'),
+    timePicker: byId('time-picker'),
+    timeInput: byId('task-time'),
+    timeLabel: byId('time-label'),
+    timeClear: byId('time-clear'),
+    timeHint: byId('time-hint'),
     themeButton: byId('theme-button'),
     themeSheet: byId('theme-sheet'),
     themeHeading: byId('theme-sheet-title'),
@@ -61,8 +69,8 @@
 
   const THEME_LABELS = { auto: 'Automatico', light: 'Chiaro', dark: 'Scuro' };
   const DATED_SECTIONS = ['overdue', 'upcoming']; // nelle altre sezioni la data è già nel titolo
-  const ERROR_FIELDS = ['title', 'duration', 'energy', 'date'];
-  const FIELD_INPUTS = { title: els.title, duration: els.duration, date: els.dateInput };
+  const ERROR_FIELDS = ['title', 'duration', 'energy', 'date', 'time'];
+  const FIELD_INPUTS = { title: els.title, duration: els.duration, date: els.dateInput, time: els.timeInput };
 
   const loaded = storage.load();
   let state = loaded.state;
@@ -227,6 +235,8 @@
     checkbox.setAttribute('aria-label', (task.done ? 'Segna come da fare: ' : 'Segna come completata: ') + task.title);
 
     node.querySelector('.task__title').textContent = task.title;
+    if (task.time) node.querySelector('.meta__at').textContent = task.time;
+    else node.querySelector('.meta--at').remove();
     node.querySelector('.meta__time').textContent = utils.formatDuration(task.duration);
 
     const pill = node.querySelector('.pill');
@@ -527,16 +537,76 @@
 
   /* ---------- Foglio "Nuova attività" ---------- */
 
-  function openAddSheet() {
+  /** Apre il foglio vuoto, oppure già compilato da una frase (per esempio dal link ?add=). */
+  function openAddSheet(phrase) {
     els.form.reset();
     setErrors({});
     els.dateInput.min = utils.todayISO();
+    phraseBase = null;
+    els.phraseSummary.textContent = PHRASE_HINT;
     syncDuration();
     syncEnergyHint();
     syncDate();
+    if (phrase) {
+      els.phrase.value = phrase;
+      applyPhrase();
+    }
     // Sul computer si scrive subito; sul telefono prima si vede tutto il modulo (la tastiera ne coprirebbe metà).
-    setAutofocus(els.addSheet, finePointer.matches ? els.title : els.addHeading);
+    // Con una frase già capita si mostra il risultato, da controllare prima di "Aggiungi".
+    setAutofocus(els.addSheet, finePointer.matches && !phrase ? els.title : els.addHeading);
     openSheet(els.addSheet);
+  }
+
+  /* ---------- Frase libera ---------- */
+
+  const PHRASE_HINT = 'Giorno, ora, durata ed energia: i campi sotto si compilano da soli.';
+  let phraseBase = null; // valori dei campi prima della frase: la frase li sovrascrive solo dove dice qualcosa
+
+  function readFields() {
+    return {
+      title: els.title.value,
+      duration: els.duration.value,
+      energy: els.form.elements.energy.value,
+      date: els.dateInput.value,
+      time: els.timeInput.value
+    };
+  }
+
+  function writeFields(values) {
+    els.title.value = values.title;
+    els.duration.value = values.duration;
+    const radio = els.form.querySelector('input[name="energy"][value="' + values.energy + '"]');
+    if (radio) radio.checked = true;
+    els.dateInput.value = values.date;
+    els.timeInput.value = values.time;
+    syncDuration();
+    syncEnergyHint();
+    syncDate(); // abilita l'ora solo se c'è un giorno
+  }
+
+  function applyPhrase() {
+    if (!phraseBase) phraseBase = readFields();
+    const parsed = nlp.parseTaskText(els.phrase.value, new Date());
+    const next = { ...phraseBase };
+    if (parsed.title) next.title = parsed.title;
+    if (parsed.duration) next.duration = String(parsed.duration);
+    if (parsed.energy) next.energy = parsed.energy;
+    if (parsed.date) next.date = parsed.date;
+    if (parsed.time) next.time = parsed.time;
+    writeFields(next);
+    setErrors({});
+    els.phraseSummary.textContent = phraseSummary(parsed);
+  }
+
+  /** "Capito: Domani · alle 10:00 · 30 min · energia alta". */
+  function phraseSummary(parsed) {
+    if (!els.phrase.value.trim()) return PHRASE_HINT;
+    const parts = [];
+    if (parsed.date) parts.push(utils.formatDateLabel(parsed.date, utils.todayISO()));
+    if (parsed.time) parts.push('alle ' + parsed.time);
+    if (parsed.duration) parts.push(utils.formatDuration(parsed.duration));
+    if (parsed.energy) parts.push('energia ' + T.ENERGY[parsed.energy].label.toLowerCase());
+    return parts.length ? 'Capito: ' + parts.join(' · ') : 'Lo uso come titolo.';
   }
 
   function syncDuration() {
@@ -570,6 +640,19 @@
     const valid = utils.isISODate(value);
     els.datePicker.classList.toggle('is-custom', valid && preset === null);
     els.dateLabel.textContent = valid ? utils.formatLongDate(utils.parseISODate(value)) : 'Scegli un altro giorno';
+    // L'ora ha senso solo con un giorno: senza, il campo è spento e vuoto.
+    els.timeField.disabled = !valid;
+    if (!valid) els.timeInput.value = '';
+    syncTime();
+  }
+
+  function syncTime() {
+    const value = els.timeInput.value;
+    const valid = utils.isTime(value);
+    els.timePicker.classList.toggle('is-custom', valid);
+    els.timeLabel.textContent = valid ? 'Alle ' + value : 'Scegli un orario';
+    els.timeClear.setAttribute('aria-pressed', String(!valid));
+    els.timeHint.hidden = !els.timeField.disabled;
   }
 
   function pickDatePreset(preset) {
@@ -601,7 +684,8 @@
       title: els.title.value,
       duration: els.duration.value,
       energy: els.form.elements.energy.value,
-      date: els.dateInput.value
+      date: els.dateInput.value,
+      time: els.timeInput.value
     });
     setErrors(errors);
     const firstError = ERROR_FIELDS.find(field => errors[field]);
@@ -663,6 +747,25 @@
     els.scrim.classList.toggle('is-visible', visible);
   }
 
+  /* ---------- Link "…/?add=testo" (per esempio dal Comando Rapido di Siri) ---------- */
+
+  /** Apre "Nuova attività" già compilato con il testo del link; il parametro sparisce dall'indirizzo. */
+  function openFromLink() {
+    let text = null;
+    try {
+      const params = new URLSearchParams(location.search);
+      text = params.get('add');
+      if (text === null) return;
+      params.delete('add');
+      const query = params.toString();
+      // Così ricaricando la pagina il foglio non si riapre.
+      history.replaceState(history.state, '', location.pathname + (query ? '?' + query : '') + location.hash);
+    } catch (err) {
+      // Da file:// alcuni browser non permettono di cambiare l'indirizzo: il foglio si apre lo stesso.
+    }
+    if (text !== null) openAddSheet(text.trim());
+  }
+
   /* ---------- Service worker (uso offline) ---------- */
 
   function registerServiceWorker() {
@@ -692,7 +795,7 @@
   });
 
   els.clearCompleted.addEventListener('click', onClearCompleted);
-  els.addButton.addEventListener('click', openAddSheet);
+  els.addButton.addEventListener('click', () => openAddSheet());
   els.form.addEventListener('submit', onSubmit);
 
   els.title.addEventListener('input', () => setError('title', null));
@@ -722,6 +825,27 @@
     setError('date', null);
   });
   els.dateInput.addEventListener('change', syncDate);
+  els.timeInput.addEventListener('input', () => {
+    syncTime();
+    setError('time', null);
+  });
+  els.timeInput.addEventListener('change', syncTime);
+  els.timeClear.addEventListener('click', () => {
+    els.timeInput.value = '';
+    syncTime();
+    setError('time', null);
+  });
+
+  els.phrase.addEventListener('input', applyPhrase);
+  // Una modifica fatta a mano diventa la nuova base: la frase non la riporta indietro.
+  const forgetPhraseBase = event => {
+    if (event.target !== els.phrase) phraseBase = null;
+  };
+  els.form.addEventListener('input', forgetPhraseBase);
+  els.form.addEventListener('change', forgetPhraseBase);
+  els.form.addEventListener('click', event => {
+    if (event.target.closest('button')) phraseBase = null;
+  });
 
   els.themeButton.addEventListener('click', openThemeSheet);
   els.themeSheet.addEventListener('change', event => {
@@ -773,4 +897,5 @@
   // All'apertura la fiamma accesa fa qualche guizzo, poi si ferma (niente animazioni infinite).
   if (els.statStreak.classList.contains('is-lit')) flash(els.statStreak, 'is-flickering', 3800);
   if (loaded.warning) showToast(loaded.warning, { duration: 8000 });
+  openFromLink();
 })(window.Aura = window.Aura || {});

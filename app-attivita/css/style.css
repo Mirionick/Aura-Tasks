@@ -568,6 +568,7 @@ button {
 .meta { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
 .meta .icon { width: 15px; height: 15px; }
 .meta--overdue { color: var(--danger); font-weight: 600; }
+.meta--at { color: var(--accent-text); font-weight: 700; }
 
 .pill {
   display: inline-flex;
@@ -926,6 +927,17 @@ button {
   -webkit-appearance: none;
   appearance: none;
 }
+/* Ora: stesso selettore della data (input invisibile sopra l'etichetta), accanto il chip "Nessuna" */
+.time-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.time-row .date-picker { margin-top: 0; }
+.field--time:disabled .time-row { opacity: .5; }
+.field--time:disabled .date-picker__input { cursor: not-allowed; }
+
+/* Frase libera, con la scintilla a sinistra */
+.phrase { position: relative; }
+.phrase__icon { position: absolute; top: 50%; left: 14px; color: var(--accent-text); transform: translateY(-50%); pointer-events: none; }
+.input.phrase__input { padding-left: 44px; border-color: var(--accent); background: var(--accent-soft); }
+
 /* Sul computer, un clic in qualsiasi punto apre il calendario */
 .date-picker__input::-webkit-calendar-picker-indicator {
   position: absolute;
