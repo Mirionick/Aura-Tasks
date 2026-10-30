@@ -1,12 +1,24 @@
 # Aura Tasks — guida al progetto
 
-App web installabile (PWA) **in italiano** per gestire le attività quotidiane.
-Ogni attività ha un titolo, una durata stimata in minuti, un livello di energia richiesto (bassa/media/alta) e una data facoltativa.
-I dati restano nel `localStorage` del dispositivo: non c'è nessun server.
+App web installabile (PWA) **in italiano**: un **segretario personale** sul telefono.
 
-Oggi l'app sa: aggiungere, completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
-Ha anche la lista divisa per giorno, il riepilogo nell'intestazione, il tema Automatico/Chiaro/Scuro e l'uso offline.
-Ogni attività completata dà **punti**. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi "Punti e serie di giorni").
+## La visione
+Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase o con la voce ("domani alle 10 dentista"), e poi di **ricordarlo** al momento giusto.
+- Le scelte di prodotto si misurano su due domande:
+  - quanto è più veloce mettere dentro un impegno?
+  - quanto è più affidabile che venga ricordato?
+- Tutti i dati restano nel `localStorage` del dispositivo.
+- L'unica eccezione prevista a "niente server" è un piccolo server per le notifiche push (vedi "Funzioni future", punto 3). Riceverà solo l'orario e il testo dei promemoria.
+
+## Cosa sa fare oggi
+- **Attività**: ognuna ha titolo, durata stimata in minuti, livello di energia (bassa/media/alta), data facoltativa e **orario** facoltativo.
+- **Gestione**: aggiungere, completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
+- **Scrivere una frase**, che compila il modulo da sola ("domani alle 10 dentista 30 min").
+- **Aprire il link `…/?add=testo`**, che apre il modulo già compilato (vedi "Linguaggio naturale").
+- **Lista** divisa per giorno, con le attività in ordine d'ora.
+- **Riepilogo** nell'intestazione.
+- **Tema** Automatico/Chiaro/Scuro e **uso offline**.
+- **Punti e serie**: ogni attività completata dà punti. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi "Punti e serie di giorni").
 
 ---
 
@@ -72,16 +84,17 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 | `js/theme.js` | Tema Automatico/Chiaro/Scuro. Caricato nel `<head>` **senza `defer`** per applicare il tema prima del primo disegno (niente lampi) |
 | `js/utils.js` | Date locali, formattazione in italiano, saluto, id univoci |
 | `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, completamento, eliminazione e ripristino, sezioni, riepilogo |
+| `js/nlp.js` | Logica pura del linguaggio naturale: `parseTaskText(testo, adesso)` riconosce giorno, orario, durata ed energia in una frase |
 | `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione |
 | `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro |
 | `js/app.js` | Interfaccia: disegno, eventi, fogli, avvisi con "Annulla", riquadri di serie e punti con i loro effetti, registrazione del service worker. Unico file che tocca la pagina |
 | `sw.js` | Service worker per l'uso offline |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
-| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`): si aprono con `tests/index.html` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`): si aprono con `tests/index.html` |
 
-**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `points.js` → `storage.js` → `app.js`.
-- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.points`, `Aura.storage`).
+**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `storage.js` → `app.js`.
+- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.storage`).
 - `points.js` va prima di `storage.js`, che lo usa per la migrazione.
 
 Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
@@ -94,7 +107,7 @@ Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 La chiave `aura-tasks:data` contiene:
 ```json
 {
-  "version": 2,
+  "version": 3,
   "tasks": [
     {
       "id": "3f2c9a…",
@@ -102,6 +115,7 @@ La chiave `aura-tasks:data` contiene:
       "duration": 30,
       "energy": "medium",
       "date": "2026-10-30",
+      "time": "10:00",
       "done": true,
       "createdAt": 1793258400000,
       "completedAt": 1793290000000,
@@ -119,6 +133,7 @@ La chiave `aura-tasks:data` contiene:
 - `duration`: minuti interi tra 1 e 600 (`Aura.tasks.LIMITS`).
 - `energy`: `low` | `medium` | `high`. Etichetta, ordine (1/2/3) e frase d'aiuto sono in `Aura.tasks.ENERGY`.
 - `date`: `'YYYY-MM-DD'` **locale** oppure `null`.
+- `time`: `'HH:MM'` locale oppure `null`. Esiste **solo insieme a `date`**: `sanitizeTask()` lo azzera se manca il giorno, e nel modulo il campo "Ora" è spento finché non c'è una data. Nello stesso giorno le attività vanno in ordine d'ora, prima di quelle senza orario.
 - `createdAt` e `completedAt`: millisecondi (`Date.now()`). `completedAt` vale `null` se l'attività non è completata.
 - `pointsAwarded`: punti dati al completamento, oppure `null` se l'attività non è completata. "Annulla" toglie esattamente questo valore.
 - `stats` è il registro di punti e serie. È **separato dalle attività**: eliminarle o usare "Svuota" non cancella la storia.
@@ -133,6 +148,8 @@ La chiave `aura-tasks:data` contiene:
 1. `migrate()` mette `stats = null`.
 2. `parse()` ripulisce le attività e `sanitizeTask()` assegna `pointsAwarded` alle completate che non ce l'hanno.
 3. `parse()` ricostruisce `stats` con `Aura.points.rebuildStats()`. I traguardi già superati si segnano senza festa.
+
+**Dalla v2 alla v3**: `migrate()` cambia solo il numero di versione, e `sanitizeTask()` aggiunge `time: null` alle attività. Punti, registro e campi sconosciuti restano intatti, come verifica un test.
 
 I dati migrati vengono salvati alla prima modifica.
 
@@ -256,11 +273,126 @@ Note per i controlli automatici con Edge headless:
 
 **Idee per dopo**: livelli, statistiche settimanali dal registro, bonus punti per il focus.
 
+## Linguaggio naturale con orario e link ?add= (realizzata, gratuita)
+
+È il punto 1 della visione: catturare un impegno con una frase.
+
+**Interfaccia**
+- In cima al foglio "Nuova attività" c'è il campo **"Scrivi in una frase"**. Mentre scrivi, i campi sotto si compilano e restano modificabili. Una riga dice cosa è stato capito: "Capito: Domani · alle 10:00 · 30 min".
+- La frase sovrascrive solo i campi di cui parla. Se modifichi un campo a mano, quella diventa la nuova base.
+- **Campo "Ora"**: selettore nativo, più il chip "Nessuna". È spento finché non c'è un giorno, e togliere il giorno svuota l'ora.
+- L'orario compare sulla card con l'icona della sveglia.
+
+**Link `?add=`**: `https://mirionick.github.io/Aura-Tasks/app-attivita/?add=domani%20alle%2010%20dentista`
+- Apre il foglio **già compilato**: si controlla e si tocca "Aggiungi". Un errore di dettatura non finisce in lista da solo.
+- Il parametro viene tolto dall'indirizzo con `history.replaceState`, così ricaricando la pagina il foglio non si riapre.
+- Funziona anche offline, perché il service worker ignora la query.
+- È il punto d'aggancio per il Comando Rapido di Siri (punto 2).
+
+**Parser**: `Aura.nlp.parseTaskText(testo, adesso)` in `js/nlp.js`. È a regole, offline e senza API.
+- Restituisce `{ title, duration, energy, date, time }`. Un campo non riconosciuto vale `null`, e il titolo vale `''`.
+- `adesso` è **sempre un parametro**: serve per "oggi o domani?". Nei test si usa un adesso fisso: **giovedì 29/10/2026 alle 9:00**.
+- Le parole si riconoscono su una copia minuscola e senza accenti, lunga quanto il testo, così il titolo conserva gli accenti originali.
+- Ordine di lettura: prima l'orario, poi durata, data ed energia. Così "alle 10" non diventa una durata.
+- Nelle regex niente lookbehind né gruppi con nome: Safari meno recente non li supporta.
+
+Cosa riconosce:
+- **Orario**:
+  - "alle 10", "alle 10:30", "alle 10.30", "ore 15", "alle ore 9", "all'una", "a mezzogiorno", "a mezzanotte";
+  - "alle 8 di sera", "alle 3 del pomeriggio", "alle 5 di mattina".
+- **Regole sull'orario**:
+  - le ore **dalle 1 alle 7** senza "mattina" si intendono del pomeriggio: "alle 3" → 15:00, "alle 3:30" → 15:30;
+  - dalle 8 in su l'ora resta com'è;
+  - "stasera alle 9" → 21:00;
+  - un orario impossibile, come "alle 25", resta nel titolo;
+  - con un orario ma senza giorno: oggi, oppure domani se a quell'ora siamo già passati (l'ora esatta di adesso conta come passata).
+- **Durata**: "30 min", "30m", "30 minuti", "dieci minuti", "1h", "1 ora", "un'ora", "2 ore", "1h30", "1 ora e mezza", "mezz'ora", "un quarto d'ora", "tre quarti d'ora". Va da 1 a 600 minuti.
+- **Data**:
+  - "oggi", "stamattina" e "stasera" (= oggi), "domani", "dopodomani";
+  - "tra/fra 3 giorni", "tra una settimana";
+  - giorni della settimana ("venerdì", "venerdi", "ven"): sempre il prossimo, escluso oggi. "Venerdì prossimo" è quello della settimana dopo;
+  - "il 15" (il prossimo 15, oggi compreso), "15/11", "15-11-2026", "15 novembre". Senza anno vale la prossima data esistente: il 29/02 diventa il prossimo anno bisestile.
+- **Energia**:
+  - "energia bassa/media/alta";
+  - "facile", "leggera" e "veloce" → bassa;
+  - "impegnativa", "difficile", "pesante" e "concentrazione" → alta.
+- **Titolo**: il testo che resta, senza le preposizioni rimaste ai bordi ("alle", "il", "per"…), con l'iniziale maiuscola.
+
+**Esempi** (sono anche test, con adesso = giovedì 29/10/2026 alle 9:00):
+
+| Testo | Titolo | Durata | Energia | Data | Ora |
+|---|---|---|---|---|---|
+| "domani chiamare il dentista 10 min" | Chiamare il dentista | 10 | — | 2026-10-30 | — |
+| "palestra 1h energia alta venerdì" | Palestra | 60 | alta | 2026-10-30 | — |
+| "rispondere alle email mezz'ora facile" | Rispondere alle email | 30 | bassa | — | — |
+| "studiare storia un'ora e mezza il 15/11" | Studiare storia | 90 | — | 2026-11-15 | — |
+| "comprare il pane" | Comprare il pane | — | — | — | — |
+| "domani alle 10 dentista" | Dentista | — | — | 2026-10-30 | 10:00 |
+| "alle 3 dentista" | Dentista | — | — | 2026-10-29 | 15:00 |
+| "colazione alle 8:30" | Colazione | — | — | 2026-10-30 (già passata) | 08:30 |
+
+**Casi limite coperti dai test**
+- "leggere 2 capitoli": il 2 resta nel titolo.
+- Date impossibili come il 31/02.
+- Con due durate vale la prima.
+- Testo vuoto.
+- Accenti nel titolo.
+
+**Idea per dopo**: dettatura dentro l'app con la Web Speech API (`webkitSpeechRecognition`, `lang = 'it-IT'`), dove disponibile. Su iPhone è più affidabile la dettatura del Comando Rapido (punto 2).
+
+---
+
 ## Funzioni future
 
-Per ciascuna funzione sono indicati comportamento, dati, file previsti e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo nella tabella di "Funzioni premium".
+Sono nell'ordine della visione. Per ciascuna sono indicati comportamento, dati e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo nella tabella di "Funzioni premium".
 
-### 1. Modalità focus con timer
+### 2. Comando Rapido di Siri, Web Share Target e scorciatoie
+**Obiettivo**: aggiungere un impegno senza aprire l'app, con la voce o con la condivisione.
+
+**iPhone: Comando Rapido "Aggiungi ad Aura"** (app Comandi)
+1. Azione "Dettatura testo" (lingua italiana).
+2. Azione "URL" con `https://mirionick.github.io/Aura-Tasks/app-attivita/?add=` seguito dal testo dettato, codificato con l'azione "Codifica URL".
+3. Azione "Apri URL".
+
+Si avvia con "Ehi Siri, Aggiungi ad Aura" e si conferma nel foglio.
+- Da scrivere: una guida passo passo per l'utente, con le schermate, e il link per installare il comando già pronto.
+- ⚠️ "Apri URL" apre Safari, non l'app installata, e i due hanno archivi separati (vedi "Installare sul telefono"). Da verificare sul dispositivo: se l'app installata non si apre, bisogna capire come farla aprire; in alternativa conviene usare Aura da Safari.
+
+**Android**
+- `share_target` nel manifest (GET): `"action": "./"`, con il testo condiviso passato come `add`, per esempio `"params": { "text": "add", "title": "add" }`. Condividendo un testo verso Aura si apre il foglio compilato. Funziona solo con l'app installata.
+- Se ci sono sia `title` sia `text`, vanno uniti prima del parsing.
+- `shortcuts` nel manifest: "Nuova attività" (`./?add=`), che si vede tenendo premuta l'icona. Su iPhone le shortcuts del manifest non esistono.
+
+**Test**: unione di `title` e `text`; link con caratteri speciali (accenti, `&`, `+`).
+
+### 3. Promemoria
+**Obiettivo**: che il segretario ricordi gli impegni anche ad app chiusa.
+
+**3a. Esportazione `.ics`** (prima, senza server)
+- Un pulsante sulla card ("Aggiungi al calendario") e un'azione "Esporta tutte con data".
+- Generano un file `.ics` (iCalendar, RFC 5545) che il Calendario di iPhone o Android importa con un promemoria vero, per esempio 15 minuti prima.
+- Logica pura in `js/ics.js`:
+  - `VEVENT` con `DTSTART` locale e `TZID=Europe/Rome`, oppure in UTC calcolato dall'ora locale;
+  - durata = durata stimata;
+  - senza orario: evento di un giorno intero;
+  - `VALARM` con `TRIGGER:-PT15M`;
+  - `UID` = id dell'attività.
+- Si scarica con un `Blob` e `<a download>`. Su iPhone Safari apre il file e propone "Aggiungi al calendario".
+- **Test**: testo esatto del file, con escape di virgole, punti e virgola e a capo; giorno intero; cambio dell'ora.
+
+**3b. Notifiche Web Push** (poi, con un piccolo server gratuito)
+- Funzionano su iOS dalla 16.4, **solo con l'app installata** e dopo il permesso, che va chiesto con un tocco dell'utente.
+- Il service worker riceve il `push` e mostra la notifica. Toccandola si apre l'app sull'attività.
+- **Server**: piccolo e gratuito, per esempio Cloudflare Workers con Cron Trigger e KV. Conserva solo endpoint di sottoscrizione, orario e testo del promemoria, e alla scadenza invia il push firmato VAPID.
+  - La chiave privata VAPID sta solo nel server, mai nel repository.
+  - Completare o eliminare l'attività cancella il promemoria sul server.
+- È l'unica eccezione al vincolo "niente server": va scritta qui con cosa riceve il server, e in app va spiegato all'utente.
+- Da decidere: gratuita o premium.
+
+### 4. "Cosa faccio adesso?" e modalità focus
+Vengono dopo i promemoria. Le specifiche restano quelle sotto.
+
+#### Modalità focus con timer
 **Avvio**: pulsante ▶ "Focus" sulla card, oppure "Inizia" dalla proposta di "Cosa faccio adesso?".
 
 **Interfaccia**
@@ -286,7 +418,7 @@ Per ciascuna funzione sono indicati comportamento, dati, file previsti e casi li
 
 **Idee in più**: modalità Pomodoro (25/5); minuti di focus nelle statistiche, con un eventuale bonus punti.
 
-### 2. "Cosa faccio adesso?"
+#### "Cosa faccio adesso?"
 **Interfaccia**
 - Pulsante ben visibile nell'intestazione, che apre un foglio con due domande:
   - "Quanto tempo hai?", con i chip 10/15/30/45/60/90/120+;
@@ -307,41 +439,6 @@ Per ciascuna funzione sono indicati comportamento, dati, file previsti e casi li
 
 **Nessuna candidata**: un messaggio gentile con un suggerimento ("Hai più tempo?", "Una pausa ☕?") oppure l'attività più breve.
 
-### 3. Inserimento in linguaggio naturale
-**Interfaccia**: un campo "Scrivi in una frase…" in cima al foglio "Nuova attività". Mentre scrivi, l'anteprima compila i campi sotto, che restano modificabili.
-
-**Parser**: funzione pura `parseTaskText(text, today)` in `js/nlp.js`, a regole e offline, senza API.
-- **Normalizzazione**: minuscole, e accenti ignorati nel confronto (`normalize('NFD')`).
-- **Durata**: "30 min", "30m", "30 minuti", "1h", "1 ora", "un'ora", "2 ore", "1h30", "1 ora e mezza", "mezz'ora", "un quarto d'ora", "tre quarti d'ora".
-- **Data**:
-  - "oggi", "stasera" e "stamattina" (= oggi), "domani", "dopodomani";
-  - giorni della settimana ("lunedì", "lunedi", "lun"): sempre il prossimo, escluso oggi. "Venerdì prossimo" = quello della settimana dopo;
-  - "tra/fra 3 giorni", "tra una settimana";
-  - "il 15" (il prossimo giorno 15), "15/11", "15-11-2026", "15 novembre".
-- **Energia**:
-  - "energia bassa/media/alta";
-  - "facile", "leggera" e "veloce" → bassa;
-  - "impegnativa", "difficile", "pesante" e "concentrazione" → alta.
-- **Titolo**: il testo che resta, ripulito da spazi e preposizioni rimaste in fondo, con la prima lettera maiuscola.
-- **Risultato**: `{ title, duration, energy, date }`. Un campo non riconosciuto vale `null` e il modulo usa il valore predefinito.
-
-**Esempi da usare come test** (oggi = giovedì 29/10/2026):
-
-| Testo | Titolo | Durata | Energia | Data |
-|---|---|---|---|---|
-| "domani chiamare il dentista 10 min" | Chiamare il dentista | 10 | (media) | 2026-10-30 |
-| "palestra 1h energia alta venerdì" | Palestra | 60 | alta | 2026-10-30 |
-| "rispondere alle email mezz'ora facile" | Rispondere alle email | 30 | bassa | — |
-| "studiare storia un'ora e mezza il 15/11" | Studiare storia | 90 | (media) | 2026-11-15 |
-| "comprare il pane" | Comprare il pane | (30) | (media) | — |
-
-**Casi limite**
-- Numeri che fanno parte del titolo: in "leggere 2 capitoli" il 2 non è una durata.
-- Date impossibili e anni bisestili.
-- Più durate nella stessa frase: vale la prima.
-
-**Idea per dopo**: dettatura con la Web Speech API (`webkitSpeechRecognition`, `lang = 'it-IT'`), dove disponibile.
-
 ---
 
 ## Funzioni premium (in futuro)
@@ -354,6 +451,7 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 |---|---|
 | Base: attività, lista per giorno, tema, uso offline | gratuita |
 | Punti e serie di giorni | gratuita |
+| Linguaggio naturale con orario e link ?add= | gratuita |
 
 ### Regola fondamentale
 **Tutti i controlli passano da un'unica funzione `isPremium()`.**
@@ -388,13 +486,14 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 - **Modificare un'attività**: riusare il foglio "Nuova attività" in modalità modifica.
 - **Backup**: esportare e importare un file JSON. È importante perché i dati vivono solo nel browser. Utile anche per passare a un altro telefono.
 - Attività ricorrenti: ogni giorno, ogni lunedì e così via.
-- Promemoria, statistiche settimanali, ordinamento manuale con trascinamento, scorrimento laterale per completare o eliminare.
+- Statistiche settimanali, ordinamento manuale con trascinamento, scorrimento laterale per completare o eliminare.
 
-## Ordine consigliato
-Punti e serie di giorni: fatto (schema v2). Poi:
-1. **"Cosa faccio adesso?"**: è il cuore dell'app.
-2. **Modalità focus**: si collega a "Inizia focus".
-3. **Linguaggio naturale**.
+## Ordine consigliato (visione "segretario personale")
+Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3).
+1. ~~**Linguaggio naturale con orario** e aggiunta con il link `?add=testo`~~: fatto.
+2. **Comando Rapido di Siri** che detta e apre il link, più **Web Share Target** e **shortcuts** nel manifest per Android.
+3. **Promemoria**: prima l'esportazione `.ics`, poi le notifiche **Web Push** con un piccolo server gratuito.
+4. **"Cosa faccio adesso?"** e **modalità focus**.
 
 Licenza premium e backup vanno fatti quando servono. Il backup conviene prima di far usare l'app ad altre persone.
 

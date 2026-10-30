@@ -11,7 +11,7 @@
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
   // Per cambiare lo schema: aumenta questo numero e aggiungi un passo in migrate() (vedi CLAUDE.md).
-  const SCHEMA_VERSION = 2;
+  const SCHEMA_VERSION = 3;
 
   const isCount = value => Number.isInteger(value) && value >= 0;
 
@@ -27,6 +27,10 @@
       // v2: punti e serie. Il registro si ricostruisce in parse(), dalle attività completate già ripulite.
       state.stats = null;
       state.version = 2;
+    }
+    if (state.version === 2) {
+      // v3: orario facoltativo. Le attività lo ricevono (null) da sanitizeTask(); punti e registro restano intatti.
+      state.version = 3;
     }
     return state;
   }
@@ -49,13 +53,16 @@
     // Completata senza punti (dati della v1): si calcolano con la formula attuale.
     const pointsAwarded = !done ? null : isCount(raw.pointsAwarded) ? raw.pointsAwarded : P.pointsFor({ duration, energy });
 
+    const date = utils.isISODate(raw.date) ? raw.date : null;
+
     return {
       ...raw,
       id: typeof raw.id === 'string' && raw.id ? raw.id : utils.uid(),
       title,
       duration,
       energy,
-      date: utils.isISODate(raw.date) ? raw.date : null,
+      date,
+      time: date && utils.isTime(raw.time) ? raw.time : null, // l'orario ha senso solo con un giorno
       done,
       createdAt,
       completedAt: done ? (Number.isFinite(raw.completedAt) ? raw.completedAt : createdAt) : null,

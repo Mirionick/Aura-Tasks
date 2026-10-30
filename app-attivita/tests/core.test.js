@@ -13,6 +13,7 @@
       duration: 30,
       energy: 'medium',
       date: null,
+      time: null,
       done: false,
       createdAt: 1,
       completedAt: null,
@@ -95,7 +96,7 @@
   test('validateInput normalizza dati corretti', () => {
     const { value, errors } = T.validateInput({ title: '  Fare   la spesa ', duration: '45', energy: 'low', date: '' });
     assertEqual(errors, {});
-    assertEqual(value, { title: 'Fare la spesa', duration: 45, energy: 'low', date: null });
+    assertEqual(value, { title: 'Fare la spesa', duration: 45, energy: 'low', date: null, time: null });
   });
 
   test('validateInput segnala ogni campo sbagliato', () => {
@@ -113,7 +114,7 @@
     const task = T.createTask({ title: 'Leggere', duration: 20, energy: 'low', date: '2026-10-30' }, 1000);
     assert(typeof task.id === 'string' && task.id.length > 0, 'id presente');
     assertEqual({ ...task, id: 'x' }, {
-      id: 'x', title: 'Leggere', duration: 20, energy: 'low', date: '2026-10-30',
+      id: 'x', title: 'Leggere', duration: 20, energy: 'low', date: '2026-10-30', time: null,
       done: false, createdAt: 1000, completedAt: null, pointsAwarded: null
     });
   });
@@ -198,7 +199,7 @@
     const empty = { version: storage.SCHEMA_VERSION, tasks: [], stats: P.emptyStats() };
     assertEqual(storage.parse(null), empty);
     assertEqual(storage.parse(''), empty);
-    assertEqual(storage.SCHEMA_VERSION, 2);
+    assertEqual(storage.SCHEMA_VERSION, 3);
   });
 
   test('storage.parse: testo illeggibile o formato sbagliato → errore', () => {
@@ -262,7 +263,7 @@
       ]
     });
     const state = storage.parse(raw);
-    assertEqual(state.version, 2);
+    assertEqual(state.version, 3, 'dalla v1 si arriva fino all\'ultima versione');
     assertEqual(state.tasks.map(t => t.pointsAwarded), [24, 44, 13, 13, null]);
     assertEqual(state.stats.days, {
       '2026-10-27': { done: 1, points: 24 },
@@ -301,5 +302,70 @@
       stats: { totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } } }
     };
     assertEqual(storage.parse(storage.serialize(state)), state);
+  });
+
+  /* ---------- Orario (schema v3) ---------- */
+
+  test('isTime accetta solo orari HH:MM validi', () => {
+    assert(utils.isTime('00:00') && utils.isTime('09:05') && utils.isTime('23:59'), 'orari validi');
+    assert(!utils.isTime('24:00') && !utils.isTime('9:05') && !utils.isTime('12:60') && !utils.isTime('') && !utils.isTime(null), 'orari non validi');
+  });
+
+  test('validateInput: orario valido, non valido, o senza giorno', () => {
+    const base = { title: 'Dentista', duration: '30', energy: 'medium', date: '2026-10-30' };
+    const ok = T.validateInput({ ...base, time: '10:00' });
+    assertEqual([ok.errors, ok.value.time], [{}, '10:00']);
+    assert(T.validateInput({ ...base, time: '25:00' }).errors.time, 'orario impossibile');
+    assert(T.validateInput({ ...base, date: '', time: '10:00' }).errors.time, 'orario senza giorno');
+    assertEqual(T.validateInput(base).value.time, null, 'senza orario');
+  });
+
+  test('createTask salva l\'orario solo insieme al giorno', () => {
+    assertEqual(T.createTask({ title: 'A', duration: 30, energy: 'low', date: '2026-10-30', time: '10:00' }, 1).time, '10:00');
+    assertEqual(T.createTask({ title: 'A', duration: 30, energy: 'low', date: null, time: '10:00' }, 1).time, null);
+  });
+
+  test('groupTasks: nello stesso giorno prima le attività con orario, in ordine d\'ora', () => {
+    const today = '2026-10-29';
+    const list = [
+      make({ id: 'senza-1', date: today, createdAt: 1 }),
+      make({ id: 'alle-15', date: today, time: '15:00', createdAt: 2 }),
+      make({ id: 'senza-2', date: today, createdAt: 3 }),
+      make({ id: 'alle-9', date: today, time: '09:00', createdAt: 4 }),
+      make({ id: 'ritardo-sera', date: '2026-10-27', time: '20:00', createdAt: 5 }),
+      make({ id: 'ritardo-mattina', date: '2026-10-27', time: '08:00', createdAt: 6 })
+    ];
+    const { sections } = T.groupTasks(list, today);
+    assertEqual(sections.find(s => s.key === 'today').tasks.map(t => t.id), ['alle-9', 'alle-15', 'senza-1', 'senza-2']);
+    assertEqual(sections.find(s => s.key === 'overdue').tasks.map(t => t.id), ['ritardo-mattina', 'ritardo-sera']);
+  });
+
+  test('groupTasks: senza orari l\'ordine resta quello di prima (creazione)', () => {
+    const today = '2026-10-29';
+    const list = [make({ id: 'c', date: today, createdAt: 3 }), make({ id: 'a', date: today, createdAt: 1 }), make({ id: 'b', date: today, createdAt: 2 })];
+    assertEqual(T.groupTasks(list, today).sections[0].tasks.map(t => t.id), ['a', 'b', 'c']);
+  });
+
+  test('storage.parse: dalla v2 alla v3 aggiunge solo l\'orario, punti e registro restano intatti', () => {
+    const stats = { totalPoints: 37, bestStreak: 3, milestones: [3], days: { '2026-10-27': { done: 1, points: 13 }, '2026-10-28': { done: 1, points: 24 } }, level: 4 };
+    const raw = JSON.stringify({
+      version: 2,
+      future: 'ok',
+      stats,
+      tasks: [
+        { id: 'a', title: 'Fatta', duration: 30, energy: 'medium', date: '2026-10-28', done: true, createdAt: 1, completedAt: 5, pointsAwarded: 24, extra: 1 },
+        { id: 'b', title: 'Da fare', duration: 15, energy: 'low', date: null, done: false, createdAt: 2, completedAt: null, pointsAwarded: null }
+      ]
+    });
+    const state = storage.parse(raw);
+    assertEqual(state.version, 3);
+    assertEqual(state.stats, stats, 'registro identico');
+    assertEqual(state.tasks.map(t => [t.time, t.pointsAwarded]), [[null, 24], [null, null]]);
+    assertEqual([state.future, state.tasks[0].extra], ['ok', 1]);
+  });
+
+  test('storage.sanitizeTask: orario tenuto solo se valido e con un giorno', () => {
+    const t = (date, time) => storage.sanitizeTask({ id: 'x', title: 'X', duration: 10, energy: 'low', date, time, done: false, createdAt: 1 }).time;
+    assertEqual([t('2026-10-30', '10:00'), t('2026-10-30', '99:99'), t(null, '10:00')], ['10:00', null, null]);
   });
 })();

@@ -51,7 +51,11 @@
     const date = input.date ? String(input.date) : null;
     if (date && !utils.isISODate(date)) errors.date = 'La data non è valida.';
 
-    return { value: { title, duration, energy, date }, errors };
+    const time = input.time ? String(input.time) : null;
+    if (time && !utils.isTime(time)) errors.time = 'L\'orario non è valido.';
+    else if (time && !date) errors.time = 'Per l\'orario scegli anche il giorno.';
+
+    return { value: { title, duration, energy, date, time }, errors };
   }
 
   /** Nuova attività da dati già controllati con validateInput(). */
@@ -62,6 +66,7 @@
       duration: value.duration,
       energy: value.energy,
       date: value.date || null,
+      time: value.date && value.time ? value.time : null,
       done: false,
       createdAt: now,
       completedAt: null,
@@ -129,7 +134,13 @@
   }
 
   const byCreation = (a, b) => a.createdAt - b.createdAt;
-  const byDate = (a, b) => (a.date === b.date ? byCreation(a, b) : a.date < b.date ? -1 : 1);
+  // Nello stesso giorno: prima quelle con orario, in ordine d'ora; quelle senza orario restano in ordine di creazione.
+  const byTime = (a, b) => {
+    if (a.time && b.time && a.time !== b.time) return a.time < b.time ? -1 : 1;
+    if (Boolean(a.time) !== Boolean(b.time)) return a.time ? -1 : 1;
+    return byCreation(a, b);
+  };
+  const byDate = (a, b) => (a.date === b.date ? byTime(a, b) : a.date < b.date ? -1 : 1);
 
   /**
    * Divide le attività per la lista. Restituisce:
@@ -148,8 +159,8 @@
 
     buckets.overdue.sort(byDate);
     buckets.upcoming.sort(byDate);
-    buckets.today.sort(byCreation);
-    buckets.tomorrow.sort(byCreation);
+    buckets.today.sort(byTime);
+    buckets.tomorrow.sort(byTime);
     buckets.someday.sort(byCreation);
     completed.sort((a, b) => b.completedAt - a.completedAt);
 

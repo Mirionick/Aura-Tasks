@@ -39,6 +39,11 @@
     return toISODate(parseISODate(value)) === value;
   }
 
+  /** true se `value` è un orario 'HH:MM' valido (00:00–23:59). */
+  function isTime(value) {
+    return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+  }
+
   /** Sposta una data di `days` giorni (anche negativi). Corretto anche nei giorni del cambio d'ora. */
   function addDays(iso, days) {
     const date = parseISODate(iso);
@@ -108,6 +113,7 @@
     todayISO,
     parseISODate,
     isISODate,
+    isTime,
     addDays,
     daysBetween,
     formatDuration,
