@@ -79,6 +79,19 @@
     return queue.concat(fresh).slice(0, INBOX_MAX);
   }
 
+  /**
+   * Messaggio per una richiesta al server andata male. Se il server ha spiegato il motivo (limite di richieste,
+   * tetto di nuovi dispositivi, server pieno…) vale la sua spiegazione; altrimenti un messaggio generico.
+   */
+  function troubleMessage(result, online) {
+    const status = result ? result.status : 0;
+    const error = result && result.data && typeof result.data.error === 'string' ? result.data.error.trim() : '';
+    if (status && error) return /[.!?]$/.test(error) ? error : error + '.';
+    if (status === 429) return 'Troppe richieste: riprova tra un minuto.';
+    if (online === false) return 'Serve internet: riprova quando sei online.';
+    return 'Il server di Aura non risponde: riprova tra poco.';
+  }
+
   /** Impostazioni lette dal localStorage, ripulite: valori mancanti o sbagliati tornano ai predefiniti. */
   function normalizeSettings(raw) {
     const result = defaults();
@@ -257,6 +270,7 @@
     emptySent,
     mergeInbox,
     normalizeSettings,
+    troubleMessage,
     // impostazioni e codice
     KEY,
     load,

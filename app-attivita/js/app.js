@@ -888,9 +888,7 @@
   async function ensureDevice() {
     const code = remote.code || R.newDeviceCode();
     const result = await R.api.register(code);
-    if (!result.ok) {
-      throw new RemoteError(result.status === 503 ? 'Il server di Aura è al completo: non accetta altri dispositivi.' : serverTrouble());
-    }
+    if (!result.ok) throw new RemoteError(R.troubleMessage(result, navigator.onLine));
     if (remote.code !== code) {
       remote.code = code;
       saveRemote();
@@ -901,7 +899,7 @@
   async function sendSubscription(subscription, key) {
     const result = await withDevice(code => R.api.putSubscription(code, subscription.toJSON()));
     if (!result.ok) {
-      throw new RemoteError(result.status === 400 ? 'Il servizio di notifiche di questo browser non è supportato.' : serverTrouble());
+      throw new RemoteError(result.status === 400 ? 'Il servizio di notifiche di questo browser non è supportato.' : R.troubleMessage(result, navigator.onLine));
     }
     remote.vapidKey = key;
     remote.sent = { endpoint: subscription.endpoint, at: Date.now(), key: null }; // l'elenco va rimandato
@@ -1059,7 +1057,7 @@
     const result = await R.api.unregister(previous.code);
     remoteBusy = false;
     if (!result.ok && result.status !== 401) {
-      setMessage('siri', serverTrouble());
+      setMessage('siri', R.troubleMessage(result, navigator.onLine));
       return;
     }
     remote = Object.assign(R.defaults(), { inbox: previous.inbox, done: previous.done });
@@ -1075,7 +1073,7 @@
   async function restoreConnection(previous) {
     const result = await R.api.register(previous.code);
     if (!result.ok) {
-      showToast('Non sono riuscito a ricollegare il dispositivo. ' + serverTrouble(), { duration: 5000 });
+      showToast('Non sono riuscito a ricollegare il dispositivo. ' + R.troubleMessage(result, navigator.onLine), { duration: 5000 });
       return;
     }
     remote = Object.assign({}, previous, { inbox: remote.inbox, done: remote.done, sent: R.emptySent() });

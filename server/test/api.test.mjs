@@ -6,13 +6,14 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { LIMITS, handle, runCron } from '../src/index.js';
+import { LIMITS, clientKey, handle, runCron } from '../src/index.js';
 import { reminderBody } from '../src/text.js';
 import { createD1 } from './helpers/d1.mjs';
 import { createSubscription, createVapidKeys, decryptPayload } from './helpers/push.mjs';
 
 const SCHEMA = fileURLToPath(new URL('../schema.sql', import.meta.url));
 const MINUTE = 60 * 1000;
+const DAY = 24 * 60 * MINUTE;
 const NOW = Date.UTC(2026, 9, 29, 8, 0);
 const APP = 'https://mirionick.github.io';
 const CODE_A = 'codiceDiProvaA_0123456789abcdefXYZ';
@@ -155,7 +156,8 @@ test('"Scollega": il dispositivo sparisce con casella, sottoscrizione e promemor
   await s.call('POST', '/api/inbox', { code: CODE_A, body: 'dentista domani', type: 'text/plain' });
   assert.equal((await s.call('DELETE', '/api/devices', { code: CODE_A })).status, 200);
   assert.equal((await s.call('POST', '/api/inbox', { code: CODE_A, body: 'ancora', type: 'text/plain' })).status, 401);
-  assert.equal(s.rows('SELECT * FROM devices').length, 1);
+  assert.equal(s.rows("SELECT * FROM devices WHERE id NOT LIKE 'segno:%'").length, 1, 'resta solo B');
+  assert.equal(s.rows("SELECT * FROM devices WHERE id LIKE 'segno:%'").length, 1, 'più un segno anonimo per 24 ore');
   assert.equal(s.rows('SELECT * FROM inbox').length, 0);
   assert.deepEqual(s.rows('SELECT task_id FROM reminders').map(row => row.task_id), ['t2'], 'l\'altro dispositivo non è toccato');
   assert.equal(s.rows('SELECT * FROM subscriptions').length, 1);
@@ -394,7 +396,6 @@ test('Cron: senza chiavi VAPID non invia nulla e non perde i promemoria', async 
 
 test('Cron: pulizia oraria di frasi vecchie, promemoria passati e dispositivi spariti', async () => {
   const s = setup();
-  const DAY = 24 * 60 * MINUTE;
   s.deps.now = NOW - 200 * DAY;
   await device(s, CODE_B, { reminders: [reminder('di-B', 230 * 24 * 60, { base: NOW - 200 * DAY })] });
   await s.call('POST', '/api/inbox', { code: CODE_B, body: { text: 'vecchia' } });
@@ -447,4 +448,177 @@ test('testi delle notifiche in italiano', () => {
   assert.equal(reminderBody('10:00', at, at), 'Adesso, alle 10:00');
   assert.equal(reminderBody('10:00', at, at + 5 * MINUTE), 'Adesso, alle 10:00');
   assert.equal(reminderBody('10:00', at, at - 90 * MINUTE), 'Alle 10:00');
+});
+
+/* ---------- Limiti di richieste per indirizzo IP ---------- */
+
+/** Limitatore finto: conta per chiave, come il binding Rate Limiting dei Workers ma in modo esatto. */
+function fakeLimiter(limit) {
+  const counts = new Map();
+  return {
+    counts,
+    async limit({ key }) {
+      const n = (counts.get(key) || 0) + 1;
+      counts.set(key, n);
+      return { success: n <= limit };
+    }
+  };
+}
+
+function withLimiters(s) {
+  s.env.RATE_LIMIT_STRICT = fakeLimiter(10);
+  s.env.RATE_LIMIT_INBOX = fakeLimiter(20);
+  s.env.RATE_LIMIT_API = fakeLimiter(120);
+  return s;
+}
+
+const fromIp = ip => ({ 'CF-Connecting-IP': ip });
+
+test('limite per IP su POST /api/devices: l\'11ª richiesta riceve 429 (JSON, Retry-After, CORS); un altro IP passa', async () => {
+  const s = withLimiters(setup());
+  for (let i = 0; i < 10; i++) {
+    assert.equal((await s.call('POST', '/api/devices', { code: 'corto', headers: fromIp('203.0.113.7') })).status, 401);
+  }
+  const limited = await s.call('POST', '/api/devices', { code: CODE_A, origin: APP, headers: fromIp('203.0.113.7') });
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get('Retry-After'), '60');
+  assert.deepEqual(limited.data, { error: 'Troppe richieste da questa rete: riprova tra un minuto' });
+  assert.equal(limited.headers.get('Access-Control-Allow-Origin'), APP, 'l\'app può leggere la risposta');
+  assert.equal(s.rows('SELECT * FROM devices').length, 0, 'fermata prima del database');
+  assert.equal((await s.call('POST', '/api/devices', { code: CODE_A, headers: fromIp('198.51.100.4') })).status, 201, 'un altro IP');
+});
+
+test('limite per IP sulla casella: 429 in testo semplice, che il Comando Rapido mostra', async () => {
+  const s = withLimiters(setup());
+  for (let i = 0; i < 20; i++) {
+    assert.equal((await s.call('POST', '/api/inbox', { body: { text: 'frase' }, headers: fromIp('203.0.113.7') })).status, 401);
+  }
+  const limited = await s.call('POST', '/api/inbox', { body: { text: 'frase' }, headers: fromIp('203.0.113.7') });
+  assert.equal(limited.status, 429);
+  assert.match(limited.headers.get('Content-Type'), /^text\/plain/);
+  assert.equal(limited.text, 'Troppe richieste: riprova tra un minuto.');
+  assert.equal(limited.headers.get('Retry-After'), '60');
+});
+
+test('OPTIONS e /api/health non contano; le altre API hanno un limite largo, 120 al minuto', async () => {
+  const s = withLimiters(setup());
+  const ip = fromIp('203.0.113.7');
+  for (let i = 0; i < 150; i++) {
+    await s.call('OPTIONS', '/api/inbox', { origin: APP, headers: ip });
+    assert.equal((await s.call('GET', '/api/health', { headers: ip })).status, 200);
+  }
+  assert.equal(s.env.RATE_LIMIT_API.counts.size, 0, 'nessun contatore toccato');
+  const statuses = [];
+  for (let i = 0; i < 121; i++) statuses.push((await s.call('GET', '/api/inbox', { headers: ip })).status);
+  assert.ok(statuses.slice(0, 120).every(status => status === 401), 'le prime 120 arrivano al server');
+  assert.equal(statuses[120], 429);
+  assert.equal((await s.call('GET', '/api/niente', { headers: ip })).status, 429, 'anche gli indirizzi sconosciuti contano');
+});
+
+test('"Prova una notifica" ha un contatore suo: non toglie posti alle registrazioni', async () => {
+  const s = withLimiters(setup());
+  await device(s, CODE_A);
+  const ip = fromIp('203.0.113.7');
+  for (let i = 0; i < 10; i++) assert.equal((await s.call('POST', '/api/push/test', { code: CODE_A, headers: ip })).status, 200);
+  assert.equal((await s.call('POST', '/api/push/test', { code: CODE_A, headers: ip })).status, 429);
+  assert.equal((await s.call('POST', '/api/devices', { code: CODE_B, headers: ip })).status, 201, 'registrazione dallo stesso IP');
+  assert.deepEqual([...s.env.RATE_LIMIT_STRICT.counts.keys()].sort(), ['devices:203.0.113.7', 'devices:sconosciuto', 'push-test:203.0.113.7']);
+});
+
+test('chiave del client: IPv4, IPv6 per rete /64, IPv4 dentro IPv6, nessun indirizzo', () => {
+  const key = ip => clientKey(new Request('https://aura.test/', { headers: ip === null ? {} : { 'CF-Connecting-IP': ip } }));
+  assert.equal(key('203.0.113.7'), '203.0.113.7');
+  assert.equal(key('2001:db8:abcd:12::1'), '2001:db8:abcd:12::/64');
+  assert.equal(key('2001:0DB8:abcd:0012:ffff:0:0:9'), '2001:db8:abcd:12::/64', 'stessa rete, scritta per intero');
+  assert.equal(key('2001:db8:abcd:13::1'), '2001:db8:abcd:13::/64', 'rete diversa');
+  assert.equal(key('2001:db8::1'), '2001:db8:0:0::/64');
+  assert.equal(key('fe80::1%eth0'), 'fe80:0:0:0::/64');
+  assert.equal(key('::ffff:198.51.100.4'), '198.51.100.4');
+  assert.equal(key(null), 'sconosciuto');
+});
+
+test('IPv6: gli indirizzi della stessa rete /64 condividono il limite', async () => {
+  const s = withLimiters(setup());
+  for (let i = 1; i <= 10; i++) await s.call('POST', '/api/devices', { code: 'corto', headers: fromIp('2001:db8:abcd:12::' + i.toString(16)) });
+  assert.equal((await s.call('POST', '/api/devices', { code: 'corto', headers: fromIp('2001:db8:abcd:12:ffff::9') })).status, 429);
+  assert.equal((await s.call('POST', '/api/devices', { code: 'corto', headers: fromIp('2001:db8:abcd:13::1') })).status, 401, 'un\'altra rete passa');
+});
+
+test('senza binding, o con un binding che non risponde, le richieste passano', async () => {
+  const s = setup();
+  for (let i = 0; i < 30; i++) assert.equal((await s.call('POST', '/api/devices', { code: 'corto', headers: fromIp('203.0.113.7') })).status, 401);
+  s.env.RATE_LIMIT_STRICT = { limit: async () => { throw new Error('servizio non disponibile'); } };
+  assert.equal((await s.call('POST', '/api/devices', { code: CODE_A, headers: fromIp('203.0.113.7') })).status, 201);
+});
+
+/* ---------- Tetto di nuove registrazioni al giorno ---------- */
+
+const codeN = i => 'codiceGiornaliero_' + String(i).padStart(3, '0') + '_abcdefXYZ0123';
+const isFullCount = sql => sql.includes('FROM devices WHERE id NOT LIKE');
+
+test('al massimo 20 nuove registrazioni in 24 ore; i dispositivi già registrati passano', async () => {
+  const s = setup();
+  for (let i = 0; i < 20; i++) {
+    s.deps.now = NOW + i * MINUTE;
+    assert.equal((await s.call('POST', '/api/devices', { code: codeN(i) })).status, 201);
+  }
+  s.deps.now = NOW + 30 * MINUTE;
+  const refused = await s.call('POST', '/api/devices', { code: codeN(20) });
+  assert.equal(refused.status, 503);
+  assert.deepEqual(refused.data, { error: 'Oggi il server di Aura ha già accolto il massimo di nuovi dispositivi: riprova domani' });
+  assert.equal(refused.headers.get('Retry-After'), String((DAY - 30 * MINUTE) / 1000), 'finché la prima compie 24 ore');
+  assert.equal((await s.call('POST', '/api/devices', { code: codeN(0) })).status, 200, 'già registrato');
+  assert.equal((await s.call('GET', '/api/inbox', { code: codeN(5) })).status, 200, 'le altre API non c\'entrano');
+  // Passate 24 ore dalla prima registrazione si libera un posto (finestra mobile).
+  s.deps.now = NOW + DAY + 1;
+  assert.equal((await s.call('POST', '/api/devices', { code: codeN(20) })).status, 201);
+  assert.equal((await s.call('POST', '/api/devices', { code: codeN(21) })).status, 503, 'un posto solo');
+});
+
+test('il conteggio completo gira una volta per ogni registrazione nuova, mai per quelle respinte dal tetto', async () => {
+  const s = setup();
+  for (let i = 0; i < 20; i++) await s.call('POST', '/api/devices', { code: codeN(i) });
+  for (let i = 0; i < 20; i++) await s.call('POST', '/api/devices', { code: codeN(i) }); // già registrati
+  for (let i = 20; i < 30; i++) assert.equal((await s.call('POST', '/api/devices', { code: codeN(i) })).status, 503);
+  assert.equal(s.env.DB.executed.filter(isFullCount).length, 20);
+});
+
+test('"Scollega" lascia un segno anonimo: il codice non vale più, il segno conta nel tetto e sparisce dopo 24 ore', async () => {
+  const s = setup();
+  s.env.MAX_NEW_DEVICES_PER_DAY = '2';
+  assert.equal((await s.call('POST', '/api/devices', { code: CODE_A })).status, 201);
+  assert.equal((await s.call('DELETE', '/api/devices', { code: CODE_A })).status, 200);
+  assert.equal((await s.call('GET', '/api/inbox', { code: CODE_A })).status, 401, 'il codice non vale più');
+  const markers = s.rows('SELECT id, created_at FROM devices');
+  assert.equal(markers.length, 1);
+  assert.match(markers[0].id, /^segno:[\w-]+$/);
+  assert.equal(markers[0].created_at, NOW);
+  assert.equal((await s.call('POST', '/api/devices', { code: CODE_A })).status, 201, '"Annulla": una registrazione nuova');
+  assert.equal((await s.call('POST', '/api/devices', { code: CODE_B })).status, 503, 'il segno conta: tetto di 2 raggiunto');
+  s.deps.now = NOW + DAY + 60 * MINUTE; // minuto 0 di un'ora, oltre 24 ore dopo: c'è la pulizia
+  await s.tick();
+  assert.equal(s.rows("SELECT * FROM devices WHERE id LIKE 'segno:%'").length, 0, 'segno tolto');
+  assert.equal(s.rows('SELECT * FROM devices').length, 1, 'il dispositivo vero resta');
+});
+
+test('server pieno: ogni tentativo lascia un segno, e dopo 20 in un giorno il conteggio completo non gira più', async () => {
+  const s = setup();
+  s.env.MAX_DEVICES = '1';
+  assert.equal((await s.call('POST', '/api/devices', { code: CODE_A })).status, 201);
+  const errors = [];
+  for (let i = 0; i < 25; i++) {
+    const response = await s.call('POST', '/api/devices', { code: codeN(i) });
+    assert.equal(response.status, 503);
+    errors.push(response.data.error);
+  }
+  assert.equal(s.env.DB.executed.filter(isFullCount).length, 20, 'una per A e 19 per i tentativi; poi decide il tetto');
+  assert.equal(errors[0], 'Il server ha raggiunto il numero massimo di dispositivi');
+  assert.equal(errors[24], 'Oggi il server di Aura ha già accolto il massimo di nuovi dispositivi: riprova domani');
+  assert.equal((await s.call('POST', '/api/devices', { code: CODE_A })).status, 200, 'chi è registrato passa sempre');
+});
+
+test('la query del tetto giornaliero usa l\'indice devices_created', () => {
+  const s = setup();
+  const plan = s.rows('EXPLAIN QUERY PLAN SELECT COUNT(*) AS n, MIN(created_at) AS oldest FROM devices WHERE created_at > ?', NOW);
+  assert.ok(plan.some(row => /devices_created/.test(row.detail)), JSON.stringify(plan));
 });

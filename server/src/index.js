@@ -6,7 +6,7 @@
  * il server ne conserva solo l'impronta SHA-256. Le chiavi VAPID arrivano dai secrets di Cloudflare.
  */
 import { base64urlDecode, base64urlEncode, createSigner, importVapidKeys, isUncompressedKey, sendPush } from './webpush.js';
-import { INBOX_TEXTS, TEST_MESSAGE, reminderBody } from './text.js';
+import { INBOX_TEXTS, LIMIT_TEXTS, TEST_MESSAGE, reminderBody } from './text.js';
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
@@ -18,6 +18,7 @@ export const LIMITS = {
   reminders: 200,       // promemoria per dispositivo
   titleLength: 120,
   devices: 1000,        // dispositivi in tutto (si può cambiare con la variabile MAX_DEVICES)
+  newDevicesPerDay: 20, // nuove registrazioni in 24 ore, in tutto (variabile MAX_NEW_DEVICES_PER_DAY)
   smallBody: 16 * 1024, // caratteri
   largeBody: 64 * 1024,
   cronBatch: 10,        // invii per giro: CPU (10 ms) e sottorichieste (50) del piano gratuito
@@ -70,14 +71,19 @@ export async function handle(request, env, deps) {
       }
     });
   } else {
-    try {
-      response = await route(request, env, deps);
-    } catch (err) {
-      if (err instanceof HttpError) {
-        response = json({ error: err.message }, err.status);
-      } else {
-        console.error('Errore interno:', err && err.name); // mai dati: né codici, né testi, né endpoint
-        response = json({ error: 'Errore interno del server' }, 500);
+    const rule = rateLimitFor(request.method, new URL(request.url).pathname);
+    if (!await withinLimit(request, env, rule)) {
+      response = tooManyRequests(rule);
+    } else {
+      try {
+        response = await route(request, env, deps);
+      } catch (err) {
+        if (err instanceof HttpError) {
+          response = json({ error: err.message }, err.status);
+        } else {
+          console.error('Errore interno:', err && err.name); // mai dati: né codici, né testi, né endpoint
+          response = json({ error: 'Errore interno del server' }, 500);
+        }
       }
     }
   }
@@ -110,6 +116,58 @@ function route(request, env, deps) {
   throw new HttpError(known ? 405 : 404, known ? 'Metodo non ammesso' : 'Indirizzo sconosciuto');
 }
 
+/* ---------- Limiti di richieste per indirizzo IP ---------- */
+
+/** Quale limite vale per una richiesta: binding (vedi wrangler.toml) e prefisso del contatore; null se nessuno. */
+function rateLimitFor(method, pathname) {
+  if (method === 'OPTIONS' || pathname === '/api/health') return null;
+  if (method === 'POST' && pathname === '/api/devices') return { binding: 'RATE_LIMIT_STRICT', prefix: 'devices' };
+  if (method === 'POST' && pathname === '/api/push/test') return { binding: 'RATE_LIMIT_STRICT', prefix: 'push-test' };
+  if (method === 'POST' && pathname === '/api/inbox') return { binding: 'RATE_LIMIT_INBOX', prefix: 'inbox' };
+  return { binding: 'RATE_LIMIT_API', prefix: 'api' };
+}
+
+/**
+ * true se la richiesta rientra nel limite. Senza binding (test, prove) o se il servizio non risponde
+ * la richiesta passa: meglio un limite in meno che un'app bloccata.
+ */
+async function withinLimit(request, env, rule) {
+  const limiter = rule && env[rule.binding];
+  if (!limiter || typeof limiter.limit !== 'function') return true;
+  try {
+    const { success } = await limiter.limit({ key: rule.prefix + ':' + clientKey(request) });
+    return success !== false;
+  } catch (err) {
+    console.error('Limite di richieste non disponibile:', err && err.name);
+    return true;
+  }
+}
+
+/** 429 con Retry-After. Il Comando Rapido riceve testo semplice, che mostra così com'è. */
+function tooManyRequests(rule) {
+  const response = rule.prefix === 'inbox' ? plain(INBOX_TEXTS.tooMany, 429) : json({ error: LIMIT_TEXTS.tooMany }, 429);
+  response.headers.set('Retry-After', '60');
+  return response;
+}
+
+/**
+ * Chiave del client per i limiti: l'indirizzo IP visto da Cloudflare (CF-Connecting-IP, che il client
+ * non può falsificare). Per IPv6 vale la rete /64: dentro la propria /64 cambiare indirizzo è banale.
+ */
+export function clientKey(request) {
+  const ip = (request.headers.get('CF-Connecting-IP') || '').trim().toLowerCase();
+  if (!ip) return 'sconosciuto';
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(ip);
+  if (mapped) return mapped[1];
+  if (!ip.includes(':')) return ip;
+  // IPv6, anche in forma compressa ("2001:db8::1"): le prime 4 parti da 16 bit.
+  const halves = ip.split('%')[0].split('::');
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length > 1 && halves[1] ? halves[1].split(':') : [];
+  const fill = halves.length > 1 ? Array(Math.max(0, 8 - head.length - tail.length)).fill('0') : [];
+  return head.concat(fill, tail).slice(0, 4).map(part => part.replace(/^0+/, '') || '0').join(':') + '::/64';
+}
+
 /* ---------- Dispositivi ---------- */
 
 /** Impronta SHA-256 (esadecimale) del codice in "Authorization: Bearer …"; null se manca o ha un formato sbagliato. */
@@ -131,6 +189,13 @@ async function requireDevice(request, env, deps) {
   return id;
 }
 
+/**
+ * Registra un dispositivo. Un dispositivo già registrato passa sempre (200).
+ * Per uno nuovo: prima il tetto giornaliero, con una query sull'indice devices_created che legge poche righe;
+ * solo dopo il conteggio completo, che legge tutta la tabella. Ogni volta che il conteggio completo gira
+ * resta una riga con created_at (il dispositivo, oppure un segno anonimo se il server è pieno): così
+ * il conteggio completo gira al massimo `newDevicesPerDay` volte in 24 ore.
+ */
 async function registerDevice(request, env, deps) {
   const id = await deviceIdFrom(request);
   if (!id) throw new HttpError(401, 'Codice mancante o non valido');
@@ -139,27 +204,51 @@ async function registerDevice(request, env, deps) {
     await env.DB.prepare('UPDATE devices SET seen_at = ? WHERE id = ?').bind(deps.now, id).run();
     return json({ ok: true, created: false });
   }
-  const total = await env.DB.prepare('SELECT COUNT(*) AS n FROM devices').first('n');
-  if (total >= maxDevices(env)) throw new HttpError(503, 'Il server ha raggiunto il numero massimo di dispositivi');
+  const today = await env.DB.prepare('SELECT COUNT(*) AS n, MIN(created_at) AS oldest FROM devices WHERE created_at > ?')
+    .bind(deps.now - DAY).first();
+  if (today.n >= newDevicesPerDay(env)) {
+    // Finestra mobile di 24 ore: si libera un posto quando la registrazione più vecchia compie un giorno.
+    const response = json({ error: LIMIT_TEXTS.dailyCap }, 503);
+    response.headers.set('Retry-After', String(Math.max(60, Math.ceil((today.oldest + DAY - deps.now) / 1000))));
+    return response;
+  }
+  const total = await env.DB.prepare("SELECT COUNT(*) AS n FROM devices WHERE id NOT LIKE 'segno:%'").first('n');
+  if (total >= maxDevices(env)) {
+    await env.DB.prepare('INSERT INTO devices (id, created_at, seen_at) VALUES (?, ?, ?)').bind(markerId(), deps.now, deps.now).run();
+    throw new HttpError(503, 'Il server ha raggiunto il numero massimo di dispositivi');
+  }
   await env.DB.prepare('INSERT OR IGNORE INTO devices (id, created_at, seen_at) VALUES (?, ?, ?)').bind(id, deps.now, deps.now).run();
   return json({ ok: true, created: true }, 201);
 }
 
-/** Cancella il dispositivo con tutto ciò che lo riguarda: casella, sottoscrizione, promemoria. */
+/**
+ * "Scollega": via casella, sottoscrizione e promemoria; il dispositivo diventa un segno anonimo che conserva
+ * created_at. Il codice smette subito di valere, e registrarsi e scollegarsi di continuo non aggira il tetto.
+ */
 async function deleteDevice(request, env, deps) {
   const id = await requireDevice(request, env, deps);
   await env.DB.batch([
     env.DB.prepare('DELETE FROM reminders WHERE device_id = ?').bind(id),
     env.DB.prepare('DELETE FROM subscriptions WHERE device_id = ?').bind(id),
     env.DB.prepare('DELETE FROM inbox WHERE device_id = ?').bind(id),
-    env.DB.prepare('DELETE FROM devices WHERE id = ?').bind(id)
+    env.DB.prepare('UPDATE devices SET id = ? WHERE id = ?').bind(markerId(), id)
   ]);
   return json({ ok: true });
+}
+
+/** Id di un segno anonimo: contiene ":", quindi non può mai coincidere con un'impronta (64 caratteri esadecimali). */
+function markerId() {
+  return 'segno:' + randomId();
 }
 
 function maxDevices(env) {
   const value = Number(env.MAX_DEVICES);
   return value > 0 ? value : LIMITS.devices;
+}
+
+function newDevicesPerDay(env) {
+  const value = Number(env.MAX_NEW_DEVICES_PER_DAY);
+  return value > 0 ? value : LIMITS.newDevicesPerDay;
 }
 
 /* ---------- Casella del Comando Rapido ---------- */
@@ -390,11 +479,12 @@ function ttlFor(at, now) {
   return Math.min(3600, Math.max(60, Math.round((at + LIMITS.late - now) / 1000)));
 }
 
-/** Pulizia oraria: frasi dimenticate, promemoria passati, dispositivi non più visti (con i loro dati). */
+/** Pulizia oraria: frasi dimenticate, promemoria passati, segni anonimi di oltre un giorno, dispositivi non più visti. */
 async function cleanup(env, now) {
   const oldDevices = 'SELECT id FROM devices WHERE seen_at < ?';
   const deviceLimit = now - LIMITS.deviceDays * DAY;
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM devices WHERE id LIKE 'segno:%' AND created_at < ?").bind(now - DAY),
     env.DB.prepare('DELETE FROM inbox WHERE created_at < ?').bind(now - LIMITS.inboxDays * DAY),
     env.DB.prepare('DELETE FROM reminders WHERE at < ?').bind(now - LIMITS.late),
     env.DB.prepare('DELETE FROM reminders WHERE device_id IN (' + oldDevices + ')').bind(deviceLimit),

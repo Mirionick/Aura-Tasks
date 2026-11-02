@@ -18,6 +18,37 @@ binding = "DB"
 database_name = "aura"
 database_id = "1be9374d-2e09-42a0-ae13-fb478dbfecfb"
 
+# Limiti di richieste per indirizzo IP (binding Rate Limiting dei Workers, senza costi aggiuntivi).
+# I conteggi sono approssimati e separati per ogni sede di Cloudflare: frenano gli abusi, non contano al singolo.
+# period vale 10 o 60 secondi; namespace_id è un numero scelto qui, unico nell'account Cloudflare.
+
+# POST /api/devices e POST /api/push/test (ognuno col suo contatore)
+[[ratelimits]]
+name = "RATE_LIMIT_STRICT"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60
+
+# POST /api/inbox (il Comando Rapido di Siri)
+[[ratelimits]]
+name = "RATE_LIMIT_INBOX"
+namespace_id = "1002"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+# Tutte le altre richieste a /api/ (non contano OPTIONS e GET /api/health)
+[[ratelimits]]
+name = "RATE_LIMIT_API"
+namespace_id = "1003"
+
+  [ratelimits.simple]
+  limit = 120
+  period = 60
+
 [vars]
 # Le pagine che possono chiamare il server (CORS). Il Comando Rapido non ne ha bisogno.
 ALLOWED_ORIGINS = "https://mirionick.github.io"

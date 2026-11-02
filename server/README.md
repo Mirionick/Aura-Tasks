@@ -65,7 +65,7 @@ Il codice del dispositivo viaggia nell'intestazione `Authorization: Bearer <codi
 |---|---|
 | `GET /api/health` | Il server è vivo? |
 | `GET /api/push/key` | Chiave pubblica VAPID, per la sottoscrizione |
-| `POST /api/devices` · `DELETE /api/devices` | Registra il codice · "Scollega": cancella dispositivo, casella, sottoscrizione e promemoria |
+| `POST /api/devices` · `DELETE /api/devices` | Registra il codice · "Scollega": cancella casella, sottoscrizione e promemoria; il codice smette di valere |
 | `POST /api/inbox` | Il Comando Rapido scrive una frase (`text` come JSON, modulo o testo semplice). Risponde in testo semplice: "Aggiunto ad Aura: …" oppure l'errore |
 | `GET /api/inbox` · `POST /api/inbox/ack` | L'app ritira le frasi, poi conferma quelle salvate |
 | `PUT /api/push/subscription` · `DELETE` | Sottoscrizione push del dispositivo (solo servizi noti: Apple, Google, Mozilla, Microsoft) |
@@ -92,3 +92,19 @@ Di' "Ehi Siri, Aura", poi detta per esempio "domani alle 10 dentista". Quando ap
   - 10 ms di CPU per richiesta;
   - D1 permette 100.000 scritture al giorno.
   - Il Cron invia al massimo 10 notifiche al minuto.
+
+## Limiti contro gli abusi
+- **Per indirizzo IP**, con il binding Rate Limiting dei Workers (in `wrangler.toml`). Le regole WAF non valgono su `workers.dev`.
+  - `POST /api/devices`: 10 al minuto.
+  - `POST /api/push/test`: 10 al minuto, con un contatore suo.
+  - `POST /api/inbox`: 20 al minuto.
+  - Tutte le altre `/api/…`: 120 al minuto. `OPTIONS` e `/api/health` non contano.
+  - Per IPv6 conta la rete /64.
+  - Oltre il limite: **429** con `Retry-After: 60`. Il Comando Rapido riceve il messaggio in testo semplice.
+  - ⚠️ Cloudflare conta in modo **approssimato** e separato per ogni sede: su raffiche brevi passano più richieste. Se il servizio non risponde, le richieste passano.
+- **Al massimo 20 nuove registrazioni in 24 ore, in tutto**, con un indice su `devices.created_at` (variabile facoltativa `MAX_NEW_DEVICES_PER_DAY`).
+  - È un limite esatto. I dispositivi già registrati passano sempre.
+  - A tetto raggiunto: **503** con `Retry-After`.
+  - Si controlla prima del conteggio completo dei dispositivi, che così gira al massimo 20 volte al giorno.
+  - "Scollega" e i tentativi a server pieno lasciano un segno anonimo, che conta per 24 ore: così il limite non si aggira.
+- Nelle prove in locale, riparti da un database vuoto (cancella `.wrangler/state`, poi `npm run db:init:local`), altrimenti le prove ripetute riempiono il tetto.

@@ -26,5 +26,12 @@ export const INBOX_TEXTS = {
   tooLong: 'La frase è troppo lunga: al massimo 500 caratteri.',
   full: 'La casella è piena: apri Aura per ritirare le frasi.',
   badJson: 'Il corpo della richiesta non è un JSON valido.',
-  tooLarge: 'Richiesta troppo grande.'
+  tooLarge: 'Richiesta troppo grande.',
+  tooMany: 'Troppe richieste: riprova tra un minuto.'
+};
+
+/** Messaggi JSON per l'app: limite di richieste per IP e tetto giornaliero di nuovi dispositivi. */
+export const LIMIT_TEXTS = {
+  tooMany: 'Troppe richieste da questa rete: riprova tra un minuto',
+  dailyCap: 'Oggi il server di Aura ha già accolto il massimo di nuovi dispositivi: riprova domani'
 };

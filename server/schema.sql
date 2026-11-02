@@ -3,12 +3,15 @@
 --   npm run db:init:local    per le prove con `wrangler dev`
 
 -- Dispositivi: solo l'impronta SHA-256 del codice segreto, mai il codice.
+-- Le righe con id "segno:…" sono segni anonimi (dispositivi scollegati o tentativi a server pieno):
+-- contano nel tetto di nuove registrazioni al giorno e la pulizia le toglie dopo 24 ore.
 CREATE TABLE IF NOT EXISTS devices (
   id TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL,
   seen_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS devices_seen ON devices (seen_at);
+CREATE INDEX IF NOT EXISTS devices_created ON devices (created_at);
 
 -- Casella del Comando Rapido: frasi in attesa che l'app le ritiri.
 CREATE TABLE IF NOT EXISTS inbox (

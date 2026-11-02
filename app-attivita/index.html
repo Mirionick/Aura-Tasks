@@ -2,6 +2,9 @@
 <html lang="it">
 <head>
   <meta charset="utf-8">
+  <!-- Content-Security-Policy: solo i file di questa app e il server di Aura; niente script né stili inline.
+       "file:" serve solo ad aprire index.html con un doppio clic: le pagine web non possono comunque caricare file locali. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file:; connect-src 'self' https://aura.auramirionick.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Aura Tasks</title>
   <meta name="description" content="Aura Tasks: le tue attività quotidiane, con durata stimata ed energia richiesta.">

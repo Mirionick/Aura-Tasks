@@ -162,7 +162,7 @@ La chiave `aura-tasks:data` contiene:
     - `sent`: `{ endpoint, at, key }`, l'ultimo stato confermato dal server;
     - `inbox`: frasi di Siri ritirate e non ancora mostrate;
     - `done`: id delle frasi già mostrate;
-  - `aura-tasks:server`: indirizzo di un server di prova. Vale solo su `localhost` o da `file://`.
+  - `aura-tasks:server`: indirizzo di un server di prova. Vale solo su `localhost` o da `file://`. Per via della CSP deve essere sulla stessa origine dell'app (vedi "Prova completa in locale").
 
 **Dalla v1 alla v2**:
 1. `migrate()` mette `stats = null`.
@@ -189,6 +189,13 @@ I dati migrati vengono salvati alla prima modifica.
   - Mai `toISOString()` per la data di oggi: è in UTC, e dopo mezzanotte in Italia darebbe il giorno prima.
   - Mai `new Date('YYYY-MM-DD')`: anche questa legge la data in UTC.
 - **Sicurezza**: i testi dell'utente vanno sempre in `textContent`, mai in `innerHTML`.
+- **Content-Security-Policy** (`<meta>` subito dopo `charset` in `index.html`):
+  - permette solo i file dell'app e, in `connect-src`, il server di Aura;
+  - **niente script, `<style>` o attributi `style=` inline**: sarebbero bloccati. Lo stile da JavaScript passa per il CSSOM (`el.style.prop = …`) o per `element.animate()`, che la CSP permette;
+  - un servizio esterno nuovo va aggiunto a `connect-src`;
+  - `file:` nella CSP serve solo per il doppio clic su `index.html` e non ha effetto su https;
+  - con la CSP via `<meta>` non si possono usare `frame-ancestors` né i report: GitHub Pages non permette di impostare intestazioni HTTP;
+  - dopo una modifica, da `file://` e da `localhost` non deve comparire nessun messaggio "Content Security Policy" in console.
 - **"Annulla" invece di chiedere conferma**: le azioni distruttive si eseguono subito e l'avviso offre "Annulla". Niente `confirm()`.
 - **CSS**:
   - colori, ombre e raggi passano solo dalle variabili in `:root` (tema chiaro) e `:root[data-theme="dark"]` (tema scuro);
@@ -231,15 +238,18 @@ Note per i controlli automatici con Edge headless:
 - tutte le API, sull'SQL vero (D1 simulato con `node:sqlite`);
 - il Cron, con un servizio push finto e i messaggi decifrati.
 
-**Prova completa in locale** (app + server vero), da rifare quando cambiano server, `remote.js` o la casella:
-1. In `server/`, una volta: `npm run vapid -- --local` e `npm run db:init:local`.
-2. Avvia `npm run dev` (127.0.0.1:8787), un finto servizio push su `localhost:9999` e l'app su `http://localhost:8765`, che è l'origine ammessa in `.dev.vars`.
-3. Nell'app imposta `aura-tasks:server` per farla puntare al server locale.
-4. Guida Edge headless via DevTools, in tempo reale:
+**Prova completa in locale** (app + server vero), da rifare quando cambiano server, `remote.js`, la casella o la CSP:
+1. In `server/`, una volta: `npm run vapid -- --local`.
+2. Prima di ogni prova: cancella `server/.wrangler/state` e poi `npm run db:init:local`. Senza un database vuoto, le prove ripetute riempirebbero il tetto di 20 registrazioni al giorno.
+3. Avvia `npm run dev` (127.0.0.1:8787, con i limiti per IP simulati da Miniflare) e un finto servizio push su `localhost:9999`.
+4. **Server di prova** su `http://localhost:8765`, l'origine ammessa in `.dev.vars`: serve l'app e **inoltra `/api/` e `/__scheduled` a wrangler dev**. Con la CSP l'app parla solo con la sua origine, quindi `aura-tasks:server` = `http://localhost:8765`.
+5. Guida Edge headless via DevTools, in tempo reale:
    - `Browser.grantPermissions` per le notifiche;
-   - `Page.addScriptToEvaluateOnNewDocument` per un `PushManager` simulato, perché in headless non c'è un servizio push;
+   - `Page.addScriptToEvaluateOnNewDocument` per un `PushManager` simulato, perché in headless non c'è un servizio push, e per registrare gli eventi `securitypolicyviolation`, che devono essere zero;
    - `ServiceWorker.deliverPushMessage` per provare l'evento `push`, poi `getNotifications()`.
-5. Il Cron si fa partire con `GET /__scheduled`.
+6. Il Cron si fa partire con `GET /__scheduled`.
+
+**Screenshot**: la CSP blocca gli `<style>` aggiunti dall'esterno. Per fermare le animazioni si avvia Edge con `--force-prefers-reduced-motion`.
 
 ## Design
 
@@ -404,7 +414,7 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
 **Codice del dispositivo**
 - 24 byte casuali (`crypto.getRandomValues`), cioè 32 caratteri base64url, generati dall'app e salvati in `aura-tasks:remote`.
 - Viaggia in `Authorization: Bearer <codice>`; il server ne conserva solo l'impronta SHA-256. Senza un codice registrato risponde 401.
-- "Scollega questo dispositivo" cancella sul server dispositivo, casella, sottoscrizione e promemoria. L'avviso offre "Annulla", che registra di nuovo lo stesso codice.
+- "Scollega questo dispositivo" cancella sul server casella, sottoscrizione e promemoria. Il dispositivo diventa un **segno anonimo** (vedi "Tetto di nuove registrazioni") e il codice smette subito di valere. L'avviso offre "Annulla", che registra di nuovo lo stesso codice.
 - Se il server non conosce più il codice (401), l'app lo registra di nuovo da sola. Così il Comando Rapido continua a funzionare.
 
 **Casella di Siri**
@@ -454,7 +464,34 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
 - ≤ 30 frasi in attesa;
 - ≤ 200 promemoria per dispositivo;
 - ≤ 1000 dispositivi;
-- pulizia oraria di frasi vecchie e dispositivi non visti da 180 giorni.
+- pulizia oraria di frasi vecchie, segni anonimi di oltre un giorno e dispositivi non visti da 180 giorni.
+
+**Limiti di richieste per indirizzo IP**
+Su `workers.dev` le regole WAF non valgono, quindi si usa il binding Rate Limiting dei Workers, che non ha costi aggiuntivi. È configurato in `wrangler.toml`; `period` vale solo 10 o 60 secondi.
+
+| Binding | Limite per IP | Richieste |
+|---|---|---|
+| `RATE_LIMIT_STRICT` | 10 al minuto | `POST /api/devices`; `POST /api/push/test` con un contatore suo |
+| `RATE_LIMIT_INBOX` | 20 al minuto | `POST /api/inbox` |
+| `RATE_LIMIT_API` | 120 al minuto | tutte le altre `/api/…`; non contano `OPTIONS` e `GET /api/health` |
+
+- **Chiave**: `clientKey()`, cioè `CF-Connecting-IP`, che il client non può falsificare. Per IPv6 vale la rete /64, e `::ffff:a.b.c.d` vale come IPv4.
+- **Oltre il limite**: 429 con `Retry-After: 60` e le intestazioni CORS. La casella risponde in testo semplice ("Troppe richieste: riprova tra un minuto."); le altre richieste in JSON ("Troppe richieste da questa rete…").
+- **Se manca il binding** (test, prove) **o il servizio non risponde, la richiesta passa**: meglio un limite in meno che un'app bloccata.
+- ⚠️ **I conteggi sono approssimati** e separati per ogni sede di Cloudflare: su raffiche brevi passano più richieste del limite. Il binding frena gli abusi prolungati; il freno esatto è il tetto qui sotto.
+
+**Tetto di nuove registrazioni: 20 in 24 ore, in tutto**
+Variabile facoltativa: `MAX_NEW_DEVICES_PER_DAY`. `registerDevice` controlla in quest'ordine:
+1. **Dispositivo già registrato**: 200, sempre, senza controlli.
+2. **Tetto giornaliero**: una query sull'indice `devices_created` (`COUNT` e `MIN(created_at)` delle righe delle ultime 24 ore) legge poche righe. A tetto raggiunto risponde 503 con `Retry-After`: i secondi finché la registrazione più vecchia della finestra compie 24 ore.
+3. **Conteggio completo** per il tetto dei 1000 dispositivi: legge tutta la tabella.
+
+Ogni volta che il conteggio completo gira resta una riga con `created_at`, quindi gira **al massimo 20 volte al giorno**:
+- in caso di registrazione, è il dispositivo stesso;
+- se il server è pieno, è un **segno anonimo**, con id `segno:…` che non può mai coincidere con un'impronta;
+- anche "Scollega" trasforma il dispositivo in un segno anonimo: così registrarsi e scollegarsi di continuo non aggira il tetto.
+
+La pulizia oraria toglie i segni più vecchi di 24 ore. Nell'app, `Aura.remote.troubleMessage()` mostra la spiegazione del server: limite per IP, tetto giornaliero, server pieno.
 
 ---
 

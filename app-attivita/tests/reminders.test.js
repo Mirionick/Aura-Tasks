@@ -146,6 +146,19 @@
     assertEqual(settings.done, ['a']);
   });
 
+  test('messaggi d\'errore: prima la spiegazione del server, poi i casi generici', () => {
+    assertEqual(R.troubleMessage({ status: 429, data: { error: 'Troppe richieste da questa rete: riprova tra un minuto' } }, true),
+      'Troppe richieste da questa rete: riprova tra un minuto.');
+    assertEqual(R.troubleMessage({ status: 503, data: { error: 'Oggi il server di Aura ha già accolto il massimo di nuovi dispositivi: riprova domani' } }, true),
+      'Oggi il server di Aura ha già accolto il massimo di nuovi dispositivi: riprova domani.');
+    assertEqual(R.troubleMessage({ status: 400, data: { error: 'Già col punto.' } }, true), 'Già col punto.');
+    assertEqual(R.troubleMessage({ status: 429, data: null }, true), 'Troppe richieste: riprova tra un minuto.');
+    assertEqual(R.troubleMessage({ status: 0, data: null }, false), 'Serve internet: riprova quando sei online.');
+    assertEqual(R.troubleMessage({ status: 0, data: null }, true), 'Il server di Aura non risponde: riprova tra poco.');
+    assertEqual(R.troubleMessage({ status: 500, data: { error: 42 } }, true), 'Il server di Aura non risponde: riprova tra poco.');
+    assertEqual(R.troubleMessage(null, true), 'Il server di Aura non risponde: riprova tra poco.');
+  });
+
   test('impostazioni: i valori validi restano', () => {
     const raw = {
       code: R.makeDeviceCode(new Uint8Array(24).fill(7)),
