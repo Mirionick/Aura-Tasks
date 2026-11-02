@@ -1,0 +1,13 @@
+# Pacchetti installati da npm (solo Wrangler): si rifanno con `npm install`
+node_modules/
+
+# Stato locale di `wrangler dev` (database di prova)
+.wrangler/
+
+# Chiavi e variabili delle prove in locale: NON vanno mai nel repository
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+
+*.log

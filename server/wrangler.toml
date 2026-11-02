@@ -1,0 +1,25 @@
+# Server di Aura su Cloudflare Workers (piano gratuito). Guida: README.md
+#
+# Il repository è pubblico: qui ci sono solo impostazioni pubbliche.
+# Le chiavi VAPID stanno nei secrets di Cloudflare (npm run vapid) e non vanno MAI scritte in questo file.
+
+name = "aura"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Ogni minuto: invia i promemoria arrivati all'ora.
+[triggers]
+crons = ["* * * * *"]
+
+# L'id non è un segreto: senza l'accesso all'account Cloudflare non serve a nulla.
+[[d1_databases]]
+binding = "DB"
+database_name = "aura"
+database_id = "1be9374d-2e09-42a0-ae13-fb478dbfecfb"
+
+[vars]
+# Le pagine che possono chiamare il server (CORS). Il Comando Rapido non ne ha bisogno.
+ALLOWED_ORIGINS = "https://mirionick.github.io"
+# Contatto per i servizi push (Apple, Google…), richiesto dalla firma VAPID.
+VAPID_SUBJECT = "https://mirionick.github.io/Aura-Tasks/app-attivita/"

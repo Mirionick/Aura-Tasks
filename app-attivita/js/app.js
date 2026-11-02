@@ -2,11 +2,12 @@
  * Aura Tasks — interfaccia.
  * Unico file che tocca la pagina: disegna la lista partendo da `state` e trasforma i gesti
  * dell'utente in chiamate ad Aura.tasks, Aura.points e Aura.storage. Ogni modifica passa da commit().
+ * Promemoria e casella di Siri (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, storage, theme } = Aura;
+  const { utils, tasks: T, nlp, points: P, storage, theme, reminders: RM, remote: R } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -61,6 +62,25 @@
     themeButton: byId('theme-button'),
     themeSheet: byId('theme-sheet'),
     themeHeading: byId('theme-sheet-title'),
+    inboxNote: byId('inbox-note'),
+    inboxNoteText: byId('inbox-note-text'),
+    footnoteText: byId('footnote-text'),
+    remoteButton: byId('remote-button'),
+    remoteSheet: byId('remote-sheet'),
+    remoteHeading: byId('remote-sheet-title'),
+    remoteNotice: byId('remote-notice'),
+    reminderStatus: byId('reminder-status'),
+    reminderLeads: byId('reminder-leads'),
+    reminderOn: byId('reminder-on'),
+    reminderTest: byId('reminder-test'),
+    reminderOff: byId('reminder-off'),
+    siriStatus: byId('siri-status'),
+    siriSetup: byId('siri-setup'),
+    siriDetails: byId('siri-details'),
+    siriUrl: byId('siri-url'),
+    siriAuth: byId('siri-auth'),
+    siriShow: byId('siri-show'),
+    remoteDisconnect: byId('remote-disconnect'),
     toast: byId('toast'),
     toastText: byId('toast-text'),
     toastAction: byId('toast-action'),
@@ -77,6 +97,7 @@
   let renderedDay = null;
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
   const busy = new Set(); // attività in animazione: i doppi tocchi vengono ignorati
+  let remote = R.load(); // collegamento al server: codice del dispositivo, promemoria, frasi di Siri in coda
 
   /* ---------- Stato ---------- */
 
@@ -89,6 +110,7 @@
     const saved = storage.save(state);
     render();
     if (!saved) showToast('Impossibile salvare: la memoria del browser è piena o disattivata.', { duration: 6000 });
+    scheduleReminderSync(); // con i promemoria spenti non fa nulla
     return saved;
   }
 
@@ -489,6 +511,7 @@
     if (reducedMotion.matches) {
       dialog.close();
       releaseScroll();
+      onSheetClosed(dialog);
       return;
     }
     let timer = null;
@@ -499,6 +522,7 @@
       dialog.classList.remove('is-closing');
       if (shouldClose && dialog.open) dialog.close();
       releaseScroll();
+      if (shouldClose) onSheetClosed(dialog);
     };
     const onEnd = event => {
       if (event.target === dialog) finish();
@@ -516,7 +540,10 @@
       closeSheet(dialog);
     });
     // Chiusure "native" (per esempio Esc quando il browser non permette di animarla).
-    dialog.addEventListener('close', releaseScroll);
+    dialog.addEventListener('close', () => {
+      releaseScroll();
+      onSheetClosed(dialog);
+    });
     // Tocco sullo sfondo scuro: chiude (solo se anche la pressione è iniziata sullo sfondo).
     let pressedBackdrop = false;
     dialog.addEventListener('pointerdown', event => { pressedBackdrop = event.target === dialog; });
@@ -537,10 +564,15 @@
 
   /* ---------- Foglio "Nuova attività" ---------- */
 
-  /** Apre il foglio vuoto, oppure già compilato da una frase (per esempio dal link ?add=). */
-  function openAddSheet(phrase) {
+  /**
+   * Apre il foglio vuoto, oppure già compilato da una frase (dal link ?add= o dalla casella di Siri).
+   * `note` è la riga sopra la frase, per esempio "Da Siri · 1 di 2".
+   */
+  function openAddSheet(phrase, note) {
     els.form.reset();
     setErrors({});
+    els.inboxNoteText.textContent = note || '';
+    els.inboxNote.hidden = !note;
     els.dateInput.min = utils.todayISO();
     phraseBase = null;
     els.phraseSummary.textContent = PHRASE_HINT;
@@ -730,6 +762,471 @@
     openSheet(els.themeSheet);
   }
 
+  /* ---------- Foglio "Promemoria e Siri" (server di Aura) ---------- */
+
+  const AVAILABILITY_NOTES = {
+    file: 'Promemoria e Siri funzionano nell\'app pubblicata (https), non aprendo il file dal computer.',
+    unconfigured: 'Il server di Aura non è ancora configurato.'
+  };
+  const SUPPORT_NOTES = {
+    'ios-install': 'Su iPhone i promemoria funzionano con Aura aggiunta alla schermata Home (Condividi → "Aggiungi alla schermata Home") e aperta dall\'icona, con iOS 16.4 o successivo.',
+    unsupported: 'Questo browser non supporta le notifiche push.',
+    denied: 'Le notifiche per Aura sono bloccate: riattivale nelle impostazioni (su iPhone: Impostazioni → Notifiche → Aura Tasks).'
+  };
+
+  /** Errore con un messaggio già pronto da mostrare nel foglio. */
+  class RemoteError extends Error {}
+
+  let remoteBusy = false;
+  let codeVisible = false;
+  let pushRegistration = null; // service worker pronto: preparato all'apertura del foglio
+  let serverKey = null; // chiave pubblica del server (VAPID)
+  const messages = { reminders: null, siri: null }; // esito dell'ultima azione, al posto dello stato normale
+
+  function saveRemote() {
+    R.save(remote);
+  }
+
+  function serverTrouble() {
+    return navigator.onLine === false ? 'Serve internet: riprova quando sei online.' : 'Il server di Aura non risponde: riprova tra poco.';
+  }
+
+  function syncRemoteUI() {
+    const availability = R.availability();
+    const available = availability === 'ok';
+    const support = R.pushSupport();
+    const enabled = remote.reminders.enabled;
+    const connected = Boolean(remote.code);
+
+    els.remoteNotice.hidden = available;
+    els.remoteNotice.textContent = AVAILABILITY_NOTES[availability] || '';
+
+    let status = { text: 'Spenti', tone: 'off' };
+    if (messages.reminders) status = messages.reminders;
+    else if (enabled) status = { text: 'Attivi · ' + RM.leadLabel(remote.reminders.lead), tone: 'on' };
+    else if (available && !support.ok) status = { text: SUPPORT_NOTES[support.reason], tone: 'warn' };
+    els.reminderStatus.textContent = status.text;
+    els.reminderStatus.dataset.tone = status.tone;
+    els.reminderLeads.querySelectorAll('[data-lead]').forEach(chip => {
+      chip.setAttribute('aria-pressed', String(Number(chip.dataset.lead) === remote.reminders.lead));
+    });
+    els.reminderOn.hidden = enabled;
+    els.reminderTest.hidden = !enabled;
+    els.reminderOff.hidden = !enabled;
+    els.reminderOn.disabled = remoteBusy || !available || !support.ok;
+    els.reminderTest.disabled = remoteBusy || !available;
+    els.reminderOff.disabled = remoteBusy;
+
+    els.siriStatus.hidden = !messages.siri;
+    if (messages.siri) {
+      els.siriStatus.textContent = messages.siri.text;
+      els.siriStatus.dataset.tone = messages.siri.tone;
+    }
+    els.siriSetup.hidden = connected;
+    els.siriSetup.disabled = remoteBusy || !available;
+    els.siriDetails.hidden = !connected;
+    if (connected) {
+      els.siriUrl.textContent = R.serverUrl() + '/api/inbox';
+      els.siriAuth.textContent = 'Bearer ' + (codeVisible ? remote.code : '•'.repeat(12));
+      els.siriShow.textContent = codeVisible ? 'Nascondi il codice' : 'Mostra il codice';
+      els.siriShow.setAttribute('aria-pressed', String(codeVisible));
+    }
+    els.remoteDisconnect.hidden = !connected;
+    els.remoteDisconnect.disabled = remoteBusy;
+    els.remoteSheet.setAttribute('aria-busy', String(remoteBusy));
+    syncRemoteBadges();
+  }
+
+  /** Puntino sulla campanella e frase in fondo alla pagina: dicono se il server è in uso. */
+  function syncRemoteBadges() {
+    els.remoteButton.classList.toggle('has-dot', remote.reminders.enabled);
+    els.remoteButton.setAttribute('aria-label', remote.reminders.enabled ? 'Promemoria e Siri: promemoria attivi' : 'Promemoria e Siri');
+    els.footnoteText.textContent = remote.code
+      ? 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri.'
+      : 'I dati restano solo su questo dispositivo.';
+  }
+
+  function setMessage(area, text, tone) {
+    messages[area] = text ? { text, tone: tone || 'warn' } : null;
+    syncRemoteUI();
+  }
+
+  function openRemoteSheet() {
+    messages.reminders = null;
+    messages.siri = null;
+    codeVisible = false;
+    syncRemoteUI();
+    setAutofocus(els.remoteSheet, els.remoteHeading);
+    openSheet(els.remoteSheet);
+    preparePush();
+  }
+
+  /** Prepara ciò che serve al tocco su "Attiva": su iPhone il permesso va chiesto subito, senza attese di rete prima. */
+  async function preparePush() {
+    if (R.availability() !== 'ok' || !R.pushSupport().ok) return;
+    pushRegistration = await R.registration();
+    await fetchServerKey();
+  }
+
+  async function fetchServerKey() {
+    const result = await R.api.pushKey();
+    if (result.ok && result.data && typeof result.data.publicKey === 'string') serverKey = result.data.publicKey;
+    return serverKey;
+  }
+
+  /** Chiamata al server col codice del dispositivo. Se il server non lo conosce più (401), lo ricollega e riprova una volta. */
+  async function withDevice(call) {
+    let result = await call(remote.code);
+    if (result.status === 401 && remote.code) {
+      const again = await R.api.register(remote.code);
+      if (again.ok) result = await call(remote.code);
+    }
+    return result;
+  }
+
+  /** Il codice del dispositivo, registrato sul server: la prima volta lo crea. */
+  async function ensureDevice() {
+    const code = remote.code || R.newDeviceCode();
+    const result = await R.api.register(code);
+    if (!result.ok) {
+      throw new RemoteError(result.status === 503 ? 'Il server di Aura è al completo: non accetta altri dispositivi.' : serverTrouble());
+    }
+    if (remote.code !== code) {
+      remote.code = code;
+      saveRemote();
+    }
+  }
+
+  /** Manda al server la sottoscrizione push di questo dispositivo. */
+  async function sendSubscription(subscription, key) {
+    const result = await withDevice(code => R.api.putSubscription(code, subscription.toJSON()));
+    if (!result.ok) {
+      throw new RemoteError(result.status === 400 ? 'Il servizio di notifiche di questo browser non è supportato.' : serverTrouble());
+    }
+    remote.vapidKey = key;
+    remote.sent = { endpoint: subscription.endpoint, at: Date.now(), key: null }; // l'elenco va rimandato
+    saveRemote();
+  }
+
+  async function onEnableReminders() {
+    if (remoteBusy) return;
+    if (!R.pushSupport().ok) {
+      syncRemoteUI();
+      return;
+    }
+    // Su iPhone il permesso va chiesto subito, dentro il tocco: nessuna attesa di rete prima di questa riga.
+    let permission;
+    try {
+      permission = await Notification.requestPermission();
+    } catch (err) {
+      permission = Notification.permission;
+    }
+    if (permission !== 'granted') {
+      setMessage('reminders', permission === 'denied' ? SUPPORT_NOTES.denied : 'Per i promemoria serve il permesso per le notifiche.');
+      return;
+    }
+    remoteBusy = true;
+    setMessage('reminders', 'Attivo i promemoria…', 'busy');
+    try {
+      const reg = pushRegistration || await R.registration();
+      if (!reg) throw new RemoteError('Il service worker non è attivo: ricarica Aura e riprova.');
+      const key = serverKey || await fetchServerKey();
+      if (!key) throw new RemoteError(serverTrouble());
+      const subscription = await R.subscribe(reg, key);
+      await ensureDevice();
+      await sendSubscription(subscription, key);
+      remote.reminders.enabled = true;
+      saveRemote();
+      await syncReminders(true);
+      messages.reminders = null;
+    } catch (err) {
+      messages.reminders = {
+        text: err instanceof RemoteError ? err.message : 'Non sono riuscito ad attivare i promemoria. Riprova tra poco.',
+        tone: 'warn'
+      };
+    }
+    remoteBusy = false;
+    syncRemoteUI();
+  }
+
+  async function onDisableReminders() {
+    if (remoteBusy) return;
+    remote.reminders.enabled = false;
+    saveRemote();
+    remoteBusy = true;
+    setMessage('reminders', 'Spengo i promemoria…', 'busy');
+    // Se il server non risponde, ci si riprova da soli (refreshRemote): intanto qui risultano già spenti.
+    await forgetServerSubscription();
+    messages.reminders = null;
+    remoteBusy = false;
+    syncRemoteUI();
+  }
+
+  /** Toglie dal server sottoscrizione e promemoria; se non ci riesce, resta segnato e ci si riprova. */
+  async function forgetServerSubscription() {
+    const result = await R.api.deleteSubscription(remote.code);
+    if (result.ok || result.status === 401) {
+      remote.sent = R.emptySent();
+      saveRemote();
+    }
+  }
+
+  async function onTestPush() {
+    if (remoteBusy) return;
+    remoteBusy = true;
+    setMessage('reminders', 'Invio una notifica di prova…', 'busy');
+    let result = await withDevice(code => R.api.testPush(code));
+    if ((result.status === 409 || result.status === 410) && await refreshPush({ force: true })) {
+      // Il server non aveva (più) la sottoscrizione: rimandata, si riprova.
+      result = await R.api.testPush(remote.code);
+    }
+    messages.reminders = result.ok
+      ? { text: 'Notifica inviata: arriva tra pochi secondi.', tone: 'on' }
+      : { text: testFailure(result), tone: 'warn' };
+    remoteBusy = false;
+    syncRemoteUI();
+  }
+
+  /** Perché la notifica di prova non è partita, con il codice del servizio push (utile se Apple o Google rifiutano). */
+  function testFailure(result) {
+    if (result.status === 0) return serverTrouble();
+    const data = result.data || {};
+    const detail = data.status ? ' (' + data.status + (data.reason ? ': ' + String(data.reason).slice(0, 80) : '') + ')' : '';
+    return (data.error || 'Invio non riuscito') + detail + '.';
+  }
+
+  async function onSiriSetup() {
+    if (remoteBusy) return;
+    remoteBusy = true;
+    setMessage('siri', 'Creo il codice…', 'busy');
+    try {
+      await ensureDevice();
+      messages.siri = null;
+    } catch (err) {
+      messages.siri = { text: err instanceof RemoteError ? err.message : serverTrouble(), tone: 'warn' };
+    }
+    remoteBusy = false;
+    syncRemoteUI();
+  }
+
+  /** Copia negli appunti; restituisce true se ci è riuscito. */
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (err) {
+      // Si prova il metodo vecchio, qui sotto.
+    }
+    // Il campo d'appoggio sta dentro il foglio: fuori da un <dialog> modale non si può selezionare.
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.className = 'sr-only';
+    els.remoteSheet.appendChild(area);
+    area.select();
+    let copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (err) {
+      copied = false;
+    }
+    area.remove();
+    return copied;
+  }
+
+  async function onCopy(button) {
+    const text = button.dataset.copy === 'auth' ? 'Bearer ' + remote.code : R.serverUrl() + '/api/inbox';
+    if (!await copyText(text)) {
+      // Niente appunti: si mostra tutto, da selezionare a mano.
+      codeVisible = true;
+      setMessage('siri', 'Non riesco a copiare: tieni premuto sul testo per selezionarlo.');
+      return;
+    }
+    button.dataset.label = button.dataset.label || button.textContent;
+    button.textContent = 'Copiato ✓';
+    setTimeout(() => { button.textContent = button.dataset.label; }, 1800);
+  }
+
+  /** "Scollega": il server dimentica il dispositivo (codice, casella, promemoria). Si può annullare. */
+  async function onDisconnect() {
+    if (remoteBusy || !remote.code) return;
+    remoteBusy = true;
+    setMessage('siri', 'Scollego il dispositivo…', 'busy');
+    await checkInbox({ force: true }); // prima si ritirano le frasi in attesa: non vanno perse
+    const previous = remote;
+    const result = await R.api.unregister(previous.code);
+    remoteBusy = false;
+    if (!result.ok && result.status !== 401) {
+      setMessage('siri', serverTrouble());
+      return;
+    }
+    remote = Object.assign(R.defaults(), { inbox: previous.inbox, done: previous.done });
+    remote.reminders.lead = previous.reminders.lead;
+    saveRemote();
+    messages.siri = null;
+    syncRemoteUI();
+    closeSheet(els.remoteSheet);
+    showToast('Dispositivo scollegato', { action: 'Annulla', onAction: () => restoreConnection(previous) });
+  }
+
+  /** "Annulla" dopo "Scollega": torna lo stesso codice, così il Comando Rapido continua a funzionare. */
+  async function restoreConnection(previous) {
+    const result = await R.api.register(previous.code);
+    if (!result.ok) {
+      showToast('Non sono riuscito a ricollegare il dispositivo. ' + serverTrouble(), { duration: 5000 });
+      return;
+    }
+    remote = Object.assign({}, previous, { inbox: remote.inbox, done: remote.done, sent: R.emptySent() });
+    saveRemote();
+    syncRemoteUI();
+    showToast('Dispositivo ricollegato');
+    if (remote.reminders.enabled) await refreshPush({ force: true });
+  }
+
+  /* ---------- Casella del Comando Rapido di Siri ---------- */
+
+  const INBOX_INTERVAL_MS = 15 * 1000;
+  let inboxCheckedAt = 0;
+  let inboxShowing = null; // id della frase mostrata adesso nel foglio "Nuova attività"
+  let inboxShown = 0; // frasi già mostrate in questa serie, per "2 di 3"
+
+  /** Ritira le frasi dal server, le salva nella coda e solo dopo le conferma al server: così nessuna si perde. */
+  async function checkInbox({ force = false } = {}) {
+    if (!remote.code || R.availability() !== 'ok' || navigator.onLine === false) return;
+    if (!force && Date.now() - inboxCheckedAt < INBOX_INTERVAL_MS) return;
+    inboxCheckedAt = Date.now();
+    const result = await withDevice(code => R.api.inbox(code));
+    const items = result.ok && result.data && Array.isArray(result.data.items) ? result.data.items : [];
+    if (items.length) {
+      remote.inbox = R.mergeInbox(remote.inbox, items, remote.done);
+      saveRemote();
+      // Si confermano solo le frasi in coda o già viste; quelle in più restano sul server per la prossima volta.
+      const kept = new Set(remote.inbox.map(item => item.id).concat(remote.done));
+      const ids = items.map(item => item.id).filter(id => kept.has(id));
+      if (ids.length) await R.api.ackInbox(remote.code, ids);
+    }
+    showNextInboxItem();
+  }
+
+  /** Apre la prossima frase in coda nel foglio "Nuova attività", se non c'è già un foglio aperto. */
+  function showNextInboxItem() {
+    if (inboxShowing || !remote.inbox.length || document.querySelector('dialog[open]')) return;
+    const item = remote.inbox[0];
+    const total = inboxShown + remote.inbox.length;
+    inboxShowing = item.id;
+    openAddSheet(item.text, total > 1 ? 'Da Siri · ' + (inboxShown + 1) + ' di ' + total : 'Da Siri');
+  }
+
+  /** Dopo la chiusura di un foglio: la frase mostrata è fatta (aggiunta o annullata), poi tocca alla prossima. */
+  function onSheetClosed(dialog) {
+    if (dialog === els.addSheet && inboxShowing) {
+      const id = inboxShowing;
+      inboxShowing = null;
+      inboxShown++;
+      remote.inbox = remote.inbox.filter(item => item.id !== id);
+      remote.done = [id].concat(remote.done.filter(other => other !== id)).slice(0, 100);
+      saveRemote();
+    }
+    if (!remote.inbox.length) {
+      inboxShown = 0;
+      return;
+    }
+    // Sempre con un timer (anche con "Riduci movimento"): prima arriva l'evento "close" del foglio appena chiuso.
+    setTimeout(showNextInboxItem, 250);
+  }
+
+  /* ---------- Promemoria (notifiche push) ---------- */
+
+  let syncTimer = null;
+  let syncChain = Promise.resolve();
+
+  /** Dopo ogni modifica: l'elenco va al server dopo 2 secondi (le modifiche vicine si sommano). Spenti: nulla. */
+  function scheduleReminderSync() {
+    if (!remote.reminders.enabled) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => syncReminders(false), 2000);
+  }
+
+  /** Manda l'elenco dei promemoria se è cambiato da quello già confermato. Un invio alla volta, nell'ordine. */
+  function syncReminders(force) {
+    syncChain = syncChain.then(() => sendReminders(force)).catch(() => {});
+    return syncChain;
+  }
+
+  async function sendReminders(force) {
+    if (!remote.reminders.enabled || !remote.code || R.availability() !== 'ok' || navigator.onLine === false) return;
+    const list = RM.buildReminders(state.tasks, { lead: remote.reminders.lead, now: Date.now() });
+    const key = RM.listKey(list);
+    if (!force && key === remote.sent.key) return;
+    const result = await withDevice(code => R.api.putReminders(code, list));
+    if (result.ok) {
+      remote.sent.key = key;
+      saveRemote();
+    }
+  }
+
+  /**
+   * Controlla che il server abbia la sottoscrizione giusta e la ripara se serve: browser che l'ha cambiata,
+   * chiavi del server cambiate, server che l'ha persa, o un giorno passato dall'ultima conferma.
+   * Restituisce true se la sottoscrizione è stata rimandata.
+   */
+  async function refreshPush({ force = false } = {}) {
+    if (!R.pushSupport().ok) return false; // permesso tolto: lo dice il foglio
+    const reg = await R.registration();
+    if (!reg) return false;
+    let subscription = await R.currentSubscription(reg);
+    const due = force || !subscription || subscription.endpoint !== remote.sent.endpoint ||
+      Date.now() - remote.sent.at > utils.DAY_MS;
+    if (!due) {
+      await syncReminders(false);
+      return false;
+    }
+    const key = (await fetchServerKey()) || remote.vapidKey;
+    if (!key) return false;
+    if ((!subscription || key !== remote.vapidKey) && Notification.permission === 'granted') {
+      try {
+        subscription = await R.subscribe(reg, key);
+      } catch (err) {
+        subscription = null;
+      }
+    }
+    if (!subscription) return false;
+    try {
+      await sendSubscription(subscription, key);
+    } catch (err) {
+      return false;
+    }
+    await syncReminders(true);
+    return true;
+  }
+
+  let refreshing = false;
+
+  /** All'avvio, al ritorno nell'app e quando torna internet: casella di Siri e promemoria. Senza codice non fa nulla. */
+  async function refreshRemote({ force = false } = {}) {
+    if (refreshing || !remote.code || R.availability() !== 'ok' || navigator.onLine === false) return;
+    refreshing = true;
+    try {
+      await checkInbox({ force });
+      if (remote.reminders.enabled) await refreshPush();
+      else if (remote.sent.endpoint) await forgetServerSubscription(); // spegnimento che non era arrivato al server
+    } catch (err) {
+      // Problemi di rete: si riprova alla prossima occasione.
+    } finally {
+      refreshing = false;
+    }
+  }
+
+  /** Dalla notifica di un promemoria: evidenzia l'attività e la porta in vista. */
+  function showTask(id) {
+    if (!id || !state.tasks.some(task => task.id === id)) return;
+    highlightId = id;
+    render();
+    revealTask(id);
+  }
+
   /* ---------- Fascia sotto la barra di stato (iPhone, app installata) ---------- */
 
   let scrimThreshold = 0;
@@ -747,22 +1244,29 @@
     els.scrim.classList.toggle('is-visible', visible);
   }
 
-  /* ---------- Link "…/?add=testo" (per esempio dal Comando Rapido di Siri) ---------- */
+  /* ---------- Link "…/?add=testo" e "…/?task=id" (dalla notifica di un promemoria) ---------- */
 
-  /** Apre "Nuova attività" già compilato con il testo del link; il parametro sparisce dall'indirizzo. */
+  /**
+   * ?add=testo apre "Nuova attività" già compilato; ?task=id evidenzia l'attività di una notifica.
+   * I parametri spariscono dall'indirizzo.
+   */
   function openFromLink() {
     let text = null;
+    let taskId = null;
     try {
       const params = new URLSearchParams(location.search);
       text = params.get('add');
-      if (text === null) return;
+      taskId = params.get('task');
+      if (text === null && taskId === null) return;
       params.delete('add');
+      params.delete('task');
       const query = params.toString();
       // Così ricaricando la pagina il foglio non si riapre.
       history.replaceState(history.state, '', location.pathname + (query ? '?' + query : '') + location.hash);
     } catch (err) {
       // Da file:// alcuni browser non permettono di cambiare l'indirizzo: il foglio si apre lo stesso.
     }
+    if (taskId) showTask(taskId);
     if (text !== null) openAddSheet(text.trim());
   }
 
@@ -853,6 +1357,39 @@
   });
   theme.onChange(syncThemeUI);
 
+  els.remoteButton.addEventListener('click', openRemoteSheet);
+  els.reminderOn.addEventListener('click', onEnableReminders);
+  els.reminderOff.addEventListener('click', onDisableReminders);
+  els.reminderTest.addEventListener('click', onTestPush);
+  els.reminderLeads.addEventListener('click', event => {
+    const chip = event.target.closest('[data-lead]');
+    if (!chip) return;
+    remote.reminders.lead = Number(chip.dataset.lead);
+    saveRemote();
+    syncRemoteUI();
+    syncReminders(false); // con i promemoria attivi il server riceve subito i nuovi orari
+  });
+  els.siriSetup.addEventListener('click', onSiriSetup);
+  els.siriShow.addEventListener('click', () => {
+    codeVisible = !codeVisible;
+    syncRemoteUI();
+  });
+  els.siriDetails.addEventListener('click', event => {
+    const button = event.target.closest('[data-copy]');
+    if (button) onCopy(button);
+  });
+  els.remoteDisconnect.addEventListener('click', onDisconnect);
+
+  // Tocco su una notifica con l'app già aperta: il service worker chiede di mostrare l'attività.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', event => {
+      const data = event.data || {};
+      if (data.type === 'open-task') showTask(data.id);
+    });
+  }
+  // Tornata la connessione: frasi di Siri e promemoria rimasti in sospeso.
+  window.addEventListener('online', () => refreshRemote({ force: true }));
+
   els.toastAction.addEventListener('click', () => {
     const handler = toastHandler;
     hideToast();
@@ -866,11 +1403,14 @@
     toastTimer = setTimeout(hideToast, 2000);
   });
 
-  [els.addSheet, els.themeSheet].forEach(setupSheet);
+  [els.addSheet, els.themeSheet, els.remoteSheet].forEach(setupSheet);
 
   // Tornando nell'app (o dopo mezzanotte) "Oggi" e "In ritardo" devono essere giusti.
+  // E si guarda se Siri ha lasciato frasi nella casella (solo con un dispositivo collegato).
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') render();
+    if (document.visibilityState !== 'visible') return;
+    render();
+    refreshRemote();
   });
   setInterval(() => {
     const now = new Date();
@@ -898,4 +1438,7 @@
   if (els.statStreak.classList.contains('is-lit')) flash(els.statStreak, 'is-flickering', 3800);
   if (loaded.warning) showToast(loaded.warning, { duration: 8000 });
   openFromLink();
+  syncRemoteBadges();
+  showNextInboxItem(); // frasi di Siri già ritirate ma non ancora viste (anche offline)
+  refreshRemote({ force: true });
 })(window.Aura = window.Aura || {});

@@ -305,6 +305,22 @@ button {
   margin-bottom: 14px;
 }
 
+.hero__actions { display: flex; align-items: center; gap: 8px; }
+
+/* Campanella con un puntino quando i promemoria sono attivi */
+.icon-btn.has-dot { position: relative; }
+.icon-btn.has-dot::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--star);
+  box-shadow: 0 0 0 2px var(--hero-top);
+}
+
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand__logo { width: 30px; height: 30px; flex: none; }
 .brand__halo { fill: var(--glass); stroke: var(--glass-border); stroke-width: 1; }
@@ -721,6 +737,33 @@ button {
 .btn--small { min-height: 40px; padding: 0 12px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; }
 .btn--small .icon { width: 16px; height: 16px; }
 
+.btn--soft { color: var(--accent-text); background: var(--accent-soft); }
+@media (hover: hover) {
+  .btn--soft:hover { filter: brightness(.97); }
+}
+
+.btn--danger { color: var(--danger); }
+@media (hover: hover) {
+  .btn--danger:hover { color: var(--danger); background: var(--danger-soft); }
+}
+
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+/* Pulsante che sembra un collegamento (per esempio "Mostra il codice") */
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font-size: 14.5px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .fab {
   position: fixed;
   z-index: 30;
@@ -933,6 +976,21 @@ button {
 .field--time:disabled .time-row { opacity: .5; }
 .field--time:disabled .date-picker__input { cursor: not-allowed; }
 
+/* Frase arrivata dalla casella di Siri */
+.inbox-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+.inbox-note .icon { width: 16px; height: 16px; }
+
 /* Frase libera, con la scintilla a sinistra */
 .phrase { position: relative; }
 .phrase__icon { position: absolute; top: 50%; left: 14px; color: var(--accent-text); transform: translateY(-50%); pointer-events: none; }
@@ -1064,6 +1122,93 @@ button {
   --pv-card: linear-gradient(90deg, var(--preview-light-card) 50%, var(--preview-dark-card) 50%);
   --pv-hero: linear-gradient(90deg, var(--preview-light-hero) 50%, var(--preview-dark-hero) 50%);
 }
+
+/* Foglio "Promemoria e Siri" */
+.notice {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--medium-soft);
+  color: var(--medium);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.panel {
+  margin: 0 0 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--field-bg);
+}
+/* Spazi uniformi tra gli elementi del riquadro, anche quando uno è nascosto */
+.panel > * { margin: 0; }
+.panel > * + * { margin-top: 12px; }
+.panel__title { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 800; }
+.panel__title .icon { color: var(--accent-text); }
+.panel > .panel__title + .panel__text { margin-top: 4px; }
+.panel__text { font-size: 15px; color: var(--text-2); }
+.panel__field { margin: 16px 0 0; }
+.panel > .panel__field { margin-top: 16px; }
+.panel__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.panel > .panel__actions { margin-top: 16px; }
+.panel__note { margin: 12px 0 0; font-size: 13px; color: var(--text-3); }
+
+/* Stato: un puntino colorato più il testo, mai solo il colore */
+.status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-2);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.status::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: currentColor; }
+.status[data-tone="on"] { color: var(--low); background: var(--low-soft); }
+.status[data-tone="warn"] { color: var(--medium); background: var(--medium-soft); }
+.status[data-tone="busy"] { color: var(--accent-text); background: var(--accent-soft); }
+
+/* Indirizzo e codice da copiare nel Comando Rapido */
+.copy-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.copy-row__value {
+  display: block;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1.5px solid var(--field-border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: 14px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  word-break: break-all;
+  -webkit-user-select: all;
+  user-select: all;
+}
+.copy-row .btn { min-width: 76px; }
+
+.steps { margin-top: 14px; border-top: 1px solid var(--border); }
+.steps__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 6px 0;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.steps__summary::-webkit-details-marker { display: none; }
+.steps__summary .icon { color: var(--text-3); transition: transform .2s ease; }
+.steps[open] .steps__summary .icon { transform: rotate(180deg); }
+.steps__list { margin: 4px 0 0; padding-left: 22px; font-size: 14.5px; color: var(--text-2); }
+.steps__list li + li { margin-top: 8px; }
+.steps__list b { color: var(--text); }
+
+.remote-footer { text-align: center; }
 
 /* Avviso in basso, con "Annulla" */
 .toast {

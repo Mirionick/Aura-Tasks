@@ -1,12 +1,13 @@
 /*
- * Aura Tasks — service worker: permette di aprire l'app anche senza connessione.
+ * Aura Tasks — service worker: permette di aprire l'app anche senza connessione
+ * e mostra le notifiche dei promemoria che arrivano dal server di Aura.
  * Strategia "prima la rete": online si vede sempre l'ultima versione pubblicata,
  * offline (o con una rete troppo lenta) si usa la copia salvata in cache.
  */
 'use strict';
 
 // Quando aggiungi, togli o rinomini un file dell'app: aggiorna APP_FILES e aumenta la versione.
-const CACHE_VERSION = 'aura-tasks-v4';
+const CACHE_VERSION = 'aura-tasks-v5';
 const APP_FILES = [
   './',
   './index.html',
@@ -18,6 +19,8 @@ const APP_FILES = [
   './js/nlp.js',
   './js/points.js',
   './js/storage.js',
+  './js/reminders.js',
+  './js/remote.js',
   './js/app.js',
   './icons/icon.svg',
   './icons/icon-192.png',
@@ -87,3 +90,37 @@ function withTimeout(promise, ms) {
     );
   });
 }
+
+/* ---------- Notifiche dei promemoria (Web Push dal server di Aura) ---------- */
+
+// Ogni push va mostrato: su iPhone un push senza notifica fa perdere la sottoscrizione.
+self.addEventListener('push', event => {
+  let message = {};
+  try {
+    message = event.data ? event.data.json() : {};
+  } catch (err) {
+    message = { body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(self.registration.showNotification(message.title || 'Aura', {
+    body: message.body || '',
+    tag: message.tag || 'aura',
+    icon: new URL('icons/icon-192.png', self.registration.scope).href,
+    data: { url: message.url || './' }
+  }));
+});
+
+// Tocco sulla notifica: porta in primo piano Aura (o la apre) e mostra l'attività.
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope);
+  const taskId = target.searchParams.get('task');
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+      const open = windows.find(client => client.url.startsWith(self.registration.scope));
+      if (!open) return self.clients.openWindow(target.href);
+      return open.focus().catch(() => open).then(client => {
+        if (taskId) client.postMessage({ type: 'open-task', id: taskId });
+      });
+    })
+  );
+});

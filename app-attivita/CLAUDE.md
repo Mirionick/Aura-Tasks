@@ -8,7 +8,7 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
   - quanto è più veloce mettere dentro un impegno?
   - quanto è più affidabile che venga ricordato?
 - Tutti i dati restano nel `localStorage` del dispositivo.
-- L'unica eccezione prevista a "niente server" è un piccolo server per le notifiche push (vedi "Funzioni future", punto 3). Riceverà solo l'orario e il testo dei promemoria.
+- L'unica eccezione a "niente server" è il **server di Aura** (cartella `server/` del repository, Cloudflare Workers, piano gratuito). È facoltativo: se l'utente attiva promemoria o Siri, riceve solo titolo e ora dei promemoria e le frasi dettate a Siri (vedi "Server di Aura").
 
 ## Cosa sa fare oggi
 - **Attività**: ognuna ha titolo, durata stimata in minuti, livello di energia (bassa/media/alta), data facoltativa e **orario** facoltativo.
@@ -19,6 +19,8 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - **Riepilogo** nell'intestazione.
 - **Tema** Automatico/Chiaro/Scuro e **uso offline**.
 - **Punti e serie**: ogni attività completata dà punti. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi "Punti e serie di giorni").
+- **Promemoria push** (facoltativi): un avviso prima delle attività con giorno e ora, anche ad app chiusa. L'anticipo si sceglie.
+- **Casella di Siri**: "Ehi Siri, Aura" e si detta l'impegno; aprendo Aura il foglio è già compilato. Le ultime due funzioni usano il server di Aura.
 
 ---
 
@@ -27,10 +29,12 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - Rispondi all'utente **in italiano**.
 - L'utente prova l'app su un **iPhone vero**. I controlli automatici su questo PC usano solo Edge headless, che non riproduce i difetti di Safari/WebKit. Quando una modifica tocca layout, animazioni o API del browser, di' chiaramente che cosa va provato sull'iPhone.
 - Quando l'utente dice **"pubblica"**, segui i passi di "Pubblicare con Git".
+- **Node.js** è installato in `C:\Program Files\nodejs`, ma il terminale degli strumenti di Claude può non averlo nel PATH: aggiungilo all'inizio del comando (`$env:Path = 'C:\Program Files\nodejs;' + $env:Path`). Serve solo per `server/`.
 
 ## Vincoli da rispettare sempre
 
 - **Solo HTML, CSS e JavaScript "vanilla"**: niente framework, librerie, npm, build, CDN o font esterni.
+  - Vale per l'app. Nel server (`server/`) npm serve solo a installare Wrangler, lo strumento di Cloudflare; il codice del server non ha dipendenze.
 - L'app deve funzionare anche **aprendo `index.html` con un doppio clic** (`file://`). Per questo:
   - niente `type="module"` né `import`/`export`, perché da `file://` i moduli sono bloccati;
   - si usano script classici con `defer`, che condividono il namespace globale `window.Aura`;
@@ -50,16 +54,19 @@ Per provare la PWA (offline, installazione) serve un indirizzo `http://localhost
 
 ### Pubblicare con Git
 - **Repository**: https://github.com/Mirionick/Aura-Tasks (pubblico, ramo `main`).
-  - L'app sta in `app-attivita/`.
-  - Alla radice ci sono solo `CLAUDE.md`, che rimanda a questo file, e `.gitignore`.
+  - L'app sta in `app-attivita/`, il server in `server/` (vedi "Server di Aura").
+  - Alla radice ci sono poi solo `CLAUDE.md`, che rimanda a questo file, e `.gitignore`.
 - **Copia di lavoro**: `C:\Users\utente\Documents\Aura-Tasks`.
 - **Sito**: https://mirionick.github.io/Aura-Tasks/app-attivita/, servito da GitHub Pages ("Deploy from a branch", `main`, `/ (root)`). Si aggiorna circa un minuto dopo il push.
+- **Server**: https://aura.auramirionick.workers.dev, sull'account Cloudflare dell'utente (sottodominio `auramirionick`, database D1 `aura` in Europa occidentale). Wrangler su questo PC ha già fatto il login.
 - **Identità dei commit**: è impostata solo in questo repository, con `Mirionick` e l'indirizzo noreply di GitHub. Non usare l'email personale: il repository è pubblico.
 
 Quando l'utente dice **"pubblica"**:
 1. Controlla `git status`: cosa è cambiato, e che non ci siano file estranei.
+   - **Nessun segreto nel commit**: `server/.dev.vars`, `server/.wrangler/` e `server/node_modules/` devono restare ignorati (`git check-ignore -v`), e nei file in staging non devono comparire chiavi.
 2. Esegui i test (vedi "Test"): devono essere tutti verdi.
    - Se sono cambiati file dell'app, controlla anche `sw.js` (`APP_FILES`, `CACHE_VERSION`).
+   - Se è cambiato `server/`: `npm test` e poi `npm run deploy` in `server/`, **prima** del push se l'app pubblicata ne ha bisogno. Il push aggiorna solo l'app.
 3. Fai il commit con un messaggio chiaro in italiano: la prima riga dice cosa cambia per chi usa l'app, le righe dopo danno i dettagli.
    - Su Windows PowerShell 5.1 scrivi il messaggio in un file UTF-8 e usa `git commit -F <file>`. Con `-m`, le virgolette dentro il messaggio si perdono o fanno fallire il comando.
 4. Esegui `git push`. Se Git chiede di accedere a GitHub, avvisa l'utente: farà il login dalla finestra del browser.
@@ -87,15 +94,18 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 | `js/nlp.js` | Logica pura del linguaggio naturale: `parseTaskText(testo, adesso)` riconosce giorno, orario, durata ed energia in una frase |
 | `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione |
 | `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro |
-| `js/app.js` | Interfaccia: disegno, eventi, fogli, avvisi con "Annulla", riquadri di serie e punti con i loro effetti, registrazione del service worker. Unico file che tocca la pagina |
-| `sw.js` | Service worker per l'uso offline |
+| `js/reminders.js` | Logica pura dei promemoria: dalle attività con giorno e ora all'elenco per il server (`at`, `fireAt`), anticipi, impronta dell'elenco |
+| `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste, codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
+| `js/app.js` | Interfaccia: disegno, eventi, fogli, avvisi con "Annulla", riquadri di serie e punti con i loro effetti, foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Unico file che tocca la pagina |
+| `sw.js` | Service worker: uso offline, notifiche dei promemoria (`push`) e tocco sulla notifica (`notificationclick`) |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
-| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`): si aprono con `tests/index.html` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`): si aprono con `tests/index.html` |
+| `../server/` | Il server di Aura (Cloudflare Workers): vedi "Server di Aura" e `server/README.md` |
 
-**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `storage.js` → `app.js`.
-- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.storage`).
-- `points.js` va prima di `storage.js`, che lo usa per la migrazione.
+**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `storage.js` → `reminders.js` → `remote.js` → `app.js`.
+- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.storage`, `Aura.reminders`, `Aura.remote`).
+- `points.js` va prima di `storage.js`, che lo usa per la migrazione. `reminders.js` va prima di `remote.js`, che ne usa gli anticipi.
 
 Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 1. in `index.html`, con `defer`, prima di `app.js`;
@@ -142,7 +152,17 @@ La chiave `aura-tasks:data` contiene:
   - `totalPoints`: il totale dei punti.
   - `bestStreak`: il record, cioè la serie più lunga in `days`. Si ricalcola a ogni modifica.
   - `milestones`: i traguardi già festeggiati. Restano anche dopo "Annulla", così la festa non si ripete.
-- Le altre chiavi sono `aura-tasks:theme` (`auto` | `light` | `dark`) e `aura-tasks:backup-<timestamp>`. Quest'ultima è la copia di dati illeggibili trovati all'avvio: l'app la crea e riparte da una lista vuota.
+- Le altre chiavi:
+  - `aura-tasks:theme`: `auto` | `light` | `dark`;
+  - `aura-tasks:backup-<timestamp>`: copia di dati illeggibili trovati all'avvio; l'app la crea e riparte da una lista vuota;
+  - `aura-tasks:remote`: collegamento al server, scritto solo da `js/remote.js` e separato dai dati, quindi **senza versione dello schema**. Contiene:
+    - `code`: codice segreto del dispositivo, oppure `null` finché l'utente non attiva promemoria o Siri;
+    - `reminders`: `{ enabled, lead }`;
+    - `vapidKey`: chiave del server usata per la sottoscrizione;
+    - `sent`: `{ endpoint, at, key }`, l'ultimo stato confermato dal server;
+    - `inbox`: frasi di Siri ritirate e non ancora mostrate;
+    - `done`: id delle frasi già mostrate;
+  - `aura-tasks:server`: indirizzo di un server di prova. Vale solo su `localhost` o da `file://`.
 
 **Dalla v1 alla v2**:
 1. `migrate()` mette `stats = null`.
@@ -205,6 +225,22 @@ Note per i controlli automatici con Edge headless:
 - I service worker vanno provati in tempo reale, su `http://localhost`.
 - La finestra headless è larga almeno 500 px: per simulare un telefono, carica l'app in un `<iframe>` largo 390 px.
 
+**Server** (`server/`): `npm test` esegue i test con Node, senza installare altro. Coprono:
+- la cifratura Web Push, confrontata byte per byte con l'esempio della RFC 8291;
+- la firma VAPID;
+- tutte le API, sull'SQL vero (D1 simulato con `node:sqlite`);
+- il Cron, con un servizio push finto e i messaggi decifrati.
+
+**Prova completa in locale** (app + server vero), da rifare quando cambiano server, `remote.js` o la casella:
+1. In `server/`, una volta: `npm run vapid -- --local` e `npm run db:init:local`.
+2. Avvia `npm run dev` (127.0.0.1:8787), un finto servizio push su `localhost:9999` e l'app su `http://localhost:8765`, che è l'origine ammessa in `.dev.vars`.
+3. Nell'app imposta `aura-tasks:server` per farla puntare al server locale.
+4. Guida Edge headless via DevTools, in tempo reale:
+   - `Browser.grantPermissions` per le notifiche;
+   - `Page.addScriptToEvaluateOnNewDocument` per un `PushManager` simulato, perché in headless non c'è un servizio push;
+   - `ServiceWorker.deliverPushMessage` per provare l'evento `push`, poi `getNotifications()`.
+5. Il Cron si fa partire con `GET /__scheduled`.
+
 ## Design
 
 - **Intestazione "aura"**: gradiente viola-indaco con bagliori ciano e rosa e testo bianco, in entrambi i temi. Su iPhone, nell'app installata (`black-translucent`), la barra di stato le sta sopra. Una fascia (`.statusbar-scrim`) la mantiene leggibile quando si scorre.
@@ -224,6 +260,11 @@ Note per i controlli automatici con Edge headless:
     - sono brevi e finiti;
     - si spengono con "Riduci movimento";
     - animano il **contenuto** dei riquadri, non il riquadro con `backdrop-filter`, perché su Safari sfarfalla.
+- **Promemoria e Siri**:
+  - la campanella nell'intestazione ha un puntino dorato quando i promemoria sono attivi;
+  - il foglio ha due riquadri (`.panel`);
+  - lo stato (`.status`) è sempre un puntino più il testo, con i colori già verificati dell'energia: verde acqua = attivi, ambra = attenzione;
+  - dentro un foglio aperto i messaggi vanno nelle righe di stato, non negli avvisi in basso, che resterebbero sotto lo sfondo scuro del foglio.
 - Font di sistema. Le icone SVG stanno nello sprite di `index.html` (`<use href="#i-…">`) e il tratto usa `currentColor`.
 - **Icone dell'app**:
   - le PNG derivano da `icons/icon.svg`;
@@ -338,7 +379,82 @@ Cosa riconosce:
 - Testo vuoto.
 - Accenti nel titolo.
 
-**Idea per dopo**: dettatura dentro l'app con la Web Speech API (`webkitSpeechRecognition`, `lang = 'it-IT'`), dove disponibile. Su iPhone è più affidabile la dettatura del Comando Rapido (punto 2).
+**Idea per dopo**: dettatura dentro l'app con la Web Speech API (`webkitSpeechRecognition`, `lang = 'it-IT'`), dove disponibile. Su iPhone è più affidabile la dettatura del Comando Rapido (vedi "Server di Aura").
+
+---
+
+## Server di Aura: promemoria push e casella di Siri (realizzata, gratuita)
+
+Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Crea il codice per Siri" (campanella → foglio "Promemoria e Siri"), l'app non fa nessuna richiesta di rete.
+
+**Dove e come**
+- Codice in `server/`:
+  - Cloudflare Worker `aura`;
+  - database **D1** `aura`, scelto al posto di KV perché KV gratuito ha 1.000 scritture e 1.000 elenchi al giorno e non è subito coerente;
+  - **Cron** ogni minuto.
+- Guida, comandi e API in `server/README.md`.
+- Indirizzo del server: costante `SERVER_URL` in `js/remote.js`.
+- Pubblicazione: `npm run deploy` in `server/`. Il push su GitHub aggiorna solo l'app.
+- **Nessuna dipendenza**: cifratura Web Push (RFC 8291, aes128gcm) e firma VAPID (RFC 8292, ES256) sono scritte con WebCrypto in `server/src/webpush.js`.
+- **Segreti**:
+  - `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` stanno solo nei secrets di Cloudflare. `npm run vapid` li crea e li passa a Wrangler da stdin, senza mostrarli né scriverli su disco;
+  - nel repository pubblico ci sono solo impostazioni pubbliche (`wrangler.toml`: origini ammesse, `VAPID_SUBJECT`, id del database);
+  - le prove locali usano `.dev.vars`, che Git ignora.
+
+**Codice del dispositivo**
+- 24 byte casuali (`crypto.getRandomValues`), cioè 32 caratteri base64url, generati dall'app e salvati in `aura-tasks:remote`.
+- Viaggia in `Authorization: Bearer <codice>`; il server ne conserva solo l'impronta SHA-256. Senza un codice registrato risponde 401.
+- "Scollega questo dispositivo" cancella sul server dispositivo, casella, sottoscrizione e promemoria. L'avviso offre "Annulla", che registra di nuovo lo stesso codice.
+- Se il server non conosce più il codice (401), l'app lo registra di nuovo da sola. Così il Comando Rapido continua a funzionare.
+
+**Casella di Siri**
+- Il Comando Rapido manda `POST /api/inbox` con la frase. Il server risponde in testo semplice ("Aggiunto ad Aura: …" oppure l'errore), che il comando mostra in una notifica.
+- L'app controlla la casella all'avvio, al ritorno nell'app (al massimo ogni 15 secondi) e quando torna internet:
+  - le frasi vanno prima nella coda locale (`inbox`);
+  - poi l'app le conferma al server, che le cancella;
+  - così nessuna frase si perde.
+- Le frasi si aprono una alla volta in "Nuova attività" con `openAddSheet(frase, "Da Siri · 1 di 2")`.
+  - "Aggiungi" o "Annulla" la segnano come vista (`done`) e passano alla successiva. L'aggancio è `onSheetClosed()`, chiamato da `closeSheet()` e dall'evento `close`.
+  - Se un foglio è già aperto, si aspetta che si chiuda.
+  - Le frasi in coda si mostrano anche all'avvio offline.
+- Le guide al Comando Rapido stanno nel foglio, con i pulsanti "Copia", e in `server/README.md`. Il link `?add=` resta valido come alternativa senza server.
+
+**Promemoria**
+- `Aura.reminders.buildReminders(tasks, { lead, now })` produce l'elenco per il server:
+  - include le attività non completate, con giorno e ora, ancora future;
+  - `at` = ora dell'attività in ora locale (giusta anche nei giorni del cambio d'ora);
+  - `fireAt = at − anticipo`;
+  - al massimo 100.
+- **Anticipo**: uno per tutte le attività (`LEADS`: 0, 5, 10, 15, 30, 60; predefinito 10).
+- **Invio dell'elenco**:
+  - l'elenco completo va in `PUT /api/reminders` 2 secondi dopo ogni `commit()`, all'avvio, al ritorno nell'app e quando torna internet;
+  - parte solo se l'impronta (`listKey`) è cambiata, e un invio alla volta;
+  - la sottoscrizione si ricontrolla e si rimanda almeno una volta al giorno, e subito se cambia endpoint o chiave del server.
+- **Server**:
+  - il Cron manda i promemoria con `fire_at ≤ adesso`, al massimo 10 per giro e in parallelo, ciascuno con un timeout;
+  - se siamo già dentro l'anticipo, l'avviso parte al primo giro;
+  - un promemoria inviato resta **segnato** (`sent_at`) fino all'ora dell'attività, così rimandare l'elenco non lo fa ripartire. Riparte solo se cambia `fire_at`;
+  - 404/410 cancellano la sottoscrizione; gli altri errori si ritentano fino a 5 volte;
+  - passati 15 minuti dall'ora dell'attività, il promemoria si scarta.
+- **Notifica**:
+  - titolo = titolo dell'attività; testo "Tra 10 minuti, alle 10:00";
+  - toccandola si apre o torna in primo piano Aura con `?task=id`, e la card si evidenzia (`showTask`).
+- **iPhone**:
+  - le notifiche funzionano solo con Aura installata sulla schermata Home e aperta dall'icona, con iOS 16.4 o successivo;
+  - `Notification.requestPermission()` va chiamata subito al tocco, senza attese di rete prima: chiave VAPID e service worker si preparano all'apertura del foglio;
+  - ogni push deve mostrare una notifica, altrimenti iOS toglie la sottoscrizione.
+- "Prova una notifica" (`POST /api/push/test`) mostra l'esito del servizio push, con il codice d'errore di Apple o Google se rifiuta.
+
+**Limiti noti**
+- L'elenco arriva al server solo quando l'app ha internet: un'attività aggiunta offline non avvisa finché l'app non si riapre online.
+- Il codice va copiato dall'app installata, che su iPhone ha un archivio separato da Safari.
+
+**Limiti del piano gratuito**: 100.000 richieste al giorno, 10 ms di CPU per richiesta, 50 sottorichieste, D1 con 100.000 scritture al giorno. Il server ha i suoi limiti:
+- frase ≤ 500 caratteri;
+- ≤ 30 frasi in attesa;
+- ≤ 200 promemoria per dispositivo;
+- ≤ 1000 dispositivi;
+- pulizia oraria di frasi vecchie e dispositivi non visti da 180 giorni.
 
 ---
 
@@ -346,17 +462,10 @@ Cosa riconosce:
 
 Sono nell'ordine della visione. Per ciascuna sono indicati comportamento, dati e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo nella tabella di "Funzioni premium".
 
-### 2. Comando Rapido di Siri, Web Share Target e scorciatoie
-**Obiettivo**: aggiungere un impegno senza aprire l'app, con la voce o con la condivisione.
+### 2. Web Share Target e scorciatoie (Android)
+**Obiettivo**: aggiungere un impegno senza aprire l'app, con la condivisione.
 
-**iPhone: Comando Rapido "Aggiungi ad Aura"** (app Comandi)
-1. Azione "Dettatura testo" (lingua italiana).
-2. Azione "URL" con `https://mirionick.github.io/Aura-Tasks/app-attivita/?add=` seguito dal testo dettato, codificato con l'azione "Codifica URL".
-3. Azione "Apri URL".
-
-Si avvia con "Ehi Siri, Aggiungi ad Aura" e si conferma nel foglio.
-- Da scrivere: una guida passo passo per l'utente, con le schermate, e il link per installare il comando già pronto.
-- ⚠️ "Apri URL" apre Safari, non l'app installata, e i due hanno archivi separati (vedi "Installare sul telefono"). Da verificare sul dispositivo: se l'app installata non si apre, bisogna capire come farla aprire; in alternativa conviene usare Aura da Safari.
+Su iPhone c'è già il Comando Rapido di Siri con la casella del server (vedi "Server di Aura"). Il vecchio Comando con "Apri URL" + `?add=` aprirebbe Safari, che ha un archivio separato dall'app installata.
 
 **Android**
 - `share_target` nel manifest (GET): `"action": "./"`, con il testo condiviso passato come `add`, per esempio `"params": { "text": "add", "title": "add" }`. Condividendo un testo verso Aura si apre il foglio compilato. Funziona solo con l'app installata.
@@ -365,10 +474,10 @@ Si avvia con "Ehi Siri, Aggiungi ad Aura" e si conferma nel foglio.
 
 **Test**: unione di `title` e `text`; link con caratteri speciali (accenti, `&`, `+`).
 
-### 3. Promemoria
-**Obiettivo**: che il segretario ricordi gli impegni anche ad app chiusa.
+### 3. Promemoria nel calendario (`.ics`)
+**Obiettivo**: un'alternativa senza server alle notifiche push, che sono già realizzate (vedi "Server di Aura"). Il promemoria vive nel Calendario del telefono.
 
-**3a. Esportazione `.ics`** (prima, senza server)
+**Esportazione `.ics`**
 - Un pulsante sulla card ("Aggiungi al calendario") e un'azione "Esporta tutte con data".
 - Generano un file `.ics` (iCalendar, RFC 5545) che il Calendario di iPhone o Android importa con un promemoria vero, per esempio 15 minuti prima.
 - Logica pura in `js/ics.js`:
@@ -379,15 +488,6 @@ Si avvia con "Ehi Siri, Aggiungi ad Aura" e si conferma nel foglio.
   - `UID` = id dell'attività.
 - Si scarica con un `Blob` e `<a download>`. Su iPhone Safari apre il file e propone "Aggiungi al calendario".
 - **Test**: testo esatto del file, con escape di virgole, punti e virgola e a capo; giorno intero; cambio dell'ora.
-
-**3b. Notifiche Web Push** (poi, con un piccolo server gratuito)
-- Funzionano su iOS dalla 16.4, **solo con l'app installata** e dopo il permesso, che va chiesto con un tocco dell'utente.
-- Il service worker riceve il `push` e mostra la notifica. Toccandola si apre l'app sull'attività.
-- **Server**: piccolo e gratuito, per esempio Cloudflare Workers con Cron Trigger e KV. Conserva solo endpoint di sottoscrizione, orario e testo del promemoria, e alla scadenza invia il push firmato VAPID.
-  - La chiave privata VAPID sta solo nel server, mai nel repository.
-  - Completare o eliminare l'attività cancella il promemoria sul server.
-- È l'unica eccezione al vincolo "niente server": va scritta qui con cosa riceve il server, e in app va spiegato all'utente.
-- Da decidere: gratuita o premium.
 
 ### 4. "Cosa faccio adesso?" e modalità focus
 Vengono dopo i promemoria. Le specifiche restano quelle sotto.
@@ -452,6 +552,7 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 | Base: attività, lista per giorno, tema, uso offline | gratuita |
 | Punti e serie di giorni | gratuita |
 | Linguaggio naturale con orario e link ?add= | gratuita |
+| Promemoria push e casella del Comando Rapido di Siri (server di Aura) | gratuita |
 
 ### Regola fondamentale
 **Tutti i controlli passano da un'unica funzione `isPremium()`.**
@@ -487,12 +588,13 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 - **Backup**: esportare e importare un file JSON. È importante perché i dati vivono solo nel browser. Utile anche per passare a un altro telefono.
 - Attività ricorrenti: ogni giorno, ogni lunedì e così via.
 - Statistiche settimanali, ordinamento manuale con trascinamento, scorrimento laterale per completare o eliminare.
+- **Promemoria**: anticipo diverso per ogni attività (per esempio "avvisami un'ora prima" detto nella frase); un secondo avviso all'ora esatta.
 
 ## Ordine consigliato (visione "segretario personale")
-Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3).
+Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri.
 1. ~~**Linguaggio naturale con orario** e aggiunta con il link `?add=testo`~~: fatto.
-2. **Comando Rapido di Siri** che detta e apre il link, più **Web Share Target** e **shortcuts** nel manifest per Android.
-3. **Promemoria**: prima l'esportazione `.ics`, poi le notifiche **Web Push** con un piccolo server gratuito.
+2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
+3. ~~**Promemoria con notifiche Web Push**~~: fatto. Resta, facoltativa, l'esportazione `.ics`.
 4. **"Cosa faccio adesso?"** e **modalità focus**.
 
 Licenza premium e backup vanno fatti quando servono. Il backup conviene prima di far usare l'app ad altre persone.
@@ -504,4 +606,5 @@ Licenza premium e backup vanno fatti quando servono. Il backup conviene prima di
 - [ ] Nessun errore in console, sia aprendo da `file://` sia da `http://localhost`.
 - [ ] `sw.js` è aggiornato (`APP_FILES`, `CACHE_VERSION`) se sono cambiati file.
 - [ ] Se lo schema è cambiato: `SCHEMA_VERSION` aumentato e passo aggiunto in `migrate()`.
+- [ ] Se è cambiato `server/`: `npm test` verde, prova completa in locale, `npm run deploy` fatto, nessun segreto nei file.
 - [ ] Questo file è aggiornato, compresa la categoria gratuita/premium delle funzioni nuove.
