@@ -43,6 +43,9 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - L'interfaccia è **tutta in italiano**: `lang="it"` e date formattate con `Intl` e `'it-IT'`.
 - **Prima il telefono**: i bersagli principali sono iPhone (Safari) e Android (Chrome). Ogni modifica va provata prima a 375–390 px di larghezza.
 - Identificatori del codice in inglese; testi dell'interfaccia e commenti in italiano.
+- **Il repository è pubblico: niente dati personali.** Nei file e nei messaggi dei commit non vanno mai percorsi con il nome utente di Windows (neanche nella forma breve con la tilde, come nelle cartelle temporanee), nomi reali o email personali.
+  - Per i percorsi scrivi `Documenti\Aura-Tasks`, un percorso relativo oppure `$env:TEMP`.
+  - Prima di ogni commit fai il controllo descritto in "Pubblicare con Git".
 
 ## Avvio, pubblicazione e installazione
 
@@ -57,7 +60,7 @@ Per provare la PWA (offline, installazione) serve un indirizzo `http://localhost
 - **Repository**: https://github.com/Mirionick/Aura-Tasks (pubblico, ramo `main`).
   - L'app sta in `app-attivita/`, il server in `server/` (vedi "Server di Aura").
   - Alla radice ci sono poi solo `CLAUDE.md`, che rimanda a questo file, e `.gitignore`.
-- **Copia di lavoro**: `C:\Users\utente\Documents\Aura-Tasks`.
+- **Copia di lavoro**: `Documenti\Aura-Tasks`.
 - **Sito**: https://mirionick.github.io/Aura-Tasks/app-attivita/, servito da GitHub Pages ("Deploy from a branch", `main`, `/ (root)`). Si aggiorna circa un minuto dopo il push.
 - **Server**: https://aura.auramirionick.workers.dev, sull'account Cloudflare dell'utente (sottodominio `auramirionick`, database D1 `aura` in Europa occidentale). Wrangler su questo PC ha già fatto il login.
 - **Identità dei commit**: è impostata solo in questo repository, con `Mirionick` e l'indirizzo noreply di GitHub. Non usare l'email personale: il repository è pubblico.
@@ -65,6 +68,7 @@ Per provare la PWA (offline, installazione) serve un indirizzo `http://localhost
 Quando l'utente dice **"pubblica"**:
 1. Controlla `git status`: cosa è cambiato, e che non ci siano file estranei.
    - **Nessun segreto nel commit**: `server/.dev.vars`, `server/.wrangler/` e `server/node_modules/` devono restare ignorati (`git check-ignore -v`), e nei file in staging non devono comparire chiavi.
+   - **Nessun dato personale**: `git grep --cached -n -i -E -e ($env:USERNAME -replace '\.', '.?') -e 'Users\\[^\\]*~[0-9]'` non deve trovare nulla. Cerca nei file in staging il nome utente di Windows, anche scritto con uno spazio o senza punto, e la sua forma breve con la tilde.
 2. Esegui i test (vedi "Test"): devono essere tutti verdi.
    - Se sono cambiati file dell'app, controlla anche `sw.js` (`APP_FILES`, `CACHE_VERSION`).
    - Se è cambiato `server/`: `npm test` e poi `npm run deploy` in `server/`, **prima** del push se l'app pubblicata ne ha bisogno. Il push aggiorna solo l'app.
