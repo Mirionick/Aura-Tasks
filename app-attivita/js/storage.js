@@ -1,7 +1,8 @@
 /*
- * Aura Tasks — salvataggio nel localStorage.
- * Le funzioni pure (parse, migrate, sanitizeTask, sanitizeStats, serialize) sono separate da quelle che toccano
- * l'archivio del browser (load, save), così si possono testare senza localStorage.
+ * Aura Tasks — salvataggio nel localStorage e file di backup.
+ * Le funzioni pure (parse, migrate, sanitizeTask, sanitizeStats, serialize, backupFile, readBackup) sono separate
+ * da quelle che toccano l'archivio del browser (load, save e la copia di prima di un'importazione), così si possono
+ * testare senza localStorage. Le funzioni della copia ricevono l'archivio come parametro: nei test è uno finto.
  */
 (function (Aura) {
   'use strict';
@@ -10,6 +11,14 @@
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
+  // Dati di prima dell'ultima importazione di un backup, per poterli ripristinare: una sola copia, sovrascritta ogni volta.
+  const BEFORE_IMPORT_KEY = 'aura-tasks:before-import';
+  const BACKUP_FORMAT = 'aura-tasks-backup';
+  const BACKUP_ERRORS = {
+    unreadable: 'Questo file non si può leggere: scegli un backup di Aura (un file .json).',
+    notBackup: 'Questo file non è un backup di Aura.',
+    damaged: 'Il backup è danneggiato: mancano le attività.'
+  };
   // Per cambiare lo schema: aumenta questo numero e aggiungi un passo in migrate() (vedi CLAUDE.md).
   const SCHEMA_VERSION = 3;
 
@@ -98,7 +107,14 @@
   /** Testo salvato → stato valido. Lancia un errore se il testo non è leggibile. */
   function parse(raw) {
     if (raw === null || raw === undefined || raw === '') return emptyState();
-    const data = JSON.parse(raw);
+    return fromData(JSON.parse(raw));
+  }
+
+  /**
+   * Dati letti (dall'archivio o da un file di backup) → stato valido: migrazioni e pulizia.
+   * Non modifica `data`. Lancia un errore se il formato non è riconosciuto.
+   */
+  function fromData(data) {
     if (!data || typeof data !== 'object' || !Array.isArray(data.tasks)) {
       throw new Error('Formato dei dati non riconosciuto');
     }
@@ -119,6 +135,110 @@
 
   function serialize(state) {
     return JSON.stringify(state);
+  }
+
+  /* ---------- File di backup ---------- */
+
+  /**
+   * Contenuto di un backup: tutto lo stato (attività, registro di punti e serie, campi sconosciuti) e quando è stato fatto.
+   * Il collegamento al server, con il codice segreto del dispositivo, sta in un'altra chiave (aura-tasks:remote):
+   * il backup non la legge mai.
+   */
+  function backupData(state, now) {
+    return { format: BACKUP_FORMAT, exportedAt: new Date(now).getTime(), data: state };
+  }
+
+  /** File di backup da salvare: nome con il giorno locale e testo JSON leggibile. */
+  function backupFile(state, now) {
+    return {
+      name: 'aura-tasks-backup-' + utils.todayISO(now) + '.json',
+      text: JSON.stringify(backupData(state, now), null, 2)
+    };
+  }
+
+  /**
+   * Testo di un file di backup → { state, exportedAt, error }. I dati passano dagli stessi controlli di quelli
+   * salvati (fromData: migrazioni e pulizia). Del file si usa solo `data`: il resto viene ignorato.
+   * Se il file non va, `state` è null ed `error` è il messaggio per l'utente.
+   */
+  function readBackup(text) {
+    const failure = error => ({ state: null, exportedAt: null, error });
+    let file;
+    try {
+      file = JSON.parse(String(text).replace(/^﻿/, '')); // un editor di testo può aggiungere il BOM
+    } catch (err) {
+      return failure(BACKUP_ERRORS.unreadable);
+    }
+    if (!file || typeof file !== 'object' || file.format !== BACKUP_FORMAT) return failure(BACKUP_ERRORS.notBackup);
+    try {
+      return { state: fromData(file.data), exportedAt: Number.isFinite(file.exportedAt) ? file.exportedAt : null, error: null };
+    } catch (err) {
+      return failure(BACKUP_ERRORS.damaged);
+    }
+  }
+
+  /* ---------- Importazione e copia dei dati di prima ---------- */
+
+  /**
+   * Sostituisce i dati con quelli di un backup. Prima salva una copia dei dati di adesso (BEFORE_IMPORT_KEY, nello
+   * stesso formato del backup): senza spazio per la copia non importa nulla. Restituisce:
+   * - 'ok';
+   * - 'no-copy': la copia non si può salvare, quindi i dati non cambiano;
+   * - 'no-space': i dati nuovi non ci stanno; la copia precedente torna com'era e i dati restano quelli di adesso.
+   * `area` è l'archivio: il localStorage, oppure uno finto nei test.
+   */
+  function replaceData(current, next, now, area) {
+    let store;
+    let previousCopy;
+    try {
+      store = area || window.localStorage;
+      previousCopy = store.getItem(BEFORE_IMPORT_KEY);
+      store.setItem(BEFORE_IMPORT_KEY, JSON.stringify(backupData(current, now)));
+    } catch (err) {
+      return 'no-copy';
+    }
+    try {
+      store.setItem(KEY, serialize(next));
+      return 'ok';
+    } catch (err) {
+      try {
+        if (previousCopy === null) store.removeItem(BEFORE_IMPORT_KEY);
+        else store.setItem(BEFORE_IMPORT_KEY, previousCopy);
+      } catch (ignored) {
+        // I dati di adesso sono comunque intatti.
+      }
+      return 'no-space';
+    }
+  }
+
+  /** La copia dei dati di prima dell'ultima importazione, con gli stessi controlli di un backup: { state, savedAt } oppure null. */
+  function loadBeforeImport(area) {
+    let raw;
+    try {
+      raw = (area || window.localStorage).getItem(BEFORE_IMPORT_KEY);
+    } catch (err) {
+      return null;
+    }
+    if (raw === null) return null;
+    const copy = readBackup(raw);
+    return copy.error ? null : { state: copy.state, savedAt: copy.exportedAt };
+  }
+
+  /** Rimette i dati di prima dell'importazione e cancella la copia. Restituisce false, lasciando la copia, se non riesce a salvarli. */
+  function restoreBeforeImport(copyState, area) {
+    let store;
+    try {
+      store = area || window.localStorage;
+      store.setItem(KEY, serialize(copyState));
+    } catch (err) {
+      return false;
+    }
+    try {
+      store.removeItem(BEFORE_IMPORT_KEY);
+    } catch (err) {
+      // I dati sono già quelli di prima: la copia resta, al massimo.
+    }
+    return true;
   }
 
   /**
@@ -176,15 +296,23 @@
 
   Aura.storage = {
     KEY,
+    BEFORE_IMPORT_KEY,
     SCHEMA_VERSION,
+    BACKUP_FORMAT,
     emptyState,
     migrate,
     sanitizeTask,
     sanitizeStats,
     parse,
     serialize,
+    backupData,
+    backupFile,
+    readBackup,
     load,
     save,
-    requestPersistence
+    requestPersistence,
+    replaceData,
+    loadBeforeImport,
+    restoreBeforeImport
   };
 })(window.Aura = window.Aura || {});

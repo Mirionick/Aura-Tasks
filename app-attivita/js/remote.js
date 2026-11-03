@@ -280,6 +280,8 @@
     serverUrl,
     availability,
     api,
+    // dispositivo (serve anche al backup: su iPhone si condivide il file invece di scaricarlo)
+    isIOS,
     // notifiche push
     pushSupport,
     registration,

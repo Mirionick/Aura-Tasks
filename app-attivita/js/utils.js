@@ -79,6 +79,17 @@
     return (sameYear ? shortDate : shortDateWithYear).format(parseISODate(iso));
   }
 
+  /** Date → 'HH:MM' in ora locale. */
+  function formatTime(date) {
+    return pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+  }
+
+  /** Un istante (ms) rispetto a oggi: "Oggi alle 10:30", "Ieri alle 21:05", "mar 3 nov alle 08:05" (con l'anno, se diverso). */
+  function formatMoment(ms, today) {
+    const date = new Date(ms);
+    return formatDateLabel(toISODate(date), today) + ' alle ' + formatTime(date);
+  }
+
   /** 12345 → "12.345" (separatore delle migliaia italiano; con 4 cifre di solito non si mette: "1240"). */
   function formatNumber(value) {
     return wholeNumber.format(value);
@@ -118,6 +129,8 @@
     daysBetween,
     formatDuration,
     formatDateLabel,
+    formatTime,
+    formatMoment,
     formatLongDate,
     formatNumber,
     capitalize,

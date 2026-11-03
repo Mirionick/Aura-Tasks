@@ -561,9 +561,27 @@ button {
   pointer-events: none;
 }
 
-.task__body { flex: 1; min-width: 0; padding: 11px 0 9px; }
+.task__body { position: relative; flex: 1; min-width: 0; padding: 11px 0 9px; }
+
+/* Tutto il corpo della card apre "Modifica attività": il pulsante contiene il titolo e il suo ::after copre anche la riga sotto */
+.task__edit {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.task__edit::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius-sm); }
+.task__edit:focus-visible { outline: none; }
+.task__edit:focus-visible::after { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
 .task__title {
+  display: block;
   font-size: 16px;
   font-weight: 600;
   line-height: 1.35;
@@ -666,16 +684,17 @@ button {
 
 .completed__toolbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
 
+/* In fondo alla pagina: dove stanno i dati, e il link al foglio "Backup dei dati" */
 .footnote {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
   margin-top: 32px;
   font-size: 13px;
   color: var(--text-3);
   text-align: center;
 }
+.footnote__text { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .footnote .icon { width: 14px; height: 14px; }
 
 /* ---------- 5. Pulsanti, chip e campi ---------- */
@@ -976,8 +995,8 @@ button {
 .field--time:disabled .time-row { opacity: .5; }
 .field--time:disabled .date-picker__input { cursor: not-allowed; }
 
-/* Frase arrivata dalla casella di Siri */
-.inbox-note {
+/* Riga sopra il modulo: frase arrivata dalla casella di Siri, oppure attività già completata che si sta modificando */
+.sheet-note {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -989,7 +1008,7 @@ button {
   font-size: 14px;
   font-weight: 700;
 }
-.inbox-note .icon { width: 16px; height: 16px; }
+.sheet-note .icon { width: 16px; height: 16px; }
 
 /* Frase libera, con la scintilla a sinistra */
 .phrase { position: relative; }
@@ -1210,6 +1229,25 @@ button {
 
 .remote-footer { text-align: center; }
 
+/* Foglio "Backup dei dati" */
+.sheet__text { margin: 0 0 14px; font-size: 15px; color: var(--text-2); }
+.sheet__body > .status { margin: 0 0 14px; } /* riga di stato in cima al foglio, fuori dai riquadri */
+
+/* Riepilogo prima di sostituire i dati: "Nel file" (o "Nella copia") e "Adesso" */
+.compare { display: grid; gap: 8px; }
+.compare__row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: baseline;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+.compare dt { font-size: 14px; font-weight: 700; color: var(--text-2); }
+.compare dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.compare__when { display: block; margin-top: 2px; font-size: 13.5px; font-weight: 500; color: var(--text-2); }
+
 /* Avviso in basso, con "Annulla" */
 .toast {
   position: fixed;
@@ -1340,6 +1378,8 @@ button {
 @keyframes task-in { from { opacity: 0; transform: translateY(10px) scale(.98); } }
 @keyframes task-glow { 0%, 35% { box-shadow: 0 0 0 2px var(--accent), 0 8px 24px var(--focus-ring); } }
 .task--new { animation: task-in .4s var(--ease-out), task-glow 1.8s ease-out; }
+/* Card appena modificata: solo il bagliore, senza l'entrata */
+.task--edited { animation: task-glow 1.8s ease-out; }
 
 /* Completamento: la spunta "salta" ed emette un anello, il titolo si barra */
 @keyframes check-pop { 45% { transform: scale(1.22); } }

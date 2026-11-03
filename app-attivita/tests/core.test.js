@@ -83,6 +83,16 @@
     assertEqual(utils.formatNumber(1234567), '1.234.567');
   });
 
+  test('formatTime e formatMoment: ora locale e giorno rispetto a oggi', () => {
+    const today = '2026-10-29';
+    const at = (y, m, d, h, min) => new Date(y, m - 1, d, h, min).getTime();
+    assertEqual(utils.formatTime(new Date(2026, 9, 29, 9, 5)), '09:05');
+    assertEqual(utils.formatMoment(at(2026, 10, 29, 9, 5), today), 'Oggi alle 09:05');
+    assertEqual(utils.formatMoment(at(2026, 10, 28, 23, 59), today), 'Ieri alle 23:59');
+    assertEqual(utils.formatMoment(at(2026, 11, 3, 0, 30), today), 'mar 3 nov alle 00:30');
+    assertEqual(utils.formatMoment(at(2025, 12, 31, 18, 0), today), 'mer 31 dic 2025 alle 18:00');
+  });
+
   test('formatLongDate e greeting', () => {
     assertEqual(utils.formatLongDate(new Date(2026, 9, 29)), 'Giovedì 29 ottobre');
     assertEqual(utils.greeting(new Date(2026, 9, 29, 8)), 'Buongiorno');
@@ -127,6 +137,47 @@
     assert(done[1] === list[1], 'le altre attività restano le stesse');
     const undone = T.setDone(done, 'a', false, 6000);
     assertEqual([undone[0].done, undone[0].completedAt, undone[0].pointsAwarded], [false, null, null]);
+  });
+
+  /* ---------- Modifica di un'attività ---------- */
+
+  test('updateTask cambia solo titolo, durata, energia, giorno e ora', () => {
+    const original = make({
+      id: 'a', title: 'Spesa', duration: 30, energy: 'medium', date: '2026-10-29', time: '10:00',
+      done: true, createdAt: 7, completedAt: 99, pointsAwarded: 24, extra: { x: 1 }
+    });
+    const other = make({ id: 'b' });
+    const list = [original, other];
+    const value = { title: 'Spesa grande', duration: 90, energy: 'high', date: '2026-10-30', time: '18:30' };
+    const { tasks, previous, changed } = T.updateTask(list, 'a', value);
+    assert(changed && previous === original, 'cambiata, con l\'attività di prima');
+    assertEqual(tasks[0], { ...original, ...value }, 'solo i 5 campi');
+    assertEqual([tasks[0].id, tasks[0].createdAt, tasks[0].done, tasks[0].completedAt, tasks[0].pointsAwarded, tasks[0].extra],
+      ['a', 7, true, 99, 24, { x: 1 }], 'id, creazione, completamento, punti e campi sconosciuti restano');
+    assert(tasks[1] === other, 'le altre attività restano gli stessi oggetti');
+    assertEqual(list[0].title, 'Spesa', 'originale intatto');
+  });
+
+  test('updateTask: senza giorno l\'ora sparisce', () => {
+    const list = [make({ id: 'a', date: '2026-10-29', time: '10:00' })];
+    const { tasks } = T.updateTask(list, 'a', { title: 'Prova', duration: 30, energy: 'medium', date: null, time: '10:00' });
+    assertEqual([tasks[0].date, tasks[0].time], [null, null]);
+  });
+
+  test('updateTask: id inesistente o nessuna differenza → stesso elenco', () => {
+    const list = [make({ id: 'a', title: 'Prova', date: '2026-10-29', time: '09:00' })];
+    const missing = T.updateTask(list, 'z', { title: 'X', duration: 10, energy: 'low', date: null, time: null });
+    assert(missing.tasks === list && missing.previous === null && !missing.changed, 'id inesistente');
+    const same = T.updateTask(list, 'a', T.editableFields(list[0]));
+    assert(same.tasks === list && same.previous === list[0] && !same.changed, 'nessuna differenza');
+  });
+
+  test('updateTask + editableFields: "Annulla" rimette i campi di prima', () => {
+    const list = [make({ id: 'a', title: 'Prima', duration: 15, energy: 'low', date: '2026-10-29', time: '08:00' })];
+    assertEqual(T.editableFields(list[0]), { title: 'Prima', duration: 15, energy: 'low', date: '2026-10-29', time: '08:00' });
+    const edited = T.updateTask(list, 'a', { title: 'Dopo', duration: 45, energy: 'high', date: null, time: null });
+    const undone = T.updateTask(edited.tasks, 'a', T.editableFields(edited.previous));
+    assertEqual(undone.tasks[0], list[0]);
   });
 
   test('removeTask + restoreTask rimettono l\'attività al suo posto', () => {

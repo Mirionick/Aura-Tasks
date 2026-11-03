@@ -96,6 +96,21 @@
     assertEqual([after.stats.totalPoints, P.dayTotals(after.stats, '2026-10-29').done], [24, 1]);
   });
 
+  test('Modificare un\'attività completata non cambia i punti già assegnati', () => {
+    const r = P.setDone(state([task()]), 't', true, at(29, 10)); // 30 min, energia media: 24 punti
+    const edited = T.updateTask(r.tasks, 't', { title: 'Altro', duration: 120, energy: 'high', date: null, time: null });
+    assertEqual([edited.tasks[0].pointsAwarded, edited.tasks[0].done, edited.tasks[0].completedAt], [24, true, at(29, 10)]);
+    // Il registro non passa da updateTask: commit() lo lascia com'è. Togliendo la spunta si tolgono i 24 punti di allora.
+    const undone = P.setDone({ tasks: edited.tasks, stats: r.stats }, 't', false, at(29, 11));
+    assertEqual([undone.points, undone.stats.totalPoints, undone.stats.days], [24, 0, {}]);
+  });
+
+  test('Un\'attività da fare modificata prende i punti nuovi quando si completa', () => {
+    const edited = T.updateTask([task()], 't', { title: 'Palestra', duration: 60, energy: 'high', date: null, time: null });
+    const r = P.setDone(state(edited.tasks), 't', true, at(29, 10));
+    assertEqual([r.points, r.tasks[0].pointsAwarded], [44, 44]);
+  });
+
   test('dayTotals: zero per un giorno senza completamenti', () => {
     const stats = { ...P.emptyStats(), days: { '2026-10-29': { done: 2, points: 37 } } };
     assertEqual(P.dayTotals(stats, '2026-10-29'), { done: 2, points: 37 });

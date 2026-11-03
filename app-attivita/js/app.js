@@ -1,7 +1,8 @@
 /*
  * Aura Tasks — interfaccia.
  * Unico file che tocca la pagina: disegna la lista partendo da `state` e trasforma i gesti
- * dell'utente in chiamate ad Aura.tasks, Aura.points e Aura.storage. Ogni modifica passa da commit().
+ * dell'utente in chiamate ad Aura.tasks, Aura.points e Aura.storage. Ogni modifica passa da commit();
+ * solo l'importazione di un backup (e il suo ripristino) sostituisce tutto lo stato, con applyState().
  * Promemoria e casella di Siri (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
@@ -43,6 +44,11 @@
     addSheet: byId('add-sheet'),
     addHeading: byId('add-sheet-title'),
     form: byId('add-form'),
+    submitIcon: byId('add-submit-icon'),
+    submitText: byId('add-submit-text'),
+    editNote: byId('edit-note'),
+    editNoteText: byId('edit-note-text'),
+    phraseField: byId('phrase-field'),
     phrase: byId('task-phrase'),
     phraseSummary: byId('phrase-summary'),
     title: byId('task-title'),
@@ -81,6 +87,27 @@
     siriAuth: byId('siri-auth'),
     siriShow: byId('siri-show'),
     remoteDisconnect: byId('remote-disconnect'),
+    backupButton: byId('backup-button'),
+    backupSheet: byId('backup-sheet'),
+    backupHeading: byId('backup-sheet-title'),
+    backupStatus: byId('backup-status'),
+    backupMain: byId('backup-main'),
+    backupExport: byId('backup-export'),
+    backupImport: byId('backup-import'),
+    backupFile: byId('backup-file'),
+    backupIosHint: byId('backup-ios-hint'),
+    backupRestore: byId('backup-restore'),
+    backupRestoreButton: byId('backup-restore-button'),
+    backupRestoreWhen: byId('backup-restore-when'),
+    backupConfirm: byId('backup-confirm'),
+    backupConfirmTitle: byId('backup-confirm-title'),
+    backupConfirmSourceLabel: byId('backup-confirm-source-label'),
+    backupConfirmSource: byId('backup-confirm-source'),
+    backupConfirmWhen: byId('backup-confirm-when'),
+    backupConfirmCurrent: byId('backup-confirm-current'),
+    backupConfirmText: byId('backup-confirm-text'),
+    backupConfirmOk: byId('backup-confirm-ok'),
+    backupConfirmCancel: byId('backup-confirm-cancel'),
     toast: byId('toast'),
     toastText: byId('toast-text'),
     toastAction: byId('toast-action'),
@@ -96,6 +123,7 @@
   let state = loaded.state;
   let renderedDay = null;
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
+  let editedId = null; // attività appena modificata: solo il bagliore, senza l'entrata
   const busy = new Set(); // attività in animazione: i doppi tocchi vengono ignorati
   let remote = R.load(); // collegamento al server: codice del dispositivo, promemoria, frasi di Siri in coda
 
@@ -112,6 +140,13 @@
     if (!saved) showToast('Impossibile salvare: la memoria del browser è piena o disattivata.', { duration: 6000 });
     scheduleReminderSync(); // con i promemoria spenti non fa nulla
     return saved;
+  }
+
+  /** Dopo un'importazione o un ripristino: lo stato nuovo è già salvato (storage.replaceData), si ridisegna. */
+  function applyState(next) {
+    state = next;
+    render();
+    scheduleReminderSync(); // con i promemoria attivi, il server riceve l'elenco nuovo
   }
 
   /* ---------- Disegno ---------- */
@@ -131,6 +166,7 @@
     if (hadFocus && !els.main.contains(document.activeElement)) els.main.focus({ preventScroll: true });
     renderedDay = today;
     highlightId = null;
+    editedId = null;
   }
 
   function renderHeader(now, today) {
@@ -251,12 +287,14 @@
     node.dataset.id = task.id;
     node.classList.toggle('is-done', task.done);
     if (task.id === highlightId) node.classList.add('task--new');
+    else if (task.id === editedId) node.classList.add('task--edited');
 
     const checkbox = node.querySelector('.check__input');
     checkbox.checked = task.done;
     checkbox.setAttribute('aria-label', (task.done ? 'Segna come da fare: ' : 'Segna come completata: ') + task.title);
 
     node.querySelector('.task__title').textContent = task.title;
+    node.querySelector('.task__edit').setAttribute('aria-label', 'Modifica: ' + task.title);
     if (task.time) node.querySelector('.meta__at').textContent = task.time;
     else node.querySelector('.meta--at').remove();
     node.querySelector('.meta__time').textContent = utils.formatDuration(task.duration);
@@ -562,20 +600,36 @@
     target.setAttribute('autofocus', '');
   }
 
-  /* ---------- Foglio "Nuova attività" ---------- */
+  /* ---------- Foglio "Nuova attività" (e "Modifica attività") ---------- */
+
+  let editingId = null; // attività che si sta modificando; null = nuova attività. Si imposta a ogni apertura.
+  let focusAfterEdit = null; // card che riceve il focus quando il foglio si è chiuso dopo una modifica
+
+  /** Svuota il foglio. In modifica cambiano titolo e pulsante, e spariscono la frase libera e la riga di Siri. */
+  function resetAddSheet(editing) {
+    focusAfterEdit = null;
+    els.form.reset();
+    setErrors({});
+    els.inboxNote.hidden = true;
+    els.editNote.hidden = true;
+    els.phraseField.hidden = editing;
+    els.addHeading.textContent = editing ? 'Modifica attività' : 'Nuova attività';
+    els.submitText.textContent = editing ? 'Salva modifiche' : 'Aggiungi attività';
+    els.submitIcon.setAttribute('href', editing ? '#i-check' : '#i-plus');
+    els.dateInput.min = utils.todayISO();
+    phraseBase = null;
+    els.phraseSummary.textContent = PHRASE_HINT;
+  }
 
   /**
    * Apre il foglio vuoto, oppure già compilato da una frase (dal link ?add= o dalla casella di Siri).
    * `note` è la riga sopra la frase, per esempio "Da Siri · 1 di 2".
    */
   function openAddSheet(phrase, note) {
-    els.form.reset();
-    setErrors({});
+    resetAddSheet(false);
+    editingId = null;
     els.inboxNoteText.textContent = note || '';
     els.inboxNote.hidden = !note;
-    els.dateInput.min = utils.todayISO();
-    phraseBase = null;
-    els.phraseSummary.textContent = PHRASE_HINT;
     syncDuration();
     syncEnergyHint();
     syncDate();
@@ -586,6 +640,31 @@
     // Sul computer si scrive subito; sul telefono prima si vede tutto il modulo (la tastiera ne coprirebbe metà).
     // Con una frase già capita si mostra il risultato, da controllare prima di "Aggiungi".
     setAutofocus(els.addSheet, finePointer.matches && !phrase ? els.title : els.addHeading);
+    openSheet(els.addSheet);
+  }
+
+  /** Apre il foglio per modificare un'attività, già compilato. Anche le completate: i loro punti non cambiano. */
+  function openEditSheet(id) {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task || busy.has(id)) return; // card in animazione (completamento o eliminazione)
+    resetAddSheet(true);
+    editingId = id;
+    const fields = T.editableFields(task);
+    // Un'attività in ritardo tiene il suo giorno: il calendario non deve escluderlo.
+    if (fields.date && fields.date < els.dateInput.min) els.dateInput.min = fields.date;
+    writeFields({
+      title: fields.title,
+      duration: String(fields.duration),
+      energy: fields.energy,
+      date: fields.date || '',
+      time: fields.time || ''
+    });
+    if (task.done) {
+      const points = task.pointsAwarded || 0;
+      els.editNoteText.textContent = 'Completata · ' + (points === 1 ? 'il suo punto non cambia' : 'i suoi ' + utils.formatNumber(points) + ' punti non cambiano');
+      els.editNote.hidden = false;
+    }
+    setAutofocus(els.addSheet, finePointer.matches ? els.title : els.addHeading);
     openSheet(els.addSheet);
   }
 
@@ -725,6 +804,10 @@
       if (FIELD_INPUTS[firstError]) FIELD_INPUTS[firstError].focus();
       return;
     }
+    if (editingId) {
+      saveEdit(editingId, value);
+      return;
+    }
 
     const task = T.createTask(value, Date.now());
     const isFirst = state.tasks.length === 0;
@@ -732,12 +815,41 @@
     const saved = commit(state.tasks.concat(task));
     closeSheet(els.addSheet);
     if (!saved) return;
-    showToast('Attività aggiunta');
+    // La prima volta si dice anche come correggerla.
+    showToast(isFirst ? 'Attività aggiunta: toccala per modificarla' : 'Attività aggiunta');
     revealTask(task.id);
     if (isFirst) storage.requestPersistence();
   }
 
-  /** Porta in vista la card appena aggiunta, dopo la chiusura del foglio. */
+  /**
+   * Salva una modifica: cambiano solo i campi del modulo, mentre completamento, punti e registro restano com'erano.
+   * "Annulla" rimette i campi di prima, anche se nel frattempo l'attività è stata completata.
+   */
+  function saveEdit(id, value) {
+    const result = T.updateTask(state.tasks, id, value);
+    if (!result.changed) {
+      closeSheet(els.addSheet);
+      if (!result.previous) showToast('Questa attività non c\'è più'); // eliminata in un'altra scheda
+      return;
+    }
+    editedId = id;
+    const saved = commit(result.tasks); // il registro dei punti resta quello di prima
+    // Il pulsante che aveva aperto il foglio è stato ridisegnato: chiuso il foglio, il focus va sulla card nuova.
+    focusAfterEdit = saved ? id : null;
+    closeSheet(els.addSheet);
+    if (!saved) return;
+    const before = T.editableFields(result.previous);
+    showToast('Modifiche salvate', {
+      action: 'Annulla',
+      onAction: () => {
+        const undo = T.updateTask(state.tasks, id, before);
+        if (undo.changed) commit(undo.tasks);
+      }
+    });
+    revealTask(id);
+  }
+
+  /** Porta in vista la card appena aggiunta o modificata, dopo la chiusura del foglio. */
   function revealTask(id) {
     const node = els.main.querySelector('.task[data-id="' + CSS.escape(id) + '"]');
     if (!node) return;
@@ -760,6 +872,231 @@
     const checked = els.themeSheet.querySelector('input[name="theme"]:checked');
     setAutofocus(els.themeSheet, checked || els.themeHeading);
     openSheet(els.themeSheet);
+  }
+
+  /* ---------- Foglio "Backup dei dati" ---------- */
+
+  const BACKUP_MAX_BYTES = 5 * 1024 * 1024; // un backup vero pesa pochi kB; il localStorage ne contiene circa 5 MB
+  const CONFIRM_TEXTS = {
+    import: {
+      title: 'Importare questo backup?',
+      source: 'Nel file',
+      when: 'Esportato: ',
+      text: 'Attività, punti e serie di adesso verranno sostituiti. Prima ne salvo una copia su questo dispositivo.',
+      ok: 'Sostituisci'
+    },
+    restore: {
+      title: 'Ripristinare i dati di prima dell\'importazione?',
+      source: 'Nella copia',
+      when: 'Salvata: ',
+      text: 'Attività, punti e serie di adesso verranno sostituiti da quelli della copia.',
+      ok: 'Ripristina'
+    }
+  };
+
+  let backupBusy = false;
+  let pendingBackup = null; // dati in attesa di «Sostituisci» o «Ripristina»: { kind: 'import' | 'restore', state, when }
+
+  const tasksLabel = count => count + ' attività';
+  const pointsLabel = points => (points === 1 ? '1 punto' : utils.formatNumber(points) + ' punti');
+  const dataLabel = data => tasksLabel(data.tasks.length) + ' · ' + pointsLabel(data.stats.totalPoints);
+  const momentLabel = ms => (ms ? utils.formatMoment(ms, utils.todayISO()) : 'data sconosciuta');
+
+  /** Il foglio riparte sempre dallo stato normale: una scelta lasciata a metà si perde (non si conta sull'evento close). */
+  function openBackupSheet() {
+    pendingBackup = null;
+    setBackupMessage(null);
+    syncBackupUI();
+    setAutofocus(els.backupSheet, els.backupHeading);
+    openSheet(els.backupSheet);
+  }
+
+  /** Foglio normale (esporta, importa, ripristina) oppure riepilogo prima di sostituire i dati. */
+  function syncBackupUI() {
+    const confirming = Boolean(pendingBackup);
+    els.backupMain.hidden = confirming;
+    els.backupConfirm.hidden = !confirming;
+    els.backupIosHint.hidden = !R.isIOS();
+    // Il ripristino si vede finché esiste la copia dei dati di prima dell'ultima importazione.
+    const copy = confirming ? null : storage.loadBeforeImport();
+    els.backupRestore.hidden = !copy;
+    if (copy) els.backupRestoreWhen.textContent = 'Copia salvata: ' + momentLabel(copy.savedAt);
+    els.backupExport.disabled = backupBusy;
+    els.backupImport.disabled = backupBusy;
+    els.backupSheet.setAttribute('aria-busy', String(backupBusy));
+  }
+
+  function setBackupMessage(text, tone) {
+    els.backupStatus.hidden = !text;
+    if (!text) return;
+    els.backupStatus.textContent = text;
+    els.backupStatus.dataset.tone = tone || 'warn';
+  }
+
+  /** "Esporta il backup": su iPhone e iPad il foglio di condivisione (Salva su File, AirDrop…), altrove un download. */
+  async function onExport() {
+    if (backupBusy) return;
+    const file = storage.backupFile(state, Date.now());
+    // Su iPhone, nell'app installata, un download apre una schermata senza via d'uscita: meglio condividere il file.
+    const shared = R.isIOS() ? shareableFile(file) : null;
+    if (!shared) {
+      downloadFile(file);
+      setBackupMessage('Backup scaricato (' + file.name + '): tienilo in un posto tuo.', 'on');
+      return;
+    }
+    // Subito, senza attese prima: Safari apre la condivisione solo dentro il tocco.
+    let sharing;
+    try {
+      sharing = Promise.resolve(navigator.share({ files: [shared] }));
+    } catch (err) {
+      sharing = Promise.reject(err);
+    }
+    backupBusy = true;
+    syncBackupUI();
+    try {
+      await sharing;
+      setBackupMessage('Backup pronto: tienilo in un posto tuo, per esempio il tuo iCloud Drive.', 'on');
+    } catch (err) {
+      // Condivisione chiusa senza scegliere niente: non è un errore.
+      setBackupMessage(err && err.name === 'AbortError' ? null : 'Non sono riuscito ad aprire la condivisione: riprova.');
+    }
+    backupBusy = false;
+    syncBackupUI();
+  }
+
+  /** Il file da condividere, se il browser lo accetta: prima come JSON, poi come testo. Altrimenti null. */
+  function shareableFile({ name, text }) {
+    if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function' || typeof File !== 'function') return null;
+    for (const type of ['application/json', 'text/plain']) {
+      try {
+        const file = new File([text], name, { type });
+        if (navigator.canShare({ files: [file] })) return file;
+      } catch (err) {
+        // Tipo non accettato: si prova il prossimo.
+      }
+    }
+    return null;
+  }
+
+  /** Download classico. Il link sta dentro il foglio: fuori da un <dialog> modale la pagina è inerte. */
+  function downloadFile({ name, text }) {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.hidden = true;
+    els.backupSheet.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+  }
+
+  /** File scelto: si legge e si controlla come i dati salvati; se è un backup di Aura, prima si mostra il riepilogo. */
+  async function onImportFile() {
+    const file = els.backupFile.files && els.backupFile.files[0];
+    els.backupFile.value = ''; // così si può scegliere di nuovo lo stesso file
+    if (!file || backupBusy) return;
+    if (file.size > BACKUP_MAX_BYTES) {
+      setBackupMessage('Il file è troppo grande per essere un backup di Aura.');
+      return;
+    }
+    backupBusy = true;
+    syncBackupUI();
+    let text = null;
+    try {
+      text = await readText(file);
+    } catch (err) {
+      text = null;
+    }
+    backupBusy = false;
+    const result = text === null ? null : storage.readBackup(text);
+    if (!result || result.error) {
+      setBackupMessage(result ? result.error : 'Non riesco a leggere il file: riprova.');
+      syncBackupUI();
+      return;
+    }
+    showConfirm({ kind: 'import', state: result.state, when: result.exportedAt });
+  }
+
+  /** Testo di un file scelto dall'utente (con FileReader dove manca file.text()). */
+  function readText(file) {
+    if (typeof file.text === 'function') return file.text();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(file);
+    });
+  }
+
+  function onRestoreClick() {
+    const copy = storage.loadBeforeImport();
+    if (backupBusy || !copy) {
+      syncBackupUI();
+      return;
+    }
+    showConfirm({ kind: 'restore', state: copy.state, when: copy.savedAt });
+  }
+
+  /** Riepilogo prima di sostituire tutti i dati: cosa arriva e cosa c'è adesso, con «Sostituisci» (o «Ripristina») e «Annulla». */
+  function showConfirm(pending) {
+    const texts = CONFIRM_TEXTS[pending.kind];
+    pendingBackup = pending;
+    setBackupMessage(null);
+    els.backupConfirmTitle.textContent = texts.title;
+    els.backupConfirmSourceLabel.textContent = texts.source;
+    els.backupConfirmSource.textContent = dataLabel(pending.state);
+    els.backupConfirmWhen.textContent = texts.when + momentLabel(pending.when);
+    els.backupConfirmCurrent.textContent = dataLabel(state);
+    els.backupConfirmText.textContent = texts.text;
+    els.backupConfirmOk.textContent = texts.ok;
+    syncBackupUI();
+    els.backupConfirm.closest('.sheet__body').scrollTop = 0;
+    els.backupConfirmTitle.focus({ preventScroll: true });
+  }
+
+  function onConfirmCancel() {
+    const kind = pendingBackup ? pendingBackup.kind : 'import';
+    pendingBackup = null;
+    syncBackupUI();
+    (kind === 'restore' ? els.backupRestoreButton : els.backupImport).focus({ preventScroll: true });
+  }
+
+  /** «Sostituisci» o «Ripristina». */
+  function onConfirm() {
+    const pending = pendingBackup;
+    if (!pending) return;
+    pendingBackup = null;
+    if (pending.kind === 'import') importBackup(pending.state);
+    else restoreCopy(pending.state);
+    syncBackupUI();
+    els.backupHeading.focus({ preventScroll: true });
+  }
+
+  /** Sostituisce i dati con quelli del backup. Prima ne salva una copia: senza spazio per la copia non importa nulla. */
+  function importBackup(next) {
+    const outcome = storage.replaceData(state, next, Date.now());
+    if (outcome === 'no-copy') {
+      setBackupMessage('Non c\'è spazio per una copia dei dati di adesso: non ho importato nulla.');
+      return;
+    }
+    if (outcome === 'no-space') {
+      setBackupMessage('Impossibile salvare: la memoria del browser è piena. I dati sono quelli di prima.');
+      return;
+    }
+    applyState(next);
+    setBackupMessage('Backup importato: ' + tasksLabel(next.tasks.length) + ' e ' + pointsLabel(next.stats.totalPoints) + '.', 'on');
+    storage.requestPersistence();
+  }
+
+  /** Rimette i dati di prima dell'ultima importazione; poi la copia sparisce. */
+  function restoreCopy(copyState) {
+    if (!storage.restoreBeforeImport(copyState)) {
+      setBackupMessage('Impossibile salvare: la memoria del browser è piena. I dati sono quelli di adesso.');
+      return;
+    }
+    applyState(copyState);
+    setBackupMessage('Dati di prima dell\'importazione ripristinati.', 'on');
   }
 
   /* ---------- Foglio "Promemoria e Siri" (server di Aura) ---------- */
@@ -1117,8 +1454,16 @@
     openAddSheet(item.text, total > 1 ? 'Da Siri · ' + (inboxShown + 1) + ' di ' + total : 'Da Siri');
   }
 
-  /** Dopo la chiusura di un foglio: la frase mostrata è fatta (aggiunta o annullata), poi tocca alla prossima. */
+  /**
+   * Dopo la chiusura di un foglio: la frase mostrata è fatta (aggiunta o annullata), poi tocca alla prossima.
+   * Dopo una modifica, il focus torna sulla card (utile da tastiera e con il lettore di schermo).
+   */
   function onSheetClosed(dialog) {
+    if (dialog === els.addSheet && focusAfterEdit) {
+      const button = els.main.querySelector('.task[data-id="' + CSS.escape(focusAfterEdit) + '"] .task__edit');
+      focusAfterEdit = null;
+      if (button) button.focus({ preventScroll: true });
+    }
     if (dialog === els.addSheet && inboxShowing) {
       const id = inboxShowing;
       inboxShowing = null;
@@ -1290,10 +1635,11 @@
   });
 
   els.main.addEventListener('click', event => {
-    const button = event.target.closest('[data-action="delete"]');
+    const button = event.target.closest('[data-action]');
     if (!button) return;
     const node = button.closest('.task');
-    onDelete(node.dataset.id, node);
+    if (button.dataset.action === 'delete') onDelete(node.dataset.id, node);
+    else if (button.dataset.action === 'edit') openEditSheet(node.dataset.id);
   });
 
   els.clearCompleted.addEventListener('click', onClearCompleted);
@@ -1378,6 +1724,16 @@
   });
   els.remoteDisconnect.addEventListener('click', onDisconnect);
 
+  els.backupButton.addEventListener('click', openBackupSheet);
+  els.backupExport.addEventListener('click', onExport);
+  els.backupImport.addEventListener('click', () => {
+    if (!backupBusy) els.backupFile.click(); // l'input (invisibile) sta dentro il foglio, come il link del download
+  });
+  els.backupFile.addEventListener('change', onImportFile);
+  els.backupRestoreButton.addEventListener('click', onRestoreClick);
+  els.backupConfirmOk.addEventListener('click', onConfirm);
+  els.backupConfirmCancel.addEventListener('click', onConfirmCancel);
+
   // Tocco su una notifica con l'app già aperta: il service worker chiede di mostrare l'attività.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', event => {
@@ -1401,7 +1757,7 @@
     toastTimer = setTimeout(hideToast, 2000);
   });
 
-  [els.addSheet, els.themeSheet, els.remoteSheet].forEach(setupSheet);
+  [els.addSheet, els.themeSheet, els.remoteSheet, els.backupSheet].forEach(setupSheet);
 
   // Tornando nell'app (o dopo mezzanotte) "Oggi" e "In ritardo" devono essere giusti.
   // E si guarda se Siri ha lasciato frasi nella casella (solo con un dispositivo collegato).

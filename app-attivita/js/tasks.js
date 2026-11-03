@@ -74,6 +74,30 @@
     };
   }
 
+  /** Campi che il foglio "Modifica attività" può cambiare. Tutto il resto (completamento e punti compresi) resta com'è. */
+  const EDITABLE_FIELDS = ['title', 'duration', 'energy', 'date', 'time'];
+
+  /** I campi modificabili di un'attività, nella stessa forma di validateInput().value. L'ora c'è solo con un giorno. */
+  function editableFields(task) {
+    const date = task.date || null;
+    return { title: task.title, duration: task.duration, energy: task.energy, date, time: date && task.time ? task.time : null };
+  }
+
+  /**
+   * Modifica un'attività con dati già controllati da validateInput(). Cambiano solo titolo, durata, energia, giorno e ora:
+   * id, creazione, completamento, punti già assegnati e campi sconosciuti restano com'erano.
+   * Restituisce { tasks, previous, changed }: `previous` è l'attività prima della modifica (null se non c'è).
+   * Se non cambia niente, `tasks` è lo stesso elenco ricevuto.
+   */
+  function updateTask(tasks, id, value) {
+    const index = tasks.findIndex(task => task.id === id);
+    if (index === -1) return { tasks, previous: null, changed: false };
+    const previous = tasks[index];
+    const next = { ...previous, ...editableFields(value) };
+    if (EDITABLE_FIELDS.every(field => next[field] === previous[field])) return { tasks, previous, changed: false };
+    return { tasks: tasks.map((task, i) => (i === index ? next : task)), previous, changed: true };
+  }
+
   /**
    * Segna un'attività come completata (done = true) o di nuovo da fare (done = false).
    * `pointsAwarded` sono i punti dati al completamento (li calcola points.js).
@@ -183,8 +207,11 @@
     LIMITS,
     DEFAULTS,
     SECTIONS,
+    EDITABLE_FIELDS,
     validateInput,
     createTask,
+    editableFields,
+    updateTask,
     setDone,
     removeTask,
     restoreTask,

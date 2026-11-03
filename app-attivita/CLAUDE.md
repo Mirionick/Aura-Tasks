@@ -12,7 +12,8 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 
 ## Cosa sa fare oggi
 - **Attività**: ognuna ha titolo, durata stimata in minuti, livello di energia (bassa/media/alta), data facoltativa e **orario** facoltativo.
-- **Gestione**: aggiungere, completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
+- **Gestione**: aggiungere, **modificare** (tocco sulla card), completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
+- **Backup dei dati**: esportare e importare un file JSON con attività, punti e serie (link "Backup dei dati" in fondo alla pagina).
 - **Scrivere una frase**, che compila il modulo da sola ("domani alle 10 dentista 30 min").
 - **Aprire il link `…/?add=testo`**, che apre il modulo già compilato (vedi "Linguaggio naturale").
 - **Lista** divisa per giorno, con le attività in ordine d'ora.
@@ -80,27 +81,27 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 
 ⚠️ **Su iPhone l'app installata ha un archivio separato da Safari**: le attività inserite in Safari non compaiono nell'app installata, e viceversa. Conviene installarla subito e usarla sempre dall'icona.
 
-⚠️ I dati sono legati al dispositivo e al browser: cancellare i dati di navigazione li elimina, e non si sincronizzano tra dispositivi (vedi "Altre idee: backup").
+⚠️ I dati sono legati al dispositivo e al browser: cancellare i dati di navigazione li elimina, e non si sincronizzano tra dispositivi. Per conservarli o spostarli c'è il backup (vedi "Backup dei dati").
 
 ## Struttura dei file
 
 | File | Ruolo |
 |---|---|
-| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, i fogli `<dialog>` ("Nuova attività", "Tema") e il `<template>` della card |
+| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; "Tema"; "Promemoria e Siri"; "Backup dei dati") e il `<template>` della card |
 | `css/style.css` | Design system: token (variabili) per i due temi, componenti, animazioni |
 | `js/theme.js` | Tema Automatico/Chiaro/Scuro. Caricato nel `<head>` **senza `defer`** per applicare il tema prima del primo disegno (niente lampi) |
-| `js/utils.js` | Date locali, formattazione in italiano, saluto, id univoci |
-| `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, completamento, eliminazione e ripristino, sezioni, riepilogo |
+| `js/utils.js` | Date e orari locali, formattazione in italiano, saluto, id univoci |
+| `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, modifica, completamento, eliminazione e ripristino, sezioni, riepilogo |
 | `js/nlp.js` | Logica pura del linguaggio naturale: `parseTaskText(testo, adesso)` riconosce giorno, orario, durata ed energia in una frase |
 | `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione |
-| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro |
+| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione |
 | `js/reminders.js` | Logica pura dei promemoria: dalle attività con giorno e ora all'elenco per il server (`at`, `fireAt`), anticipi, impronta dell'elenco |
 | `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste, codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
-| `js/app.js` | Interfaccia: disegno, eventi, fogli, avvisi con "Annulla", riquadri di serie e punti con i loro effetti, foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Unico file che tocca la pagina |
+| `js/app.js` | Interfaccia: disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", riquadri di serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Unico file che tocca la pagina |
 | `sw.js` | Service worker: uso offline, notifiche dei promemoria (`push`) e tocco sulla notifica (`notificationclick`) |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
-| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`): si aprono con `tests/index.html` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`): si aprono con `tests/index.html` |
 | `../server/` | Il server di Aura (Cloudflare Workers): vedi "Server di Aura" e `server/README.md` |
 
 **Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `storage.js` → `reminders.js` → `remote.js` → `app.js`.
@@ -162,7 +163,16 @@ La chiave `aura-tasks:data` contiene:
     - `sent`: `{ endpoint, at, key }`, l'ultimo stato confermato dal server;
     - `inbox`: frasi di Siri ritirate e non ancora mostrate;
     - `done`: id delle frasi già mostrate;
-  - `aura-tasks:server`: indirizzo di un server di prova. Vale solo su `localhost` o da `file://`. Per via della CSP deve essere sulla stessa origine dell'app (vedi "Prova completa in locale").
+  - `aura-tasks:server`: indirizzo di un server di prova. Vale solo su `localhost` o da `file://`. Per via della CSP deve essere sulla stessa origine dell'app (vedi "Prova completa in locale");
+  - `aura-tasks:before-import`: copia dei dati di prima dell'ultima importazione di un backup, nel formato del file di backup (compatto), con l'ora della copia in `exportedAt`. **Ce n'è una sola**: ogni importazione la sovrascrive, il ripristino la cancella. La scrive e la legge solo `js/storage.js` (vedi "Backup dei dati").
+
+**File di backup** (`aura-tasks-backup-AAAA-MM-GG.json`, giorno locale):
+```json
+{ "format": "aura-tasks-backup", "exportedAt": 1793…, "data": { "version": 3, "tasks": […], "stats": {…} } }
+```
+- `data` è tutto `aura-tasks:data` così com'è, compresi i campi sconosciuti.
+- Non contiene mai `aura-tasks:remote` (codice segreto del dispositivo, promemoria, casella di Siri) né il tema: il backup legge solo lo stato.
+- Leggendo un file si usa solo `data`, che passa da `fromData()`, cioè dagli stessi controlli e dalle stesse migrazioni dei dati salvati.
 
 **Dalla v1 alla v2**:
 1. `migrate()` mette `stats = null`.
@@ -181,10 +191,13 @@ I dati migrati vengono salvati alla prima modifica.
 
 `parse()` conserva i campi che non conosce e non abbassa mai il numero di versione. Così una versione più vecchia dell'app non rovina i dati scritti da una più nuova.
 
+Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup()` usa `fromData()`, la stessa funzione di `parse()`. Un backup vecchio arriva all'ultima versione con le stesse migrazioni; uno più nuovo resta intatto.
+
 ## Convenzioni
 
 - **Logica pura e pagina sono separate.** `utils.js`, `tasks.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. Solo `app.js` tocca la pagina.
 - **Ogni modifica passa da `commit()`** in `app.js`, che salva e ridisegna. `render()` ridisegna tutto partendo da `state`: i dati sono pochi, quindi è veloce e non ci sono stati "sfasati".
+  - Unica eccezione: importare un backup e ripristinare la copia sostituiscono **tutto** lo stato. Salvano `storage.replaceData()` e `storage.restoreBeforeImport()`, poi `applyState()` ridisegna.
 - **Date**: usa sempre `Aura.utils` (`todayISO`, `addDays`, `daysBetween`, `parseISODate`, `isISODate`…).
   - Mai `toISOString()` per la data di oggi: è in UTC, e dopo mezzanotte in Italia darebbe il giorno prima.
   - Mai `new Date('YYYY-MM-DD')`: anche questa legge la data in UTC.
@@ -197,6 +210,12 @@ I dati migrati vengono salvati alla prima modifica.
   - con la CSP via `<meta>` non si possono usare `frame-ancestors` né i report: GitHub Pages non permette di impostare intestazioni HTTP;
   - dopo una modifica, da `file://` e da `localhost` non deve comparire nessun messaggio "Content Security Policy" in console.
 - **"Annulla" invece di chiedere conferma**: le azioni distruttive si eseguono subito e l'avviso offre "Annulla". Niente `confirm()`.
+  - Eccezione voluta: importare un backup e ripristinare la copia sostituiscono **tutti** i dati. Prima, dentro il foglio "Backup dei dati", c'è un riepilogo con «Sostituisci» (o «Ripristina») e «Annulla». Mai `confirm()`.
+- **File da salvare e da scegliere** (backup):
+  - su iPhone e iPad si **condivide** il file (`navigator.share({ files })`: "Salva su File", AirDrop…). Nell'app installata un `<a download>` apre una schermata senza via d'uscita ([WebKit bug 236943](https://bugs.webkit.org/show_bug.cgi?id=236943)). Altrove si scarica con `Blob` + `<a download>`;
+  - `share()` va chiamata subito nel tocco, senza attese prima: Safari la permette solo lì;
+  - `<input type="file">` **senza `accept`**: su iPhone un filtro per estensione può rendere il file non selezionabile. Il contenuto si controlla dopo;
+  - link del download e input del file stanno **dentro** il foglio: fuori da un `<dialog>` modale la pagina è inerte.
 - **CSS**:
   - colori, ombre e raggi passano solo dalle variabili in `:root` (tema chiaro) e `:root[data-theme="dark"]` (tema scuro);
   - un colore nuovo va definito **in entrambi i temi** e verificato col contrasto **WCAG AA** (testo ≥ 4,5:1);
@@ -250,6 +269,20 @@ Note per i controlli automatici con Edge headless:
 6. Il Cron si fa partire con `GET /__scheduled`.
 
 **Screenshot**: la CSP blocca gli `<style>` aggiunti dall'esterno. Per fermare le animazioni si avvia Edge con `--force-prefers-reduced-motion`.
+
+**Pagine di prova da `file://`** che leggono l'app in un `<iframe>`: Edge va avviato con `--allow-file-access-from-files`, altrimenti l'iframe risulta di un'altra origine.
+
+**Motore di Safari (WebKit) sul PC, con Playwright**
+- Si installa **fuori dal repository**, nella cartella temporanea: `npm i playwright@<versione di almeno due settimane>`, poi `npx playwright install webkit`, con `PLAYWRIGHT_BROWSERS_PATH` nella stessa cartella (circa 170 MB). Edge si usa con `channel: 'msedge'`, senza scaricare altro.
+- Serve per JavaScript e CSS di WebKit:
+  - test della logica;
+  - prove con tocchi veri in un contesto "iPhone 13" (user agent e touch);
+  - le prove di prima, confrontate con la versione pubblicata (copia di `HEAD` con `git archive`);
+  - screenshot.
+- **Non è iOS**: niente foglio di condivisione, app File o app installata. E non riproduce tutti i difetti di layout dell'iPhone: con il vecchio `flex: 1` nei fogli, WebKit 27.2 su Windows mostrava i fogli interi (verificato a novembre 2026). Il layout va provato anche sull'iPhone.
+- La condivisione di iOS si simula sostituendo `navigator.share` e `navigator.canShare` prima degli script dell'app (`addInitScript`).
+- Con un codice del dispositivo finto: `aura-tasks:server` sulla stessa origine e richieste a workers.dev bloccate, così non si registra nulla sul server vero.
+- Per toccare la card in un punto preciso (per esempio la riga della durata) si usano le coordinate (`page.touchscreen.tap(x, y)`): lì il tocco arriva al `::after` del pulsante, e Playwright altrimenti si rifiuta di toccare.
 
 ## Design
 
@@ -495,6 +528,74 @@ La pulizia oraria toglie i segni più vecchi di 24 ore. Nell'app, `Aura.remote.t
 
 ---
 
+## Modificare un'attività (realizzata, gratuita)
+
+**Interfaccia**
+- Un tocco sulla card (titolo, ma anche la riga di ora, durata ed energia) apre il foglio "Nuova attività" in modalità modifica:
+  - titolo "Modifica attività", pulsante "Salva modifiche" con la spunta;
+  - campi già compilati; niente "Scrivi in una frase", che con le parole avanzate riscriverebbe il titolo, e niente riga di Siri;
+  - per un'attività completata, la riga "Completata · i suoi 24 punti non cambiano".
+- Spunta e cestino funzionano come prima. Si modificano anche le attività completate.
+- Dopo il salvataggio:
+  - la card si aggiorna, cambia sezione se è cambiato il giorno, si illumina (`.task--edited`: solo il bagliore) e torna in vista;
+  - avviso "Modifiche salvate" con "Annulla";
+  - il focus torna sulla card, in `onSheetClosed()`, perché il pulsante che aveva aperto il foglio è stato ridisegnato;
+  - senza modifiche il foglio si chiude e basta.
+- La prima attività aggiunta mostra "Attività aggiunta: toccala per modificarla".
+
+**Card**: il titolo sta dentro `<button class="task__edit" data-action="edit">`, il cui `::after` (`position: absolute; inset: 0` dentro `.task__body`) copre tutto il corpo della card. Per il lettore di schermo è "Modifica: Dentista".
+
+**Logica** (`js/tasks.js`):
+- `editableFields(task)`: titolo, durata, energia, giorno e ora;
+- `updateTask(tasks, id, value)` → `{ tasks, previous, changed }`. Cambia **solo** quei 5 campi; `id`, `createdAt`, completamento, **`pointsAwarded`** e campi sconosciuti restano.
+
+**Punti**: modificare un'attività **non cambia i punti già assegnati**.
+- `commit()` lascia il registro com'è, e `pointsAwarded` resta quello del completamento: togliendo la spunta si tolgono esattamente quei punti.
+- Un'attività ancora da fare prende i punti quando viene completata, con durata ed energia aggiornate.
+
+**`app.js`**
+- `openEditSheet(id)` imposta `editingId` a ogni apertura; `openAddSheet()` torna alla modalità "nuova", quindi Siri, `?add=` e "+" non cambiano.
+- Il minimo del calendario comprende il giorno di un'attività in ritardo.
+- "Annulla" rimette i 5 campi con `updateTask`, quindi resta coerente anche se nel frattempo l'attività è stata completata.
+- Una card in animazione (`busy`) non si apre.
+- Con i promemoria attivi, `commit()` rimanda già l'elenco al server con il titolo o l'ora nuovi.
+
+## Backup dei dati (realizzata, gratuita)
+
+**Foglio "Backup dei dati"**: si apre dal link in fondo alla pagina. Riparte sempre dallo stato normale, che ha tre riquadri.
+- **Esporta**: "Esporta il backup", con due note.
+  - Il file contiene le attività **in chiaro**: chi lo apre può leggerle, quindi va tenuto in un posto proprio.
+  - Nel file non ci sono il codice segreto di Siri né le impostazioni dei promemoria.
+- **Importa**: "Scegli un file di backup". Solo su iPhone compare una nota con «Scegli file» e gli archivi separati di Safari e dell'app installata: il backup serve anche a spostare i dati tra i due.
+- **Ripristina**: visibile **finché esiste** `aura-tasks:before-import`, con "Copia salvata: Oggi alle 10:30".
+- Esiti ed errori vanno nella riga di stato del foglio.
+
+**Esportare**: file `aura-tasks-backup-AAAA-MM-GG.json` (vedi "Modello dati").
+- Su iPhone e iPad si condivide (`navigator.share`), prima come `application/json`, poi come `text/plain` se iOS rifiuta il tipo. Altrove si scarica (vedi "Convenzioni").
+- Chiudere la condivisione senza scegliere non è un errore.
+
+**Importare**
+1. Scelta del file: oltre 5 MB è un errore. Poi `readBackup()`: file illeggibile, non di Aura o senza attività danno un messaggio, e i dati non cambiano.
+2. **Riepilogo** al posto dei riquadri, con il focus sul titolo:
+   - "Importare questo backup?";
+   - **Nel file**: attività, punti e "Esportato: Ieri alle 10:30";
+   - **Adesso**: attività e punti;
+   - «Sostituisci» e «Annulla».
+3. «Sostituisci» chiama `storage.replaceData(state, nuovo, adesso)`:
+   - prima salva la copia dei dati di adesso in `aura-tasks:before-import`. **Se non c'è spazio per la copia, non importa nulla** (`'no-copy'`);
+   - poi salva i dati nuovi. Se non ci stanno, rimette la copia precedente e i dati restano quelli di prima (`'no-space'`);
+   - se va tutto bene, `applyState()` ridisegna, la riga di stato dice "Backup importato: 3 attività e 340 punti." e compare il riquadro di ripristino.
+- **Sostituisce, non unisce**: unendo due archivi con la stessa storia, punti e giorni del registro si raddoppierebbero.
+- Non tocca mai `aura-tasks:remote`: codice, promemoria e casella restano. Con i promemoria attivi, l'elenco nuovo va al server.
+
+**Ripristinare**: «Ripristina i dati di prima dell'importazione» apre lo stesso riepilogo ("Nella copia" / "Adesso", «Ripristina» / «Annulla»).
+- `restoreBeforeImport()` rimette i dati e cancella la copia, quindi il riquadro sparisce.
+- Se il salvataggio non riesce, la copia resta.
+
+**Test**: `tests/backup.test.js`, con un archivio finto che può rifiutare la scrittura di una chiave (memoria piena).
+
+---
+
 ## Funzioni future
 
 Sono nell'ordine della visione. Per ciascuna sono indicati comportamento, dati e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo nella tabella di "Funzioni premium".
@@ -590,6 +691,8 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 | Punti e serie di giorni | gratuita |
 | Linguaggio naturale con orario e link ?add= | gratuita |
 | Promemoria push e casella del Comando Rapido di Siri (server di Aura) | gratuita |
+| Modificare un'attività | gratuita |
+| Backup dei dati (esporta, importa, ripristina) | gratuita |
 
 ### Regola fondamentale
 **Tutti i controlli passano da un'unica funzione `isPremium()`.**
@@ -621,20 +724,19 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 ---
 
 ## Altre idee (non prioritarie)
-- **Modificare un'attività**: riusare il foglio "Nuova attività" in modalità modifica.
-- **Backup**: esportare e importare un file JSON. È importante perché i dati vivono solo nel browser. Utile anche per passare a un altro telefono.
 - Attività ricorrenti: ogni giorno, ogni lunedì e così via.
+- **Backup**: un promemoria gentile se l'ultimo backup è vecchio. Oggi l'app non ricorda quando è stato fatto.
 - Statistiche settimanali, ordinamento manuale con trascinamento, scorrimento laterale per completare o eliminare.
 - **Promemoria**: anticipo diverso per ogni attività (per esempio "avvisami un'ora prima" detto nella frase); un secondo avviso all'ora esatta.
 
 ## Ordine consigliato (visione "segretario personale")
-Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri.
+Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati.
 1. ~~**Linguaggio naturale con orario** e aggiunta con il link `?add=testo`~~: fatto.
 2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
 3. ~~**Promemoria con notifiche Web Push**~~: fatto. Resta, facoltativa, l'esportazione `.ics`.
 4. **"Cosa faccio adesso?"** e **modalità focus**.
 
-Licenza premium e backup vanno fatti quando servono. Il backup conviene prima di far usare l'app ad altre persone.
+La licenza premium va fatta quando serve.
 
 ## Checklist prima di chiudere una modifica
 - [ ] `tests/index.html` è tutto verde, con test nuovi per la logica nuova.
