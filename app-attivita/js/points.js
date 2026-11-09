@@ -1,7 +1,7 @@
 /*
  * Aura Tasks — punti e serie di giorni.
  * Solo funzioni pure: ricevono dati e restituiscono NUOVI dati. Niente DOM, niente localStorage.
- * Tutte le regole stanno in POINTS (vedi CLAUDE.md, "Punti e serie di giorni").
+ * Tutte le regole stanno in POINTS (vedi docs/punti-e-serie.md).
  */
 (function (Aura) {
   'use strict';

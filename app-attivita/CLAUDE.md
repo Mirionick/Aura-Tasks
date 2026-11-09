@@ -8,18 +8,18 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
   - quanto è più veloce mettere dentro un impegno?
   - quanto è più affidabile che venga ricordato?
 - Tutti i dati restano nel `localStorage` del dispositivo.
-- L'unica eccezione a "niente server" è il **server di Aura** (cartella `server/` del repository, Cloudflare Workers, piano gratuito). È facoltativo: se l'utente attiva promemoria o Siri, riceve solo titolo e ora dei promemoria e le frasi dettate a Siri (vedi "Server di Aura").
+- L'unica eccezione a "niente server" è il **server di Aura** (cartella `server/` del repository, Cloudflare Workers, piano gratuito). È facoltativo: se l'utente attiva promemoria o Siri, riceve solo titolo e ora dei promemoria e le frasi dettate a Siri (vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md)).
 
 ## Cosa sa fare oggi
 - **Attività**: ognuna ha titolo, durata stimata in minuti, livello di energia (bassa/media/alta), data facoltativa e **orario** facoltativo.
 - **Gestione**: aggiungere, **modificare** (tocco sulla card), completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
 - **Backup dei dati**: esportare e importare un file JSON con attività, punti e serie (link "Backup dei dati" in fondo alla pagina).
 - **Scrivere una frase**, che compila il modulo da sola ("domani alle 10 dentista 30 min").
-- **Aprire il link `…/?add=testo`**, che apre il modulo già compilato (vedi "Linguaggio naturale").
+- **Aprire il link `…/?add=testo`**, che apre il modulo già compilato (vedi [docs/linguaggio-naturale.md](docs/linguaggio-naturale.md)).
 - **Lista** divisa per giorno, con le attività in ordine d'ora.
 - **Riepilogo** nell'intestazione.
 - **Tema** Automatico/Chiaro/Scuro e **uso offline**.
-- **Punti e serie**: ogni attività completata dà punti. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi "Punti e serie di giorni").
+- **Punti e serie**: ogni attività completata dà punti. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi [docs/punti-e-serie.md](docs/punti-e-serie.md)).
 - **Promemoria push** (facoltativi): un avviso prima delle attività con giorno e ora, anche ad app chiusa. L'anticipo si sceglie.
 - **Casella di Siri**: "Ehi Siri, Aura" e si detta l'impegno; aprendo Aura il foglio è già compilato. Le ultime due funzioni usano il server di Aura.
 
@@ -30,6 +30,7 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - Rispondi all'utente **in italiano**.
 - L'utente prova l'app su un **iPhone vero**. I controlli automatici su questo PC usano solo Edge headless, che non riproduce i difetti di Safari/WebKit. Quando una modifica tocca layout, animazioni o API del browser, di' chiaramente che cosa va provato sull'iPhone.
 - Quando l'utente dice **"pubblica"**, segui i passi di "Pubblicare con Git".
+- **Specifiche in `docs/`**: questo file tiene visione, regole, convenzioni e struttura. La specifica di ogni funzione sta in un file di `docs/` (vedi "Indice delle specifiche"): leggila prima di toccare la funzione e aggiornala insieme al codice. Una funzione nuova ha il suo `docs/<nome>.md` e una riga nell'indice.
 - **Node.js** è installato in `C:\Program Files\nodejs`, ma il terminale degli strumenti di Claude può non averlo nel PATH: aggiungilo all'inizio del comando (`$env:Path = 'C:\Program Files\nodejs;' + $env:Path`). Serve solo per `server/`.
 
 ## Vincoli da rispettare sempre
@@ -58,7 +59,7 @@ Per provare la PWA (offline, installazione) serve un indirizzo `http://localhost
 
 ### Pubblicare con Git
 - **Repository**: https://github.com/Mirionick/Aura-Tasks (pubblico, ramo `main`).
-  - L'app sta in `app-attivita/`, il server in `server/` (vedi "Server di Aura").
+  - L'app sta in `app-attivita/`, il server in `server/` (vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md)).
   - Alla radice ci sono poi solo `CLAUDE.md`, che rimanda a questo file, e `.gitignore`.
 - **Copia di lavoro**: `Documenti\Aura-Tasks`.
 - **Sito**: https://mirionick.github.io/Aura-Tasks/app-attivita/, servito da GitHub Pages ("Deploy from a branch", `main`, `/ (root)`). Si aggiorna circa un minuto dopo il push.
@@ -85,7 +86,7 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 
 ⚠️ **Su iPhone l'app installata ha un archivio separato da Safari**: le attività inserite in Safari non compaiono nell'app installata, e viceversa. Conviene installarla subito e usarla sempre dall'icona.
 
-⚠️ I dati sono legati al dispositivo e al browser: cancellare i dati di navigazione li elimina, e non si sincronizzano tra dispositivi. Per conservarli o spostarli c'è il backup (vedi "Backup dei dati").
+⚠️ I dati sono legati al dispositivo e al browser: cancellare i dati di navigazione li elimina, e non si sincronizzano tra dispositivi. Per conservarli o spostarli c'è il backup (vedi [docs/backup.md](docs/backup.md)).
 
 ## Struttura dei file
 
@@ -106,7 +107,8 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
 | `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`): si aprono con `tests/index.html` |
-| `../server/` | Il server di Aura (Cloudflare Workers): vedi "Server di Aura" e `server/README.md` |
+| `docs/` | Le specifiche delle funzioni, una per file (vedi "Indice delle specifiche") |
+| `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md) e `server/README.md` |
 
 **Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `storage.js` → `reminders.js` → `remote.js` → `app.js`.
 - Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.storage`, `Aura.reminders`, `Aura.remote`).
@@ -167,8 +169,8 @@ La chiave `aura-tasks:data` contiene:
     - `sent`: `{ endpoint, at, key }`, l'ultimo stato confermato dal server;
     - `inbox`: frasi di Siri ritirate e non ancora mostrate;
     - `done`: id delle frasi già mostrate;
-  - `aura-tasks:server`: indirizzo di un server di prova. Vale solo su `localhost` o da `file://`. Per via della CSP deve essere sulla stessa origine dell'app (vedi "Prova completa in locale");
-  - `aura-tasks:before-import`: copia dei dati di prima dell'ultima importazione di un backup, nel formato del file di backup (compatto), con l'ora della copia in `exportedAt`. **Ce n'è una sola**: ogni importazione la sovrascrive, il ripristino la cancella. La scrive e la legge solo `js/storage.js` (vedi "Backup dei dati").
+  - `aura-tasks:server`: indirizzo di un server di prova. Vale solo su `localhost` o da `file://`. Per via della CSP deve essere sulla stessa origine dell'app (vedi "Prova completa in locale" in [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md));
+  - `aura-tasks:before-import`: copia dei dati di prima dell'ultima importazione di un backup, nel formato del file di backup (compatto), con l'ora della copia in `exportedAt`. **Ce n'è una sola**: ogni importazione la sovrascrive, il ripristino la cancella. La scrive e la legge solo `js/storage.js` (vedi [docs/backup.md](docs/backup.md)).
 
 **File di backup** (`aura-tasks-backup-AAAA-MM-GG.json`, giorno locale):
 ```json
@@ -261,16 +263,7 @@ Note per i controlli automatici con Edge headless:
 - tutte le API, sull'SQL vero (D1 simulato con `node:sqlite`);
 - il Cron, con un servizio push finto e i messaggi decifrati.
 
-**Prova completa in locale** (app + server vero), da rifare quando cambiano server, `remote.js`, la casella o la CSP:
-1. In `server/`, una volta: `npm run vapid -- --local`.
-2. Prima di ogni prova: cancella `server/.wrangler/state` e poi `npm run db:init:local`. Senza un database vuoto, le prove ripetute riempirebbero il tetto di 20 registrazioni al giorno.
-3. Avvia `npm run dev` (127.0.0.1:8787, con i limiti per IP simulati da Miniflare) e un finto servizio push su `localhost:9999`.
-4. **Server di prova** su `http://localhost:8765`, l'origine ammessa in `.dev.vars`: serve l'app e **inoltra `/api/` e `/__scheduled` a wrangler dev**. Con la CSP l'app parla solo con la sua origine, quindi `aura-tasks:server` = `http://localhost:8765`.
-5. Guida Edge headless via DevTools, in tempo reale:
-   - `Browser.grantPermissions` per le notifiche;
-   - `Page.addScriptToEvaluateOnNewDocument` per un `PushManager` simulato, perché in headless non c'è un servizio push, e per registrare gli eventi `securitypolicyviolation`, che devono essere zero;
-   - `ServiceWorker.deliverPushMessage` per provare l'evento `push`, poi `getNotifications()`.
-6. Il Cron si fa partire con `GET /__scheduled`.
+**Prova completa in locale** (app + server vero): vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md). Va rifatta quando cambiano server, `remote.js`, la casella o la CSP.
 
 **Screenshot**: la CSP blocca gli `<style>` aggiunti dall'esterno. Per fermare le animazioni si avvia Edge con `--force-prefers-reduced-motion`.
 
@@ -321,367 +314,32 @@ Note per i controlli automatici con Edge headless:
 
 ---
 
-## Punti e serie di giorni (realizzata, gratuita)
+## Indice delle specifiche (`docs/`)
+Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, casi limite e test. Prima di toccare una funzione leggi il suo file.
 
-**Obiettivo**: motivare con piccole ricompense quotidiane. La logica pura sta in `js/points.js` e le regole in `POINTS`.
-
-**Punti**
-- Formula: `Math.round((10 + Math.min(durata, 120) / 5) × moltiplicatore)`, con moltiplicatore 1 per energia bassa, 1,5 per media e 2 per alta.
-  - 15 min bassa → 13; 30 min media → 24; 60 min alta → 44; 120 min alta → 68.
-- Al completamento i punti si salvano su `pointsAwarded`.
-- "Annulla", o togliere la spunta, sottrae gli stessi punti dal giorno in cui erano stati dati: spuntare e togliere la spunta non fa accumulare.
-- Eliminare un'attività completata o usare "Svuota" **non** toglie punti.
-
-**Serie**
-- È il numero di giorni consecutivi con almeno un completamento, contati all'indietro da oggi.
-- Se oggi non c'è ancora nessun completamento si parte da ieri: la serie resta "viva", ma "da accendere", fino a mezzanotte.
-- Il record (`bestStreak`) è la serie più lunga del registro.
-
-**Traguardi**
-- A 3, 7, 14, 30 e 100 giorni partono coriandoli, un avviso festoso e, su Android, una vibrazione.
-- Succede una volta sola per traguardo (`stats.milestones`).
-
-**Interfaccia**
-- Riquadro "Serie" (vedi "Design"):
-  - giorni e fiamma;
-  - etichetta "🏆 record N", oppure "🏆 record!" quando la serie in corso è il record, da 3 giorni in su;
-  - barra e scritta verso il prossimo traguardo, oppure "Accendila oggi" / "Tienila accesa oggi".
-- Riquadro "Punti": totale, che sale contando, e "+N oggi".
-- "Fatte oggi" legge il registro, non l'elenco delle attività.
-- Avvisi al completamento:
-  - "Completata · +24 punti";
-  - al primo completamento del giorno: "🔥 Serie iniziata · …" oppure "🔥 4 giorni di fila · …";
-  - ai traguardi: "🎉 7 giorni di fila! · …".
-
-**Casi limite (coperti dai test)**
-- Completamenti a cavallo di mezzanotte: fa fede il giorno locale di `completedAt`.
-- Annullare un completamento di ieri: si sottrae da ieri.
-- Cambio d'ora e capodanno: si usano `addDays` e `daysBetween`.
-- Cambio di fuso orario: i giorni restano quelli registrati quando si è completato.
-
-**Idee per dopo**: livelli, statistiche settimanali dal registro, bonus punti per il focus.
-
-## Linguaggio naturale con orario e link ?add= (realizzata, gratuita)
-
-È il punto 1 della visione: catturare un impegno con una frase.
-
-**Interfaccia**
-- In cima al foglio "Nuova attività" c'è il campo **"Scrivi in una frase"**. Mentre scrivi, i campi sotto si compilano e restano modificabili. Una riga dice cosa è stato capito: "Capito: Domani · alle 10:00 · 30 min".
-- La frase sovrascrive solo i campi di cui parla. Se modifichi un campo a mano, quella diventa la nuova base.
-- **Campo "Ora"**: selettore nativo, più il chip "Nessuna". È spento finché non c'è un giorno, e togliere il giorno svuota l'ora.
-- L'orario compare sulla card con l'icona della sveglia.
-
-**Link `?add=`**: `https://mirionick.github.io/Aura-Tasks/app-attivita/?add=domani%20alle%2010%20dentista`
-- Apre il foglio **già compilato**: si controlla e si tocca "Aggiungi". Un errore di dettatura non finisce in lista da solo.
-- Il parametro viene tolto dall'indirizzo con `history.replaceState`, così ricaricando la pagina il foglio non si riapre.
-- Funziona anche offline, perché il service worker ignora la query.
-- È il punto d'aggancio per il Comando Rapido di Siri (punto 2).
-
-**Parser**: `Aura.nlp.parseTaskText(testo, adesso)` in `js/nlp.js`. È a regole, offline e senza API.
-- Restituisce `{ title, duration, energy, date, time }`. Un campo non riconosciuto vale `null`, e il titolo vale `''`.
-- `adesso` è **sempre un parametro**: serve per "oggi o domani?". Nei test si usa un adesso fisso: **giovedì 29/10/2026 alle 9:00**.
-- Le parole si riconoscono su una copia minuscola e senza accenti, lunga quanto il testo, così il titolo conserva gli accenti originali.
-- Ordine di lettura: prima l'orario, poi durata, data ed energia. Così "alle 10" non diventa una durata.
-- Nelle regex niente lookbehind né gruppi con nome: Safari meno recente non li supporta.
-
-Cosa riconosce:
-- **Orario**:
-  - "alle 10", "alle 10:30", "alle 10.30", "ore 15", "alle ore 9", "all'una", "a mezzogiorno", "a mezzanotte";
-  - "alle 8 di sera", "alle 3 del pomeriggio", "alle 5 di mattina".
-- **Regole sull'orario**:
-  - le ore **dalle 1 alle 7** senza "mattina" si intendono del pomeriggio: "alle 3" → 15:00, "alle 3:30" → 15:30;
-  - dalle 8 in su l'ora resta com'è;
-  - "stasera alle 9" → 21:00;
-  - un orario impossibile, come "alle 25", resta nel titolo;
-  - con un orario ma senza giorno: oggi, oppure domani se a quell'ora siamo già passati (l'ora esatta di adesso conta come passata).
-- **Durata**: "30 min", "30m", "30 minuti", "dieci minuti", "1h", "1 ora", "un'ora", "2 ore", "1h30", "1 ora e mezza", "mezz'ora", "un quarto d'ora", "tre quarti d'ora". Va da 1 a 600 minuti.
-- **Data**:
-  - "oggi", "stamattina" e "stasera" (= oggi), "domani", "dopodomani";
-  - "tra/fra 3 giorni", "tra una settimana";
-  - giorni della settimana ("venerdì", "venerdi", "ven"): sempre il prossimo, escluso oggi. "Venerdì prossimo" è quello della settimana dopo;
-  - "il 15" (il prossimo 15, oggi compreso), "15/11", "15-11-2026", "15 novembre". Senza anno vale la prossima data esistente: il 29/02 diventa il prossimo anno bisestile.
-- **Energia**:
-  - "energia bassa/media/alta";
-  - "facile", "leggera" e "veloce" → bassa;
-  - "impegnativa", "difficile", "pesante" e "concentrazione" → alta.
-- **Titolo**: il testo che resta, senza le preposizioni rimaste ai bordi ("alle", "il", "per"…), con l'iniziale maiuscola.
-
-**Esempi** (sono anche test, con adesso = giovedì 29/10/2026 alle 9:00):
-
-| Testo | Titolo | Durata | Energia | Data | Ora |
-|---|---|---|---|---|---|
-| "domani chiamare il dentista 10 min" | Chiamare il dentista | 10 | — | 2026-10-30 | — |
-| "palestra 1h energia alta venerdì" | Palestra | 60 | alta | 2026-10-30 | — |
-| "rispondere alle email mezz'ora facile" | Rispondere alle email | 30 | bassa | — | — |
-| "studiare storia un'ora e mezza il 15/11" | Studiare storia | 90 | — | 2026-11-15 | — |
-| "comprare il pane" | Comprare il pane | — | — | — | — |
-| "domani alle 10 dentista" | Dentista | — | — | 2026-10-30 | 10:00 |
-| "alle 3 dentista" | Dentista | — | — | 2026-10-29 | 15:00 |
-| "colazione alle 8:30" | Colazione | — | — | 2026-10-30 (già passata) | 08:30 |
-
-**Casi limite coperti dai test**
-- "leggere 2 capitoli": il 2 resta nel titolo.
-- Date impossibili come il 31/02.
-- Con due durate vale la prima.
-- Testo vuoto.
-- Accenti nel titolo.
-
-**Idea per dopo**: dettatura dentro l'app con la Web Speech API (`webkitSpeechRecognition`, `lang = 'it-IT'`), dove disponibile. Su iPhone è più affidabile la dettatura del Comando Rapido (vedi "Server di Aura").
-
----
-
-## Server di Aura: promemoria push e casella di Siri (realizzata, gratuita)
-
-Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Crea il codice per Siri" (campanella → foglio "Promemoria e Siri"), l'app non fa nessuna richiesta di rete.
-
-**Dove e come**
-- Codice in `server/`:
-  - Cloudflare Worker `aura`;
-  - database **D1** `aura`, scelto al posto di KV perché KV gratuito ha 1.000 scritture e 1.000 elenchi al giorno e non è subito coerente;
-  - **Cron** ogni minuto.
-- Guida, comandi e API in `server/README.md`.
-- Indirizzo del server: costante `SERVER_URL` in `js/remote.js`.
-- Pubblicazione: `npm run deploy` in `server/`. Il push su GitHub aggiorna solo l'app.
-- **Nessuna dipendenza**: cifratura Web Push (RFC 8291, aes128gcm) e firma VAPID (RFC 8292, ES256) sono scritte con WebCrypto in `server/src/webpush.js`.
-- **Segreti**:
-  - `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` stanno solo nei secrets di Cloudflare. `npm run vapid` li crea e li passa a Wrangler da stdin, senza mostrarli né scriverli su disco;
-  - nel repository pubblico ci sono solo impostazioni pubbliche (`wrangler.toml`: origini ammesse, `VAPID_SUBJECT`, id del database);
-  - le prove locali usano `.dev.vars`, che Git ignora.
-
-**Codice del dispositivo**
-- 24 byte casuali (`crypto.getRandomValues`), cioè 32 caratteri base64url, generati dall'app e salvati in `aura-tasks:remote`.
-- Viaggia in `Authorization: Bearer <codice>`; il server ne conserva solo l'impronta SHA-256. Senza un codice registrato risponde 401.
-- "Scollega questo dispositivo" cancella sul server casella, sottoscrizione e promemoria. Il dispositivo diventa un **segno anonimo** (vedi "Tetto di nuove registrazioni") e il codice smette subito di valere. L'avviso offre "Annulla", che registra di nuovo lo stesso codice.
-- Se il server non conosce più il codice (401), l'app lo registra di nuovo da sola. Così il Comando Rapido continua a funzionare.
-
-**Casella di Siri**
-- Il Comando Rapido manda `POST /api/inbox` con la frase. Il server risponde in testo semplice ("Aggiunto ad Aura: …" oppure l'errore), che il comando mostra in una notifica.
-- L'app controlla la casella all'avvio, al ritorno nell'app (al massimo ogni 15 secondi) e quando torna internet:
-  - le frasi vanno prima nella coda locale (`inbox`);
-  - poi l'app le conferma al server, che le cancella;
-  - così nessuna frase si perde.
-- Le frasi si aprono una alla volta in "Nuova attività" con `openAddSheet(frase, "Da Siri · 1 di 2")`.
-  - "Aggiungi" o "Annulla" la segnano come vista (`done`) e passano alla successiva. L'aggancio è `onSheetClosed()`, chiamato da `closeSheet()` e dall'evento `close`.
-  - Se un foglio è già aperto, si aspetta che si chiuda.
-  - Le frasi in coda si mostrano anche all'avvio offline.
-- Le guide al Comando Rapido stanno nel foglio, con i pulsanti "Copia", e in `server/README.md`. Il link `?add=` resta valido come alternativa senza server.
-
-**Promemoria**
-- `Aura.reminders.buildReminders(tasks, { lead, now })` produce l'elenco per il server:
-  - include le attività non completate, con giorno e ora, ancora future;
-  - `at` = ora dell'attività in ora locale (giusta anche nei giorni del cambio d'ora);
-  - `fireAt = at − anticipo`;
-  - al massimo 100.
-- **Anticipo**: uno per tutte le attività (`LEADS`: 0, 5, 10, 15, 30, 60; predefinito 10).
-- **Invio dell'elenco**:
-  - l'elenco completo va in `PUT /api/reminders` 2 secondi dopo ogni `commit()`, all'avvio, al ritorno nell'app e quando torna internet;
-  - parte solo se l'impronta (`listKey`) è cambiata, e un invio alla volta;
-  - la sottoscrizione si ricontrolla e si rimanda almeno una volta al giorno, e subito se cambia endpoint o chiave del server.
-- **Server**:
-  - il Cron manda i promemoria con `fire_at ≤ adesso`, al massimo 10 per giro e in parallelo, ciascuno con un timeout;
-  - se siamo già dentro l'anticipo, l'avviso parte al primo giro;
-  - un promemoria inviato resta **segnato** (`sent_at`) fino all'ora dell'attività, così rimandare l'elenco non lo fa ripartire. Riparte solo se cambia `fire_at`;
-  - 404/410 cancellano la sottoscrizione; gli altri errori si ritentano fino a 5 volte;
-  - passati 15 minuti dall'ora dell'attività, il promemoria si scarta.
-- **Notifica**:
-  - titolo = titolo dell'attività; testo "Tra 10 minuti, alle 10:00";
-  - toccandola si apre o torna in primo piano Aura con `?task=id`, e la card si evidenzia (`showTask`).
-- **iPhone**:
-  - le notifiche funzionano solo con Aura installata sulla schermata Home e aperta dall'icona, con iOS 16.4 o successivo;
-  - `Notification.requestPermission()` va chiamata subito al tocco, senza attese di rete prima: chiave VAPID e service worker si preparano all'apertura del foglio;
-  - ogni push deve mostrare una notifica, altrimenti iOS toglie la sottoscrizione.
-- "Prova una notifica" (`POST /api/push/test`) mostra l'esito del servizio push, con il codice d'errore di Apple o Google se rifiuta.
-
-**Limiti noti**
-- L'elenco arriva al server solo quando l'app ha internet: un'attività aggiunta offline non avvisa finché l'app non si riapre online.
-- Il codice va copiato dall'app installata, che su iPhone ha un archivio separato da Safari.
-
-**Limiti del piano gratuito**: 100.000 richieste al giorno, 10 ms di CPU per richiesta, 50 sottorichieste, D1 con 100.000 scritture al giorno. Il server ha i suoi limiti:
-- frase ≤ 500 caratteri;
-- ≤ 30 frasi in attesa;
-- ≤ 200 promemoria per dispositivo;
-- ≤ 1000 dispositivi;
-- pulizia oraria di frasi vecchie, segni anonimi di oltre un giorno e dispositivi non visti da 180 giorni.
-
-**Limiti di richieste per indirizzo IP**
-Su `workers.dev` le regole WAF non valgono, quindi si usa il binding Rate Limiting dei Workers, che non ha costi aggiuntivi. È configurato in `wrangler.toml`; `period` vale solo 10 o 60 secondi.
-
-| Binding | Limite per IP | Richieste |
+| File | Funzione | Stato |
 |---|---|---|
-| `RATE_LIMIT_STRICT` | 10 al minuto | `POST /api/devices`; `POST /api/push/test` con un contatore suo |
-| `RATE_LIMIT_INBOX` | 20 al minuto | `POST /api/inbox` |
-| `RATE_LIMIT_API` | 120 al minuto | tutte le altre `/api/…`; non contano `OPTIONS` e `GET /api/health` |
+| [docs/punti-e-serie.md](docs/punti-e-serie.md) | Punti, serie di giorni, record e traguardi | realizzata |
+| [docs/linguaggio-naturale.md](docs/linguaggio-naturale.md) | Frase che compila il modulo, con l'orario; link `?add=` | realizzata |
+| [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md) | Server di Aura: promemoria push, casella di Siri, limiti; prova completa in locale | realizzata |
+| [docs/modifica.md](docs/modifica.md) | Modificare un'attività | realizzata |
+| [docs/backup.md](docs/backup.md) | Esportare, importare e ripristinare i dati | realizzata |
+| [docs/tre-modalita.md](docs/tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso |
+| [docs/illustrazioni.md](docs/illustrazioni.md) | Illustrazioni: flusso, elenco e prompt per Nano Banana | in corso |
+| [docs/funzioni-future.md](docs/funzioni-future.md) | Web Share Target e scorciatoie (Android), promemoria `.ics`, altre idee | da fare |
+| [docs/premium.md](docs/premium.md) | Licenza premium: verifica offline, interfaccia e dati | da fare |
 
-- **Chiave**: `clientKey()`, cioè `CF-Connecting-IP`, che il client non può falsificare. Per IPv6 vale la rete /64, e `::ffff:a.b.c.d` vale come IPv4.
-- **Oltre il limite**: 429 con `Retry-After: 60` e le intestazioni CORS. La casella risponde in testo semplice ("Troppe richieste: riprova tra un minuto."); le altre richieste in JSON ("Troppe richieste da questa rete…").
-- **Se manca il binding** (test, prove) **o il servizio non risponde, la richiesta passa**: meglio un limite in meno che un'app bloccata.
-- ⚠️ **I conteggi sono approssimati** e separati per ogni sede di Cloudflare: su raffiche brevi passano più richieste del limite. Il binding frena gli abusi prolungati; il freno esatto è il tetto qui sotto.
+### Tre modalità, in breve
+L'app si divide in tre schede, con una barra in basso:
+- **Focus**, per fare: in ritardo, oggi e senza data, con «Cosa faccio adesso?» e il timer;
+- **Agenda**, per pianificare: la settimana, il giorno con la linea del tempo, i prossimi giorni e i promemoria;
+- **Motivazione**, per i progressi: serie, punti, livelli, obiettivo settimanale, calendario e storico.
 
-**Tetto di nuove registrazioni: 20 in 24 ore, in tutto**
-Variabile facoltativa: `MAX_NEW_DEVICES_PER_DAY`. `registerDevice` controlla in quest'ordine:
-1. **Dispositivo già registrato**: 200, sempre, senza controlli.
-2. **Tetto giornaliero**: una query sull'indice `devices_created` (`COUNT` e `MIN(created_at)` delle righe delle ultime 24 ore) legge poche righe. A tetto raggiunto risponde 503 con `Retry-After`: i secondi finché la registrazione più vecchia della finestra compie 24 ore.
-3. **Conteggio completo** per il tetto dei 1000 dispositivi: legge tutta la tabella.
-
-Ogni volta che il conteggio completo gira resta una riga con `created_at`, quindi gira **al massimo 20 volte al giorno**:
-- in caso di registrazione, è il dispositivo stesso;
-- se il server è pieno, è un **segno anonimo**, con id `segno:…` che non può mai coincidere con un'impronta;
-- anche "Scollega" trasforma il dispositivo in un segno anonimo: così registrarsi e scollegarsi di continuo non aggira il tetto.
-
-La pulizia oraria toglie i segni più vecchi di 24 ore. Nell'app, `Aura.remote.troubleMessage()` mostra la spiegazione del server: limite per IP, tetto giornaliero, server pieno.
-
----
-
-## Modificare un'attività (realizzata, gratuita)
-
-**Interfaccia**
-- Un tocco sulla card (titolo, ma anche la riga di ora, durata ed energia) apre il foglio "Nuova attività" in modalità modifica:
-  - titolo "Modifica attività", pulsante "Salva modifiche" con la spunta;
-  - campi già compilati; niente "Scrivi in una frase", che con le parole avanzate riscriverebbe il titolo, e niente riga di Siri;
-  - per un'attività completata, la riga "Completata · i suoi 24 punti non cambiano".
-- Spunta e cestino funzionano come prima. Si modificano anche le attività completate.
-- Dopo il salvataggio:
-  - la card si aggiorna, cambia sezione se è cambiato il giorno, si illumina (`.task--edited`: solo il bagliore) e torna in vista;
-  - avviso "Modifiche salvate" con "Annulla";
-  - il focus torna sulla card, in `onSheetClosed()`, perché il pulsante che aveva aperto il foglio è stato ridisegnato;
-  - senza modifiche il foglio si chiude e basta.
-- La prima attività aggiunta mostra "Attività aggiunta: toccala per modificarla".
-
-**Card**: il titolo sta dentro `<button class="task__edit" data-action="edit">`, il cui `::after` (`position: absolute; inset: 0` dentro `.task__body`) copre tutto il corpo della card. Per il lettore di schermo è "Modifica: Dentista".
-
-**Logica** (`js/tasks.js`):
-- `editableFields(task)`: titolo, durata, energia, giorno e ora;
-- `updateTask(tasks, id, value)` → `{ tasks, previous, changed }`. Cambia **solo** quei 5 campi; `id`, `createdAt`, completamento, **`pointsAwarded`** e campi sconosciuti restano.
-
-**Punti**: modificare un'attività **non cambia i punti già assegnati**.
-- `commit()` lascia il registro com'è, e `pointsAwarded` resta quello del completamento: togliendo la spunta si tolgono esattamente quei punti.
-- Un'attività ancora da fare prende i punti quando viene completata, con durata ed energia aggiornate.
-
-**`app.js`**
-- `openEditSheet(id)` imposta `editingId` a ogni apertura; `openAddSheet()` torna alla modalità "nuova", quindi Siri, `?add=` e "+" non cambiano.
-- Il minimo del calendario comprende il giorno di un'attività in ritardo.
-- "Annulla" rimette i 5 campi con `updateTask`, quindi resta coerente anche se nel frattempo l'attività è stata completata.
-- Una card in animazione (`busy`) non si apre.
-- Con i promemoria attivi, `commit()` rimanda già l'elenco al server con il titolo o l'ora nuovi.
-
-## Backup dei dati (realizzata, gratuita)
-
-**Foglio "Backup dei dati"**: si apre dal link in fondo alla pagina. Riparte sempre dallo stato normale, che ha tre riquadri.
-- **Esporta**: "Esporta il backup", con due note.
-  - Il file contiene le attività **in chiaro**: chi lo apre può leggerle, quindi va tenuto in un posto proprio.
-  - Nel file non ci sono il codice segreto di Siri né le impostazioni dei promemoria.
-- **Importa**: "Scegli un file di backup". Solo su iPhone compare una nota con «Scegli file» e gli archivi separati di Safari e dell'app installata: il backup serve anche a spostare i dati tra i due.
-- **Ripristina**: visibile **finché esiste** `aura-tasks:before-import`, con "Copia salvata: Oggi alle 10:30".
-- Esiti ed errori vanno nella riga di stato del foglio.
-
-**Esportare**: file `aura-tasks-backup-AAAA-MM-GG.json` (vedi "Modello dati").
-- Su iPhone e iPad si condivide (`navigator.share`), prima come `application/json`, poi come `text/plain` se iOS rifiuta il tipo. Altrove si scarica (vedi "Convenzioni").
-- Chiudere la condivisione senza scegliere non è un errore.
-
-**Importare**
-1. Scelta del file: oltre 5 MB è un errore. Poi `readBackup()`: file illeggibile, non di Aura o senza attività danno un messaggio, e i dati non cambiano.
-2. **Riepilogo** al posto dei riquadri, con il focus sul titolo:
-   - "Importare questo backup?";
-   - **Nel file**: attività, punti e "Esportato: Ieri alle 10:30";
-   - **Adesso**: attività e punti;
-   - «Sostituisci» e «Annulla».
-3. «Sostituisci» chiama `storage.replaceData(state, nuovo, adesso)`:
-   - prima salva la copia dei dati di adesso in `aura-tasks:before-import`. **Se non c'è spazio per la copia, non importa nulla** (`'no-copy'`);
-   - poi salva i dati nuovi. Se non ci stanno, rimette la copia precedente e i dati restano quelli di prima (`'no-space'`);
-   - se va tutto bene, `applyState()` ridisegna, la riga di stato dice "Backup importato: 3 attività e 340 punti." e compare il riquadro di ripristino.
-- **Sostituisce, non unisce**: unendo due archivi con la stessa storia, punti e giorni del registro si raddoppierebbero.
-- Non tocca mai `aura-tasks:remote`: codice, promemoria e casella restano. Con i promemoria attivi, l'elenco nuovo va al server.
-
-**Ripristinare**: «Ripristina i dati di prima dell'importazione» apre lo stesso riepilogo ("Nella copia" / "Adesso", «Ripristina» / «Annulla»).
-- `restoreBeforeImport()` rimette i dati e cancella la copia, quindi il riquadro sparisce.
-- Se il salvataggio non riesce, la copia resta.
-
-**Test**: `tests/backup.test.js`, con un archivio finto che può rifiutare la scrittura di una chiave (memoria piena).
-
----
-
-## Funzioni future
-
-Sono nell'ordine della visione. Per ciascuna sono indicati comportamento, dati e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo nella tabella di "Funzioni premium".
-
-### 2. Web Share Target e scorciatoie (Android)
-**Obiettivo**: aggiungere un impegno senza aprire l'app, con la condivisione.
-
-Su iPhone c'è già il Comando Rapido di Siri con la casella del server (vedi "Server di Aura"). Il vecchio Comando con "Apri URL" + `?add=` aprirebbe Safari, che ha un archivio separato dall'app installata.
-
-**Android**
-- `share_target` nel manifest (GET): `"action": "./"`, con il testo condiviso passato come `add`, per esempio `"params": { "text": "add", "title": "add" }`. Condividendo un testo verso Aura si apre il foglio compilato. Funziona solo con l'app installata.
-- Se ci sono sia `title` sia `text`, vanno uniti prima del parsing.
-- `shortcuts` nel manifest: "Nuova attività" (`./?add=`), che si vede tenendo premuta l'icona. Su iPhone le shortcuts del manifest non esistono.
-
-**Test**: unione di `title` e `text`; link con caratteri speciali (accenti, `&`, `+`).
-
-### 3. Promemoria nel calendario (`.ics`)
-**Obiettivo**: un'alternativa senza server alle notifiche push, che sono già realizzate (vedi "Server di Aura"). Il promemoria vive nel Calendario del telefono.
-
-**Esportazione `.ics`**
-- Un pulsante sulla card ("Aggiungi al calendario") e un'azione "Esporta tutte con data".
-- Generano un file `.ics` (iCalendar, RFC 5545) che il Calendario di iPhone o Android importa con un promemoria vero, per esempio 15 minuti prima.
-- Logica pura in `js/ics.js`:
-  - `VEVENT` con `DTSTART` locale e `TZID=Europe/Rome`, oppure in UTC calcolato dall'ora locale;
-  - durata = durata stimata;
-  - senza orario: evento di un giorno intero;
-  - `VALARM` con `TRIGGER:-PT15M`;
-  - `UID` = id dell'attività.
-- Si scarica con un `Blob` e `<a download>`. Su iPhone Safari apre il file e propone "Aggiungi al calendario".
-- **Test**: testo esatto del file, con escape di virgole, punti e virgola e a capo; giorno intero; cambio dell'ora.
-
-### 4. "Cosa faccio adesso?" e modalità focus
-Vengono dopo i promemoria. Le specifiche restano quelle sotto.
-
-#### Modalità focus con timer
-**Avvio**: pulsante ▶ "Focus" sulla card, oppure "Inizia" dalla proposta di "Cosa faccio adesso?".
-
-**Interfaccia**
-- Foglio a tutto schermo con il titolo dell'attività e un anello SVG che fa il conto alla rovescia partendo dalla durata stimata, con il tempo grande (mm:ss).
-- Comandi: Pausa/Riprendi, +5 min, Completa, Esci.
-
-**Tempo affidabile**
-- Lo stato sta in `aura-tasks:focus`: `{ taskId, startedAt, durationMs, pausedAt, pausedTotalMs }`.
-- Tempo rimanente = `durationMs − (adesso − startedAt − pausedTotalMs)`.
-- **Non contare mai i "tick"** di `setInterval`: su iOS i timer si fermano in background e col blocco schermo. Al ritorno (`visibilitychange`) si ricalcola, e ricaricando la pagina il focus riprende.
-- La logica pura sta in `js/focus.js` ed è testabile passando `now`.
-
-**Aggiornamento**: `requestAnimationFrame`, oppure un intervallo di 250 ms, solo mentre la pagina è visibile.
-
-**Schermo acceso**: `navigator.wakeLock.request('screen')` dove supportato. Va richiesto di nuovo dopo `visibilitychange`, ed è facoltativo: senza, si continua lo stesso.
-
-**Fine del tempo**
-- Suono breve con Web Audio. L'`AudioContext` va creato o sbloccato al tocco su "Inizia", altrimenti iOS lo blocca.
-- Vibrazione solo su Android: `navigator.vibrate` su iOS non esiste.
-- Poi si propone "Completata" oppure "+5 min".
-
-**Notifiche**: su iOS solo con l'app installata (iOS 16.4+) e il permesso concesso. Non esistono notifiche programmate offline, quindi non promettere avvisi ad app chiusa.
-
-**Idee in più**: modalità Pomodoro (25/5); minuti di focus nelle statistiche, con un eventuale bonus punti.
-
-#### "Cosa faccio adesso?"
-**Interfaccia**
-- Pulsante ben visibile nell'intestazione, che apre un foglio con due domande:
-  - "Quanto tempo hai?", con i chip 10/15/30/45/60/90/120+;
-  - "Come ti senti?", con energia bassa/media/alta.
-- Ricorda l'ultima scelta.
-
-**Algoritmo**: funzione pura `suggest(tasks, { minutes, energy, today, exclude, random })` in `js/suggest.js`.
-- **Candidate**: attività non completate, con `duration ≤ minutes`, con `ENERGY[t.energy].order ≤ ENERGY[energy].order` e con data nulla oppure `≤ oggi`.
-- **Punteggio** (i pesi stanno in costanti):
-  - urgenza: in ritardo +50, più 5 per ogni giorno di ritardo fino a +30; oggi +30; senza data +10;
-  - sfruttamento del tempo: `20 × durata / minuti`;
-  - energia: +10 se uguale a quella disponibile (con energia alta si preferiscono le attività impegnative);
-  - anzianità: +1 ogni 2 giorni dalla creazione, fino a +10;
-  - un pizzico di casualità (±5) per variare. Si disattiva nei test passando `random: () => 0.5`.
-- **Risultato**: la migliore più qualche alternativa, con il **motivo** in italiano. Per esempio: "È in ritardo da 2 giorni e ci sta nei tuoi 30 minuti".
-
-**Azioni**: "Inizia focus", "Fatto", "Un'altra proposta". Quest'ultima esclude le attività già proposte nella sessione.
-
-**Nessuna candidata**: un messaggio gentile con un suggerimento ("Hai più tempo?", "Una pausa ☕?") oppure l'attività più breve.
-
----
+Niente si toglie né peggiora: ogni funzione di oggi resta, al massimo cambia posto. Le fasi sono quattro; ognuna si pubblica da sola e si prova sull'iPhone prima della successiva:
+1. animazioni più fluide;
+2. barra delle schede e Focus;
+3. Agenda;
+4. Motivazione, con le illustrazioni.
 
 ## Funzioni premium (in futuro)
 
@@ -697,6 +355,20 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 | Promemoria push e casella del Comando Rapido di Siri (server di Aura) | gratuita |
 | Modificare un'attività | gratuita |
 | Backup dei dati (esporta, importa, ripristina) | gratuita |
+| Animazioni più fluide | gratuita |
+| Barra delle schede | gratuita |
+| Scheda Focus | gratuita |
+| Scheda Agenda | gratuita |
+| Scheda Motivazione: serie, record, punti, traguardi, storico delle completate, backup | gratuita |
+| «Cosa faccio adesso?» | da decidere |
+| Focus a tutto schermo con timer, e minuti di focus | da decidere |
+| Livelli | da decidere |
+| Obiettivo settimanale | da decidere |
+| Calendario delle ultime settimane | da decidere |
+| Frase del giorno | da decidere |
+| Illustrazioni | da decidere |
+
+Le funzioni di oggi restano gratuite anche dove cambiano posto (vedi [docs/tre-modalita.md](docs/tre-modalita.md)).
 
 ### Regola fondamentale
 **Tutti i controlli passano da un'unica funzione `isPremium()`.**
@@ -707,38 +379,14 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
   - duplicare controlli o confronti sul codice di licenza.
 - Il resto del codice chiede soltanto `if (Aura.license.isPremium()) …`.
 
-### Funzionamento previsto
-- `isPremium()` è **sincrona**:
-  - il codice salvato (`aura-tasks:license`) viene verificato all'avvio con `Aura.license.init()`, prima del primo `render()`;
-  - viene verificato anche quando l'utente lo inserisce, con `Aura.license.activate(code)`, che restituisce una Promise<boolean>;
-  - poi `isPremium()` restituisce il risultato tenuto in memoria.
-- **Proposta per la verifica offline**:
-  - il codice è un payload (per esempio `{ ordine, scadenza?, funzioni? }`) più una firma ECDSA P-256, in base64url;
-  - nell'app c'è solo la **chiave pubblica**, e la verifica usa `crypto.subtle.verify`;
-  - la chiave privata, che serve a generare i codici, **non entra mai** nel progetto né nel repository.
-- `crypto.subtle` richiede un contesto sicuro (https o localhost). Se non è disponibile, `isPremium()` resta `false`, senza errori.
-- **Limite da sapere**: tutto gira sul dispositivo, quindi chi modifica il JavaScript può aggirare il controllo. Serve solo come deterrente. Una protezione vera richiede un server di verifica, in conflitto con il vincolo "niente server": è una decisione da prendere più avanti.
-
-### Interfaccia e dati
-- Ogni funzione premium mostra la stessa etichetta "Premium".
-- Se la funzione è bloccata, si apre il foglio "Sblocca con un codice", con il campo del codice e lo stato della licenza. Lo stesso foglio permette di rimuovere la licenza.
-- Se la licenza manca, non è valida o scade, la funzione si blocca, **ma i dati creati restano**: non vanno mai cancellati.
-- Per i test, `init()` accetta una chiave pubblica di prova: così si possono generare codici di test validi senza scorciatoie nel codice.
-
----
-
-## Altre idee (non prioritarie)
-- Attività ricorrenti: ogni giorno, ogni lunedì e così via.
-- **Backup**: un promemoria gentile se l'ultimo backup è vecchio. Oggi l'app non ricorda quando è stato fatto.
-- Statistiche settimanali, ordinamento manuale con trascinamento, scorrimento laterale per completare o eliminare.
-- **Promemoria**: anticipo diverso per ogni attività (per esempio "avvisami un'ora prima" detto nella frase); un secondo avviso all'ora esatta.
+Come funzionerà la licenza (verifica offline, interfaccia e dati): vedi [docs/premium.md](docs/premium.md).
 
 ## Ordine consigliato (visione "segretario personale")
 Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati.
 1. ~~**Linguaggio naturale con orario** e aggiunta con il link `?add=testo`~~: fatto.
 2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
 3. ~~**Promemoria con notifiche Web Push**~~: fatto. Resta, facoltativa, l'esportazione `.ics`.
-4. **"Cosa faccio adesso?"** e **modalità focus**.
+4. **«Tre modalità»**: Focus (con «Cosa faccio adesso?» e la modalità focus), Agenda e Motivazione, in quattro fasi (vedi [docs/tre-modalita.md](docs/tre-modalita.md)).
 
 La licenza premium va fatta quando serve.
 
@@ -750,4 +398,4 @@ La licenza premium va fatta quando serve.
 - [ ] `sw.js` è aggiornato (`APP_FILES`, `CACHE_VERSION`) se sono cambiati file.
 - [ ] Se lo schema è cambiato: `SCHEMA_VERSION` aumentato e passo aggiunto in `migrate()`.
 - [ ] Se è cambiato `server/`: `npm test` verde, prova completa in locale, `npm run deploy` fatto, nessun segreto nei file.
-- [ ] Questo file è aggiornato, compresa la categoria gratuita/premium delle funzioni nuove.
+- [ ] Questo file e la specifica della funzione in `docs/` sono aggiornati, compresa la categoria gratuita/premium delle funzioni nuove.

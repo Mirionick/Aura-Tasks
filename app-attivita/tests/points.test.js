@@ -5,7 +5,7 @@
   const { test, assert, assertEqual } = window.AuraTest;
   const { tasks: T, points: P } = window.Aura;
 
-  // Istante in ora locale, nell'ottobre 2026 (giovedì 29 = "oggi" negli esempi di CLAUDE.md).
+  // Istante in ora locale, nell'ottobre 2026 (giovedì 29 = "oggi" negli esempi di docs/linguaggio-naturale.md).
   const at = (day, hour, minute = 0) => new Date(2026, 9, day, hour, minute).getTime();
 
   function task(overrides) {
@@ -29,7 +29,7 @@
 
   /* ---------- Formula ---------- */
 
-  test('pointsFor: gli esempi di CLAUDE.md', () => {
+  test('pointsFor: gli esempi di docs/punti-e-serie.md', () => {
     assertEqual(P.pointsFor(task({ duration: 15, energy: 'low' })), 13);
     assertEqual(P.pointsFor(task({ duration: 30, energy: 'medium' })), 24);
     assertEqual(P.pointsFor(task({ duration: 60, energy: 'high' })), 44);

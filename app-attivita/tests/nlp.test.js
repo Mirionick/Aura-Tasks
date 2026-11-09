@@ -10,9 +10,9 @@
   // Solo i campi indicati, per confronti brevi
   const pick = (text, keys) => { const r = parse(text); return keys.map(k => r[k]); };
 
-  /* ---------- Esempi della tabella di CLAUDE.md ---------- */
+  /* ---------- Esempi della tabella di docs/linguaggio-naturale.md ---------- */
 
-  test('nlp: gli esempi di CLAUDE.md', () => {
+  test('nlp: gli esempi di docs/linguaggio-naturale.md', () => {
     assertEqual(parse('domani chiamare il dentista 10 min'), { title: 'Chiamare il dentista', duration: 10, energy: null, date: '2026-10-30', time: null });
     assertEqual(parse('palestra 1h energia alta venerdì'), { title: 'Palestra', duration: 60, energy: 'high', date: '2026-10-30', time: null });
     assertEqual(parse('rispondere alle email mezz\'ora facile'), { title: 'Rispondere alle email', duration: 30, energy: 'low', date: null, time: null });
