@@ -28,7 +28,7 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 ## Note per Claude
 
 - Rispondi all'utente **in italiano**.
-- L'utente prova l'app su un **iPhone vero**. I controlli automatici su questo PC usano solo Edge headless, che non riproduce i difetti di Safari/WebKit. Quando una modifica tocca layout, animazioni o API del browser, di' chiaramente che cosa va provato sull'iPhone.
+- L'utente prova l'app su un **iPhone vero**. I controlli automatici su questo PC usano Edge headless e, con Playwright, il motore di Safari (WebKit), che però non è iOS (vedi "Test"). Quando una modifica tocca layout, animazioni o API del browser, di' chiaramente che cosa va provato sull'iPhone.
 - Quando l'utente dice **"pubblica"**, segui i passi di "Pubblicare con Git".
 - **Specifiche in `docs/`**: questo file tiene visione, regole, convenzioni e struttura. La specifica di ogni funzione sta in un file di `docs/` (vedi "Indice delle specifiche"): leggila prima di toccare la funzione e aggiornala insieme al codice. Una funzione nuova ha il suo `docs/<nome>.md` e una riga nell'indice.
 - **Node.js** è installato in `C:\Program Files\nodejs`, ma il terminale degli strumenti di Claude può non averlo nel PATH: aggiungilo all'inizio del comando (`$env:Path = 'C:\Program Files\nodejs;' + $env:Path`). Serve solo per `server/`.
@@ -102,16 +102,17 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 | `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione |
 | `js/reminders.js` | Logica pura dei promemoria: dalle attività con giorno e ora all'elenco per il server (`at`, `fireAt`), anticipi, impronta dell'elenco |
 | `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste, codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
-| `js/app.js` | Interfaccia: disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", riquadri di serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Unico file che tocca la pagina |
+| `js/motion.js` | Movimento: durate e curve lette dai token di `style.css`, tecnica FLIP (`snapshot()` prima di `render()`, `play()` dopo), fantasmi degli elementi tolti, `flash()`. Tocca la pagina solo per le animazioni; `planFlip()` è pura e testata |
+| `js/app.js` | Interfaccia: disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", riquadri di serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Con `motion.js`, l'unico file che tocca la pagina |
 | `sw.js` | Service worker: uso offline, notifiche dei promemoria (`push`) e tocco sulla notifica (`notificationclick`) |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
-| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`): si aprono con `tests/index.html` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`): si aprono con `tests/index.html` |
 | `docs/` | Le specifiche delle funzioni, una per file (vedi "Indice delle specifiche") |
 | `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md) e `server/README.md` |
 
-**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `storage.js` → `reminders.js` → `remote.js` → `app.js`.
-- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.storage`, `Aura.reminders`, `Aura.remote`).
+**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `app.js`.
+- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`).
 - `points.js` va prima di `storage.js`, che lo usa per la migrazione. `reminders.js` va prima di `remote.js`, che ne usa gli anticipi.
 
 Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
@@ -201,8 +202,8 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
 
 ## Convenzioni
 
-- **Logica pura e pagina sono separate.** `utils.js`, `tasks.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. Solo `app.js` tocca la pagina.
-- **Ogni modifica passa da `commit()`** in `app.js`, che salva e ridisegna. `render()` ridisegna tutto partendo da `state`: i dati sono pochi, quindi è veloce e non ci sono stati "sfasati".
+- **Logica pura e pagina sono separate.** `utils.js`, `tasks.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. Solo `app.js` tocca la pagina, insieme a `motion.js` per le animazioni.
+- **Ogni modifica passa da `commit()`** in `app.js`, che salva e ridisegna. `render()` ridisegna tutto partendo da `state`: i dati sono pochi, quindi è veloce e non ci sono stati "sfasati". `commit()` fa anche scivolare le card al loro posto (vedi "Movimento").
   - Unica eccezione: importare un backup e ripristinare la copia sostituiscono **tutto** lo stato. Salvano `storage.replaceData()` e `storage.restoreBeforeImport()`, poi `applyState()` ridisegna.
 - **Date**: usa sempre `Aura.utils` (`todayISO`, `addDays`, `daysBetween`, `parseISODate`, `isISODate`…).
   - Mai `toISOString()` per la data di oggi: è in UTC, e dopo mezzanotte in Italia darebbe il giorno prima.
@@ -232,7 +233,17 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - testo dei campi ≥ 16 px, altrimenti iOS ingrandisce la pagina;
   - aree di tocco ≥ 44 px;
   - margini con `env(safe-area-inset-*)`;
-  - animazioni brevi, disattivate con `prefers-reduced-motion`, e **mai infinite** perché consumano batteria.
+  - animazioni brevi, disattivate con `prefers-reduced-motion`, e **mai infinite** perché consumano batteria (vedi "Movimento").
+- **Movimento** (`js/motion.js`, token in `:root`):
+  - durate e curve solo dai token `--dur-*` e `--ease-*`, anche come multipli con `calc()`. Il JavaScript li legge con `Aura.motion.ms('move')` e `Aura.motion.ease('out')`, timer di riserva compresi: nessuna durata scritta a mano;
+  - movimenti, keyframes ed elementi grandi (card, fogli, intestazione, pagina) si animano **solo con `transform` e `opacity`**. I piccoli controlli (pulsanti, chip, campi, spunta, titolo barrato, opzioni del tema, fiamma) possono sfumare i colori, con `--dur-color` (al massimo 200 ms);
+  - un'ombra o un bagliore che cambia è un livello (`::before`/`::after`) con l'ombra già disegnata, che sfuma con `opacity`. Su un contenitore flex o griglia il livello è `position: absolute` (con il genitore `relative`) e `pointer-events: none`, altrimenti diventa un elemento della riga o della griglia e ruba i tocchi;
+  - niente `backdrop-filter`: su iPhone pesa;
+  - **FLIP**: gli elementi con `data-flip` (sezioni `section:<chiave>`, card `task:<id>`, blocco `completed-body` e gli altri elementi fissi della lista) scivolano al loro posto. `commit()` chiama `Aura.motion.snapshot()` prima di `render()` e `play()` dopo; i disegni che non nascono da un gesto (avvio, ritorno nell'app, mezzanotte, importazione) non si animano;
+  - **si anima il blocco più grande che si muove insieme**: le chiavi si annidano (le card dentro le sezioni). Una sezione scivola intera, e una sua card si sposta solo per la parte che la sezione non fa già; il contenuto di «Completate» entra ed esce come un blocco unico. Ogni elemento animato costa lavoro a ogni fotogramma: con una card per volta, «Completate» perdeva 15 fotogrammi invece di 2 (Edge con la CPU rallentata);
+  - gli elementi tolti escono come **fantasmi** nel livello `.motion-ghosts`: senza `id`, `data-id` e `data-flip`, `inert`, tolti a fine animazione. Il loro aspetto non deve dipendere dal contenitore (per esempio il rosso di «In ritardo» sta sul titolo);
+  - il cambio tema è istantaneo (`.theme-instant` spegne per un attimo le transizioni): far sfumare tutta la pagina pesava troppo, e le View Transitions facevano cadere WebKit nelle prove;
+  - con `prefers-reduced-motion` il CSS azzera le durate e `Aura.motion` non anima nulla.
 - **Fogli `<dialog>`**: aprili e chiudili con `openSheet()` e `closeSheet()` di `app.js`, che gestiscono animazione, blocco dello scorrimento e chiusura con Esc, "indietro" o tocco sullo sfondo. Non contare sull'evento `close` per pulizie indispensabili.
 - **Service worker**: quando aggiungi o rinomini un file dell'app, aggiungilo ad `APP_FILES` in `sw.js` e aumenta `CACHE_VERSION`.
 - **Test**: ogni nuova logica pura ha i suoi test in `tests/`.
@@ -252,7 +263,7 @@ Nel `<title>` dell'output compare `PASS` oppure `FAIL`. Il `| Out-String` serve:
 
 Note per i controlli automatici con Edge headless:
 - Con `--virtual-time-budget` gli eventi `close` dei `<dialog>` e `animationend` non arrivano, e le animazioni infinite bloccano la pagina.
-- Con il tempo virtuale anche le Web Animations (`element.animate`) restano ferme e `requestAnimationFrame` è inaffidabile. Per questo ogni effetto ha un timer di riserva che porta allo stato finale.
+- Con il tempo virtuale anche le Web Animations (`element.animate`) restano ferme e `requestAnimationFrame` è inaffidabile. Per questo ogni effetto ha un timer di riserva che porta allo stato finale, anche `Aura.motion.play()`.
 - Per fotografare un'animazione a metà: `document.getAnimations()`, poi `pause()` e `currentTime = …` su ciascuna.
 - I service worker vanno provati in tempo reale, su `http://localhost`.
 - La finestra headless è larga almeno 500 px: per simulare un telefono, carica l'app in un `<iframe>` largo 390 px.
@@ -280,6 +291,17 @@ Note per i controlli automatici con Edge headless:
 - La condivisione di iOS si simula sostituendo `navigator.share` e `navigator.canShare` prima degli script dell'app (`addInitScript`).
 - Con un codice del dispositivo finto: `aura-tasks:server` sulla stessa origine e richieste a workers.dev bloccate, così non si registra nulla sul server vero.
 - Per toccare la card in un punto preciso (per esempio la riga della durata) si usano le coordinate (`page.touchscreen.tap(x, y)`): lì il tocco arriva al `::after` del pulsante, e Playwright altrimenti si rifiuta di toccare.
+- La spunta si tocca su `.check` (l'etichetta), non sull'input invisibile che le sta sotto.
+- WebKit su Windows è caduto (crash della pagina) con le View Transitions, dopo una lunga sequenza di prove in un `<iframe>`: per questo l'app non le usa.
+
+**Animazioni** (con Playwright, script nella cartella temporanea):
+- **regola**: a ogni fotogramma si legge `document.getAnimations()`. Keyframes, `element.animate` e transizioni degli elementi grandi devono toccare solo `transform` e `opacity`; le transizioni di colore solo i piccoli controlli, per al massimo 200 ms. In più un controllo statico di `style.css`: `@keyframes` e `transition` con le stesse regole, tempi solo dai token, niente `backdrop-filter`;
+- **FLIP**: dopo ogni gesto, alla fine non restano fantasmi, animazioni o trasformazioni, e le posizioni sono uguali a quelle della stessa sequenza con «Riduci movimento»;
+- **fotogrammi persi**: gli stessi scenari su due copie servite su localhost, «prima» (`git archive HEAD`) e «dopo» (copia di lavoro).
+  - Si misurano gli intervalli tra i fotogrammi con `requestAnimationFrame`: un intervallo oltre 1,5 × 16,7 ms conta come fotogrammi persi, tanti quanti ne salta.
+  - Edge gira con la CPU rallentata 4 volte via CDP (`Emulation.setCPUThrottlingRate`), come un telefono di fascia media; WebKit gira come "iPhone 13".
+  - Si fanno 5 ripetizioni e si usa la mediana.
+  - WebKit headless su Windows perde fotogrammi anche da fermo: i suoi numeri valgono solo come confronto.
 
 ## Design
 
@@ -299,7 +321,7 @@ Note per i controlli automatici con Edge headless:
   - Gli effetti (anello sulla spunta, "+N" che vola nel riquadro dei punti, conteggio, fiamma che si accende, coriandoli ai traguardi):
     - sono brevi e finiti;
     - si spengono con "Riduci movimento";
-    - animano il **contenuto** dei riquadri, non il riquadro con `backdrop-filter`, perché su Safari sfarfalla.
+    - animano il **contenuto** dei riquadri. Il bagliore dei traguardi è un livello della griglia (`.stats--rewards::before`), perché il riquadro ha `overflow: hidden` e lo taglierebbe.
 - **Promemoria e Siri**:
   - la campanella nell'intestazione ha un puntino dorato quando i promemoria sono attivi;
   - il foglio ha due riquadri (`.panel`);
@@ -324,7 +346,7 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 | [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md) | Server di Aura: promemoria push, casella di Siri, limiti; prova completa in locale | realizzata |
 | [docs/modifica.md](docs/modifica.md) | Modificare un'attività | realizzata |
 | [docs/backup.md](docs/backup.md) | Esportare, importare e ripristinare i dati | realizzata |
-| [docs/tre-modalita.md](docs/tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso |
+| [docs/tre-modalita.md](docs/tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fase 1 fatta, da provare sull'iPhone |
 | [docs/illustrazioni.md](docs/illustrazioni.md) | Illustrazioni: flusso, elenco e prompt per Nano Banana | in corso |
 | [docs/funzioni-future.md](docs/funzioni-future.md) | Web Share Target e scorciatoie (Android), promemoria `.ics`, altre idee | da fare |
 | [docs/premium.md](docs/premium.md) | Licenza premium: verifica offline, interfaccia e dati | da fare |
@@ -336,7 +358,7 @@ L'app si divide in tre schede, con una barra in basso:
 - **Motivazione**, per i progressi: serie, punti, livelli, obiettivo settimanale, calendario e storico.
 
 Niente si toglie né peggiora: ogni funzione di oggi resta, al massimo cambia posto. Le fasi sono quattro; ognuna si pubblica da sola e si prova sull'iPhone prima della successiva:
-1. animazioni più fluide;
+1. animazioni più fluide (fatta, da provare sull'iPhone);
 2. barra delle schede e Focus;
 3. Agenda;
 4. Motivazione, con le illustrazioni.

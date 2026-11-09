@@ -8,7 +8,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, storage, theme, reminders: RM, remote: R } = Aura;
+  const { utils, tasks: T, nlp, points: P, storage, theme, reminders: RM, remote: R, motion: M } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -28,6 +28,7 @@
     streakRecordText: byId('streak-record-text'),
     streakNote: byId('streak-note'),
     streakProgress: byId('streak-progress'),
+    rewards: byId('rewards'),
     statPoints: byId('stat-points'),
     pointsValue: byId('points-value'),
     pointsToday: byId('points-today'),
@@ -125,18 +126,26 @@
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
   let editedId = null; // attività appena modificata: solo il bagliore, senza l'entrata
   const busy = new Set(); // attività in animazione: i doppi tocchi vengono ignorati
+  const pendingDone = new Set(); // spuntate, in attesa di essere completate alla fine dell'animazione della spunta
   let remote = R.load(); // collegamento al server: codice del dispositivo, promemoria, frasi di Siri in coda
 
   /* ---------- Stato ---------- */
 
   /**
-   * Applica un nuovo elenco (e il registro dei punti, se cambia): salva e ridisegna.
+   * Applica un nuovo elenco (e il registro dei punti, se cambia): salva e ridisegna, e le card scivolano al loro posto.
+   * `motion` sono le opzioni di Aura.motion.play, per esempio il ritardo mentre si chiude un foglio.
    * Restituisce false (e avvisa) se il salvataggio non riesce.
    */
-  function commit(nextTasks, nextStats = state.stats) {
+  function commit(nextTasks, nextStats = state.stats, motion = {}) {
+    const before = M.snapshot(els.main);
     state = { ...state, tasks: nextTasks, stats: nextStats };
     const saved = storage.save(state);
     render();
+    const plan = M.play(els.main, before, motion);
+    // Una card finita in «Completate» chiusa vola verso il titolo: quando arriva, il contatore fa un piccolo salto.
+    if (plan && plan.exits.some(exit => exit.to === 'completed')) {
+      setTimeout(() => M.flash(els.completedCount, 'is-bumping'), M.ms('move'));
+    }
     if (!saved) showToast('Impossibile salvare: la memoria del browser è piena o disattivata.', { duration: 6000 });
     scheduleReminderSync(); // con i promemoria spenti non fa nulla
     return saved;
@@ -206,14 +215,15 @@
   let countFrame = 0;
   let countTimer = null;
 
-  /** Aggiorna il totale dei punti contando (circa 0,65 s), così si vede salire. */
+  /** Aggiorna il totale dei punti contando (--dur-reward), così si vede salire. Cambia il testo, non lo stile. */
   function showPoints(total) {
     const from = shownPoints;
     shownPoints = total;
     cancelAnimationFrame(countFrame);
     clearTimeout(countTimer);
     const show = value => { els.pointsValue.textContent = utils.formatNumber(value); };
-    if (from === null || from === total || reducedMotion.matches || document.hidden) {
+    const duration = M.ms('reward');
+    if (from === null || from === total || !duration || document.hidden) {
       show(total);
       return;
     }
@@ -221,7 +231,7 @@
     const step = now => {
       // Si parte dal primo fotogramma: misurare l'inizio con un altro orologio può dare tempi negativi.
       if (start === null) start = now;
-      const progress = Math.min(1, (now - start) / 650);
+      const progress = Math.min(1, (now - start) / duration);
       show(Math.round(from + (total - from) * (1 - Math.pow(1 - progress, 3))));
       if (progress < 1) countFrame = requestAnimationFrame(step);
     };
@@ -230,7 +240,7 @@
     countTimer = setTimeout(() => {
       cancelAnimationFrame(countFrame);
       show(total);
-    }, 800);
+    }, duration + M.ms('exit'));
   }
 
   function renderSections(sections, today) {
@@ -239,11 +249,12 @@
       const el = document.createElement('section');
       el.className = 'section section--' + section.key;
       el.setAttribute('aria-labelledby', 'section-' + section.key);
+      el.dataset.flip = 'section:' + section.key; // la sezione scivola come un blocco; le card solo per la parte in più
 
       const header = document.createElement('div');
       header.className = 'section__header';
       const title = document.createElement('h2');
-      title.className = 'section__title';
+      title.className = 'section__title' + (section.key === 'overdue' ? ' section__title--overdue' : '');
       title.id = 'section-' + section.key;
       title.textContent = section.title;
       const info = document.createElement('span');
@@ -284,13 +295,16 @@
   function buildTask(task, today, showDate) {
     const node = els.taskTemplate.content.firstElementChild.cloneNode(true);
     const energy = T.ENERGY[task.energy];
+    const pending = pendingDone.has(task.id); // spuntata da poco: resta spuntata e barrata anche se la lista si ridisegna
     node.dataset.id = task.id;
+    node.dataset.flip = 'task:' + task.id;
     node.classList.toggle('is-done', task.done);
+    node.classList.toggle('task--pending', pending);
     if (task.id === highlightId) node.classList.add('task--new');
     else if (task.id === editedId) node.classList.add('task--edited');
 
     const checkbox = node.querySelector('.check__input');
-    checkbox.checked = task.done;
+    checkbox.checked = task.done || pending;
     checkbox.setAttribute('aria-label', (task.done ? 'Segna come da fare: ' : 'Segna come completata: ') + task.title);
 
     node.querySelector('.task__title').textContent = task.title;
@@ -338,12 +352,15 @@
     busy.add(id);
     if (done) {
       vibrate(12);
+      pendingDone.add(id);
       node.classList.add('task--completing');
       const task = state.tasks.find(t => t.id === id);
       if (task) floatPoints(P.pointsFor(task), node.querySelector('.check'));
     }
-    later(done ? 450 : 0, () => {
+    // Completando, la spunta salta al suo posto; poi la card scivola in «Completate» (Aura.motion, in commit()).
+    later(done ? M.ms('move') : 0, () => {
       busy.delete(id);
+      pendingDone.delete(id);
       const firstToday = done && P.dayTotals(state.stats, utils.todayISO()).done === 0;
       const result = P.setDone(state, id, done, Date.now());
       if (result.tasks === state.tasks) return; // niente da cambiare
@@ -355,10 +372,11 @@
   /** Dopo un completamento: avviso con i punti, e festa se la serie si accende o tocca un traguardo. */
   function celebrate(id, result, firstToday) {
     const milestone = result.reached.length ? Math.max(...result.reached) : 0;
-    if (firstToday) flash(els.statStreak, 'is-igniting', 3200);
+    if (firstToday) M.flash(els.statStreak, 'is-igniting');
     if (milestone) {
       vibrate([20, 60, 30, 60, 50]);
-      flash(els.statStreak, 'is-celebrating', 1100);
+      M.flash(els.statStreak, 'is-celebrating');
+      M.flash(els.rewards, 'is-celebrating'); // il bagliore sta in un livello della griglia, fuori dal riquadro
       const tile = els.statStreak.getBoundingClientRect();
       const tileVisible = tile.bottom > 0;
       burstConfetti(tileVisible ? tile.left + tile.width / 2 : window.innerWidth / 2, tileVisible ? tile.top + tile.height / 2 : 96);
@@ -379,20 +397,9 @@
     });
   }
 
-  /** Aggiunge per un attimo una classe che fa partire un'animazione CSS, poi la toglie (così si può ripetere). */
-  function flash(el, className, ms) {
-    if (reducedMotion.matches) return;
-    el.classList.remove(className);
-    void el.offsetWidth; // ricomincia l'animazione se era già in corso
-    el.classList.add(className);
-    setTimeout(() => el.classList.remove(className), ms);
-  }
-
-  const canAnimate = () => !reducedMotion.matches && typeof Element.prototype.animate === 'function';
-
   /** "+24" che sale dalla spunta e, se l'intestazione si vede, vola nel riquadro dei punti. */
   function floatPoints(points, fromEl) {
-    if (!canAnimate() || !fromEl) return;
+    if (!M.canAnimate() || !fromEl) return;
     const from = fromEl.getBoundingClientRect();
     const target = els.statPoints.getBoundingClientRect();
     const toTile = target.bottom > 0 && target.top < window.innerHeight;
@@ -414,24 +421,24 @@
       frame(0, -34, 1.12, 1, 0.25),
       frame(0, -46, 1, 1, 0.45),
       toTile ? frame(dx, dy, 0.45, 0.2, 1) : frame(0, -84, 0.9, 0, 1)
-    ], { duration: toTile ? 1050 : 900, easing: 'cubic-bezier(.45, 0, .25, 1)', fill: 'forwards' });
+    ], { duration: M.ms('celebrate'), easing: M.ease('in-out'), fill: 'forwards' });
 
     let finished = false;
     const finish = () => {
       if (finished) return;
       finished = true;
       chip.remove();
-      if (toTile) flash(els.statPoints, 'is-bumping', 650);
+      if (toTile) M.flash(els.statPoints, 'is-bumping');
     };
     animation.finished.then(finish, finish);
-    setTimeout(finish, 1500); // rete di sicurezza
+    setTimeout(finish, M.ms('celebrate') + M.ms('move')); // rete di sicurezza
   }
 
   const CONFETTI_PIECES = 28;
 
   /** Pioggia di coriandoli per i traguardi: dura poco più di un secondo, poi sparisce. */
   function burstConfetti(x, y) {
-    if (!canAnimate()) return;
+    if (!M.canAnimate()) return;
     const layer = document.createElement('div');
     layer.className = 'confetti';
     layer.setAttribute('aria-hidden', 'true');
@@ -453,7 +460,7 @@
         { transform: 'translate(0px, 0px) rotate(0deg) scale(.6)', opacity: 1 },
         { transform: 'translate(' + dx + 'px, ' + dy + 'px) rotate(' + spin * 0.6 + 'deg) scale(1)', opacity: 1, offset: 0.55 },
         { transform: 'translate(' + dx * 1.15 + 'px, ' + (dy + 110) + 'px) rotate(' + spin + 'deg) scale(.9)', opacity: 0 }
-      ], { duration: 1100 + Math.random() * 300, easing: 'cubic-bezier(.2, .6, .35, 1)', fill: 'forwards' }));
+      ], { duration: M.ms('celebrate') * (1 + Math.random() * 0.27), easing: M.ease('out'), fill: 'forwards' }));
     }
 
     let removed = false;
@@ -463,21 +470,17 @@
       layer.remove();
     };
     Promise.all(animations.map(animation => animation.finished)).then(cleanup, cleanup);
-    setTimeout(cleanup, 2000); // rete di sicurezza
+    setTimeout(cleanup, M.ms('celebrate') * 2); // rete di sicurezza
   }
 
-  function onDelete(id, node) {
-    if (busy.has(id)) return;
-    busy.add(id);
-    node.classList.add('task--leaving');
-    later(230, () => {
-      busy.delete(id);
-      const { tasks: next, removed, index } = T.removeTask(state.tasks, id);
-      if (!removed || !commit(next)) return;
-      showToast('Attività eliminata', {
-        action: 'Annulla',
-        onAction: () => commit(T.restoreTask(state.tasks, removed, index))
-      });
+  /** Elimina subito: la card esce scivolando a destra mentre le altre salgono al suo posto (Aura.motion, in commit()). */
+  function onDelete(id) {
+    if (busy.has(id)) return; // sta finendo di completarsi
+    const { tasks: next, removed, index } = T.removeTask(state.tasks, id);
+    if (!removed || !commit(next, undefined, { slide: 'task:' + id })) return;
+    showToast('Attività eliminata', {
+      action: 'Annulla',
+      onAction: () => commit(T.restoreTask(state.tasks, removed, index))
     });
   }
 
@@ -523,7 +526,7 @@
     clearTimeout(announceTimer);
     toastHandler = null;
     els.toast.classList.remove('is-visible');
-    toastTimer = setTimeout(() => { els.toastText.textContent = ''; }, 300);
+    toastTimer = setTimeout(() => { els.toastText.textContent = ''; }, M.ms('move'));
   }
 
   /* ---------- Fogli (dialog) ---------- */
@@ -567,7 +570,7 @@
     };
     dialog.classList.add('is-closing');
     dialog.addEventListener('animationend', onEnd);
-    timer = setTimeout(finish, 400); // rete di sicurezza se animationend non arriva
+    timer = setTimeout(finish, M.ms('exit') + M.ms('quick')); // rete di sicurezza se animationend non arriva
     closing.set(dialog, finish);
   }
 
@@ -812,7 +815,8 @@
     const task = T.createTask(value, Date.now());
     const isFirst = state.tasks.length === 0;
     highlightId = task.id;
-    const saved = commit(state.tasks.concat(task));
+    // Le card si muovono mentre il foglio si chiude, così la nuova si vede entrare.
+    const saved = commit(state.tasks.concat(task), undefined, { delay: M.ms('exit') });
     closeSheet(els.addSheet);
     if (!saved) return;
     // La prima volta si dice anche come correggerla.
@@ -833,7 +837,7 @@
       return;
     }
     editedId = id;
-    const saved = commit(result.tasks); // il registro dei punti resta quello di prima
+    const saved = commit(result.tasks, undefined, { delay: M.ms('exit') }); // il registro dei punti resta quello di prima
     // Il pulsante che aveva aperto il foglio è stato ridisegnato: chiuso il foglio, il focus va sulla card nuova.
     focusAfterEdit = saved ? id : null;
     closeSheet(els.addSheet);
@@ -853,7 +857,7 @@
   function revealTask(id) {
     const node = els.main.querySelector('.task[data-id="' + CSS.escape(id) + '"]');
     if (!node) return;
-    later(260, () => node.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' }));
+    later(M.ms('move'), () => node.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' }));
   }
 
   /* ---------- Foglio "Tema" ---------- */
@@ -1638,8 +1642,16 @@
     const button = event.target.closest('[data-action]');
     if (!button) return;
     const node = button.closest('.task');
-    if (button.dataset.action === 'delete') onDelete(node.dataset.id, node);
+    if (button.dataset.action === 'delete') onDelete(node.dataset.id);
     else if (button.dataset.action === 'edit') openEditSheet(node.dataset.id);
+  });
+
+  // «Completate» si apre e si chiude morbida: il suo contenuto entra (o esce) come un blocco unico e il fondo pagina scivola.
+  els.completed.querySelector('summary').addEventListener('click', event => {
+    event.preventDefault();
+    const before = M.snapshot(els.main);
+    els.completed.open = !els.completed.open;
+    M.play(els.main, before, { enterFrom: 'above', exit: 'up', toCollapsed: false });
   });
 
   els.clearCompleted.addEventListener('click', onClearCompleted);
@@ -1789,7 +1801,7 @@
   measureHero();
   registerServiceWorker();
   // All'apertura la fiamma accesa fa qualche guizzo, poi si ferma (niente animazioni infinite).
-  if (els.statStreak.classList.contains('is-lit')) flash(els.statStreak, 'is-flickering', 3800);
+  if (els.statStreak.classList.contains('is-lit')) M.flash(els.statStreak, 'is-flickering');
   if (loaded.warning) showToast(loaded.warning, { duration: 8000 });
   openFromLink();
   syncRemoteBadges();

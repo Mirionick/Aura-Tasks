@@ -1,4 +1,4 @@
-# Tre modalità: Focus, Agenda e Motivazione (in corso)
+# Tre modalità: Focus, Agenda e Motivazione (in corso: fase 1 fatta, da provare sull'iPhone)
 
 Nuovo capitolo: animazioni più fluide e l'app divisa in **tre schede**, una per ogni modo di usarla. Assorbe il vecchio punto 4 di "Funzioni future" («Cosa faccio adesso?» e modalità focus): le specifiche sono qui, aggiornate.
 
@@ -9,7 +9,7 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 
 | Fase | Contenuto | Stato |
 |---|---|---|
-| 1 | Animazioni più fluide in tutta l'app | in corso |
+| 1 | Animazioni più fluide in tutta l'app | fatta, da provare sull'iPhone |
 | 2 | Barra delle schede e Focus, con «Cosa faccio adesso?» e il timer | da fare |
 | 3 | Agenda | da fare |
 | 4 | Motivazione, con le illustrazioni | da fare |
@@ -20,10 +20,32 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 - **Le card scivolano al loro posto** (tecnica FLIP) quando entrano, escono o cambiano sezione. Una card completata con «Completate» chiusa scivola verso il suo titolo.
 - **Niente sfocatura** (`backdrop-filter`): né sullo sfondo dei fogli, che su iPhone pesa, né sui riquadri dell'intestazione.
 - **Bagliori**: sfuma un livello con l'ombra già disegnata, invece di animare `box-shadow`.
-- **Cambio tema**: una dissolvenza della pagina (View Transitions), invece dei colori che sfumano ovunque.
-- **«Completate»** si apre e si chiude morbida.
+- **Cambio tema**: di colpo e tutto insieme, invece dei colori che sfumano su tutta la pagina. Quella sfumatura costava circa 100 fotogrammi persi su un telefono lento. Una dissolvenza con le View Transitions era il piano, ma faceva cadere WebKit nelle prove sul PC.
+- **«Completate»** si apre e si chiude morbida, come un blocco unico. Il piano prevedeva le card una dopo l'altra, ma un'animazione per card costava troppi fotogrammi: si anima sempre il blocco più grande che si muove insieme (anche le sezioni intere).
 - **«Riduci movimento»** spegne tutto.
 - **Fotogrammi persi** misurati prima e dopo.
+
+#### Risultati della fase 1 (9 novembre 2026)
+Fotogrammi persi, mediana delle prove: gli stessi gesti sulla versione pubblicata («prima») e su quella nuova («dopo»), a 390 px, in tema chiaro e scuro.
+
+| Gesto | Edge, CPU 4 volte più lenta | Edge a piena velocità | WebKit "iPhone 13" |
+|---|---|---|---|
+| cambiare tema e tornare | 100,5 → 20 | 65,5 → 1 | 91 → 32,5 |
+| aprire e chiudere un foglio | 78 → 59,5 | 4 → 4,5 | 94 → 82,5 |
+| aggiungere | 39 → 24,5 | 0,5 → 1 | 85 → 82,5 |
+| spostare a domani | 44,5 → 31 | 0 → 1 | 73 → 75,5 |
+| completare | 32 → 28 | 0 → 1 | 50 → 52,5 |
+| "Annulla" del completamento | 26,5 → 21 | 0 → 0 | 19,5 → 28 |
+| eliminare | 18 → 16 | 0 → 0 | 30,5 → 32,5 |
+| "Annulla" dell'eliminazione | 9,5 → 11,5 | 0 → 0,5 | 20,5 → 30,5 |
+| aprire e chiudere «Completate» | 10 → 19 | 0 → 0 | 50 → 39,5 |
+| scorrere giù e su | 0 → 0 | 0 → 0 | 37 → 30,5 |
+
+- Il guadagno più grande è il cambio tema, che prima faceva sfumare i colori di tutta la pagina.
+- Dove prima c'era un salto (i due "Annulla" e «Completate») adesso c'è un'animazione. Con la CPU rallentata costa qualche fotogramma; a piena velocità non costa nulla, o al massimo un fotogramma al momento del tocco, quando si prepara lo scivolamento.
+- Le animazioni girano sul compositore (verificato nella traccia di Edge). Con la CPU rallentata pesa il lavoro del thread principale a ogni fotogramma, che dipende da quanti elementi si animano: per questo si anima il blocco più grande che si muove insieme.
+- WebKit headless su Windows perde circa 42 fotogrammi al secondo anche da fermo: i suoi numeri valgono solo come confronto.
+- La prova vera è quella sull'iPhone.
 
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.

@@ -14,7 +14,6 @@
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
   const listeners = [];
   let mode = readMode();
-  let switchTimer = null;
 
   function readMode() {
     try {
@@ -39,12 +38,18 @@
     listeners.forEach(fn => fn(mode, theme));
   }
 
-  /** Mentre il tema cambia, i colori sfumano; la classe viene tolta subito dopo per non rallentare il resto. */
-  function animateSwitch() {
+  /**
+   * Cambio di tema con l'app aperta: tutto cambia di colpo e insieme. Per un attimo la classe spegne le transizioni
+   * di colore dei controlli, che altrimenti sfumerebbero dopo gli sfondi. Far sfumare i colori di tutta la pagina pesava
+   * troppo (circa 100 fotogrammi persi su un telefono lento), e le View Transitions facevano cadere WebKit nelle prove
+   * sul PC: vedi docs/tre-modalita.md.
+   */
+  function switchTheme() {
     const root = document.documentElement;
-    root.classList.add('theme-switching');
-    clearTimeout(switchTimer);
-    switchTimer = setTimeout(() => root.classList.remove('theme-switching'), 450);
+    root.classList.add('theme-instant');
+    apply();
+    void getComputedStyle(root).color; // i colori nuovi si calcolano adesso, senza transizioni
+    root.classList.remove('theme-instant');
   }
 
   function setMode(value) {
@@ -55,15 +60,13 @@
     } catch (err) {
       // Non salvabile: la scelta vale comunque finché l'app resta aperta.
     }
-    animateSwitch();
-    apply();
+    switchTheme();
   }
 
   // In modalità automatica segue il telefono anche mentre l'app è aperta.
   function onSystemChange() {
     if (mode !== 'auto') return;
-    animateSwitch();
-    apply();
+    switchTheme();
   }
   if (systemDark.addEventListener) systemDark.addEventListener('change', onSystemChange);
   else if (systemDark.addListener) systemDark.addListener(onSystemChange); // Safari meno recenti
@@ -72,7 +75,7 @@
   window.addEventListener('storage', event => {
     if (event.key !== KEY && event.key !== null) return;
     mode = readMode();
-    apply();
+    switchTheme();
   });
 
   apply();
