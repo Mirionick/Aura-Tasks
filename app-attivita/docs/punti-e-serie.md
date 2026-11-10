@@ -19,6 +19,7 @@
 - Succede una volta sola per traguardo (`stats.milestones`).
 
 **Interfaccia**
+- Serie e punti si vedono in due posti, con gli stessi effetti: in piccolo nell'intestazione di Focus (due chip: fiamma con i giorni, stella con i punti; un tocco porta a Motivazione) e in grande nell'intestazione di Motivazione, con i due riquadri qui sotto.
 - Riquadro "Serie" (vedi "Design" in `CLAUDE.md`):
   - giorni e fiamma;
   - etichetta "🏆 record N", oppure "🏆 record!" quando la serie in corso è il record, da 3 giorni in su;
@@ -28,7 +29,8 @@
 - Avvisi al completamento:
   - "Completata · +24 punti";
   - al primo completamento del giorno: "🔥 Serie iniziata · …" oppure "🔥 4 giorni di fila · …";
-  - ai traguardi: "🎉 7 giorni di fila! · …".
+  - ai traguardi: "🎉 7 giorni di fila! · …";
+  - completando dal focus a tutto schermo, in coda: "· 25 min di focus". I minuti di focus non danno punti e non toccano la serie.
 
 **Casi limite (coperti dai test)**
 - Completamenti a cavallo di mezzanotte: fa fede il giorno locale di `completedAt`.

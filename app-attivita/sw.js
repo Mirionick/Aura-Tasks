@@ -7,7 +7,7 @@
 'use strict';
 
 // Quando aggiungi, togli o rinomini un file dell'app: aggiorna APP_FILES e aumenta la versione.
-const CACHE_VERSION = 'aura-tasks-v8';
+const CACHE_VERSION = 'aura-tasks-v9';
 const APP_FILES = [
   './',
   './index.html',
@@ -18,11 +18,16 @@ const APP_FILES = [
   './js/tasks.js',
   './js/nlp.js',
   './js/points.js',
+  './js/focus.js',
+  './js/suggest.js',
   './js/storage.js',
   './js/reminders.js',
   './js/remote.js',
   './js/motion.js',
+  './js/ui-focus.js',
   './js/app.js',
+  './images/empty-focus.webp',
+  './images/suggest-none.webp',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',

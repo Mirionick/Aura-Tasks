@@ -1,4 +1,4 @@
-# Tre modalità: Focus, Agenda e Motivazione (in corso: fase 1 fatta, da provare sull'iPhone)
+# Tre modalità: Focus, Agenda e Motivazione (in corso: fasi 1 e 2a fatte, da provare sull'iPhone)
 
 Nuovo capitolo: animazioni più fluide e l'app divisa in **tre schede**, una per ogni modo di usarla. Assorbe il vecchio punto 4 di "Funzioni future" («Cosa faccio adesso?» e modalità focus): le specifiche sono qui, aggiornate.
 
@@ -10,7 +10,10 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | Fase | Contenuto | Stato |
 |---|---|---|
 | 1 | Animazioni più fluide in tutta l'app | fatta, da provare sull'iPhone |
-| 2 | Barra delle schede e Focus, con «Cosa faccio adesso?» e il timer | da fare |
+| 2a | Barra delle schede e Focus, con «Cosa faccio adesso?», il timer e i minuti di focus | fatta e pubblicata con la v9, da provare sull'iPhone |
+| 2b | Notifica push alla fine del focus | approvata: passo a parte, dopo la prova della 2a sull'iPhone (vedi "Notifica push alla fine del focus") |
+| — | Passo a parte: apertura più leggera del foglio «Nuova attività» | da fare, dopo la 2a |
+| — | Passo a parte: rispettare «Dimensione testo» dell'iPhone | da fare, dopo la 2a |
 | 3 | Agenda | da fare |
 | 4 | Motivazione, con le illustrazioni | da fare |
 
@@ -47,27 +50,116 @@ Fotogrammi persi, mediana delle prove: gli stessi gesti sulla versione pubblicat
 - WebKit headless su Windows perde circa 42 fotogrammi al secondo anche da fermo: i suoi numeri valgono solo come confronto.
 - La prova vera è quella sull'iPhone.
 
+### Fase 2a: barra delle schede e Focus
+Le specifiche stanno nelle sezioni qui sotto ("Navigazione", "Focus: per fare"). Qui ci sono le scelte fatte costruendola.
+
+- **Niente sparisce**: finché le fasi 3 e 4 non ci sono, Agenda e Motivazione mostrano in modo semplice le parti di prima che spettano a loro.
+  - **Agenda**: le sezioni «Domani» e «Prossimi giorni» di sempre.
+  - **Motivazione**: i riquadri grandi di serie e punti (nell'intestazione), la riga dei minuti di focus, lo storico di tutte le completate con «Svuota», e in fondo «I dati restano…» con «Backup dei dati».
+- **Intestazione di Focus compatta** (da una prova in emulazione iPhone 13: era alta 331 px su 664 e si vedevano 2 attività):
+  - nella riga del saluto ci sono serie e punti, in due chip, con gli effetti di sempre;
+  - «Da fare», «Tempo» e «Fatte oggi» stanno in una riga sola, con etichetta e valore affiancati. «Tempo stimato» è scritto «Tempo» sotto i 430 px di larghezza, perché in una riga non ci sta; il lettore di schermo legge sempre «Tempo stimato»;
+  - «Cosa faccio adesso?» è su una riga, a cavallo del bordo dell'intestazione (`.hero--cta`);
+  - le card sono 4 px più basse (84 → 80 px).
+- **Niente ▶ sulle card**: toglierebbe 48 px al titolo (il corpo della card ha 248 px a 390 di larghezza). «Inizia focus» sta nel foglio «Modifica attività», per le attività da fare, e nella proposta di «Cosa faccio adesso?». Dal foglio di modifica salva prima le modifiche: il timer parte con la durata appena scritta.
+- **Ora già passata in rosso** nelle card di oggi, come «Ieri» (`Aura.tasks.isTimePassed`). La lista si ridisegna da sola quando un'ora passa.
+- **Attività che finisce in un'altra scheda**: l'avviso lo dice («Attività aggiunta in Agenda · Domani», con «Mostra»; «Modifiche salvate · ora in Agenda», con «Annulla»).
+- **Uscita dal focus**: Esc, il gesto «indietro» ed «Esci» chiudono la sessione; l'avviso «Focus terminato · 12 min» ha «Annulla», che la riapre com'era.
+- **Suono di fine**: l'`AudioContext` si crea quando il dito tocca «Inizia focus» (`pointerdown`) e si sblocca nel tocco (`click`). Crearlo costa: a freddo, in Edge, circa 200 ms, cioè 9–14 fotogrammi persi all'apertura del focus; così ne perde 0.
+- **Illustrazioni**: sono entrate `suggest-none` ed `empty-focus`, al posto del disegno SVG dello stato vuoto.
+  - `empty-focus` è entrata **così com'è**, per scelta dell'utente, senza aspettare la versione rifatta: ha un alone attorno al vapore, che l'ottimizzazione fa sfumare invece di tagliare (vedi [illustrazioni.md](illustrazioni.md)). Verrà sostituita.
+  - Le altre entrano con la fase che le usa, nella versione che c'è in quel momento.
+
+#### Risultati della fase 2a (10 novembre 2026)
+**Intestazione e card visibili all'apertura**, su «iPhone 13» in Safari (390×664), misurate in WebKit e in Edge:
+
+| | Prima (v8) | Dopo |
+|---|---|---|
+| Altezza dell'intestazione di Focus | 331 px | 188 px |
+| Card intere visibili, giornata tipica (6 attività oggi, una riga di dettagli) | 3 | 4 |
+| Card intere visibili, dati delle prove (3 in ritardo, una con i dettagli su due righe) | 2 | 3 |
+
+- L'obiettivo era un'intestazione sotto i 220 px e almeno 4 card visibili: raggiunto nella giornata tipica.
+- Con una card più alta in cima (dettagli su due righe, o titolo su due righe) e un cambio di sezione, le card intere sono 3.
+- «+ Nuova attività» copre il lato destro dell'ultima card visibile, come prima.
+
+**Fotogrammi persi**, con il metodo della fase 1: mediana di 5 ripetizioni nei due temi, a 390 px. «Prima» è la v8 pubblicata, «dopo» la versione con le schede.
+
+| Gesto | Edge, CPU 4 volte più lenta | Edge a piena velocità | WebKit "iPhone 13" |
+|---|---|---|---|
+| aprire e chiudere un foglio | 28 → 31 | 1 → 2 | 65 → 63 |
+| completare | 9 → 8,5 | 0 → 0 | 37,5 → 41 |
+| "Annulla" del completamento | 6,5 → 5 | 0 → 0 | 25 → 23 |
+| eliminare | 7 → 5 | 0 → 0 | 23 → 22,5 |
+| "Annulla" dell'eliminazione | 5 → 3 | 0 → 0 | 21,5 → 22 |
+| aggiungere | 10,5 → 7 | 0 → 0 | 65,5 → 65 |
+| spostare a domani | 10,5 → 10 | 0 → 0 | 63,5 → 36,5 |
+| aprire e chiudere «Completate» (dopo: «Completate oggi») | 4 → 1,5 | 0 → 0 | 28,5 → 69 |
+| cambiare tema e tornare | 9 → 6 | 0 → 0 | 17 → 15,5 |
+| scorrere giù e su | 0 → 0 | 0 → 0 | 22,5 → 21 |
+| fermo, per un secondo | 0 → 0 | 0 → 0 | 33 → 24 |
+
+Gesti nuovi, misurati solo sulla versione con le schede:
+
+| Gesto | Edge, CPU 4 volte più lenta | Edge a piena velocità | WebKit "iPhone 13" |
+|---|---|---|---|
+| passare ad Agenda | 1 | 0 | 30 |
+| passare a Motivazione | 10,5 | 0 | 25 |
+| tornare a Focus | 3 | 0 | 23 |
+| aprire e chiudere «Cosa faccio adesso?» | 7 | 0 | 53,5 |
+| fermo, per 10 secondi | 0 | 0 | 38 |
+| aprire il focus a tutto schermo | 5 | 0 | 57 |
+| 10 secondi di focus in corso, con lo sfondo che respira | 0 | 0 | 186,5 |
+| 10 secondi di focus con «Riduci movimento» (sfondo fermo) | 0 | 0 | 72 |
+| mettere in pausa e riprendere | 1 | 0 | 18,5 |
+| chiudere il focus con «Esci» | 2,5 | 0 | 21 |
+
+- **In Edge** nessun gesto di prima peggiora: a piena velocità al massimo di un fotogramma (il foglio, da 1 a 2), con la CPU rallentata al massimo di 3 (sempre il foglio, da 28 a 31). Gli altri gesti sono uguali o migliori.
+- **Cambio di scheda**: a piena velocità non perde fotogrammi. Con la CPU rallentata costa da 1 a 10,5 fotogrammi, cioè meno di un foglio che si apre (31). La più cara è Motivazione, che ha i riquadri grandi e lo storico.
+- **Focus in corso**: in Edge 10 secondi di timer con lo sfondo che respira non perdono fotogrammi, neanche con la CPU rallentata. Il respiro gira sul compositore.
+- **Apertura del focus**: creare l'`AudioContext` dentro il tocco costava da 9 a 14 fotogrammi a piena velocità. Creandolo al `pointerdown` ne costa 0.
+- **WebKit headless su Windows** vale solo come confronto, e qui meno del solito, per due motivi misurati:
+  - da fermo serve meno fotogrammi (38 "persi" in 10 secondi), mentre con un puntino di 8 px che sfuma ne perde 0. Per questo un gesto che anima poco, come «Completate oggi» che si apre in fondo alla pagina, sembra peggiore (da 28,5 a 69);
+  - non ha accelerazione grafica: un'animazione a tutto schermo, anche solo di `opacity`, scende a circa 7 fotogrammi al secondo. Lo sfondo del focus lì perdeva 510 fotogrammi in 10 secondi; con il controllo che lo ferma da solo ne perde 186,5, quasi tutti nei primi 4 secondi.
+- La prova vera è quella sull'iPhone, dove quei livelli li muove la scheda grafica: lo sfondo del focus è la prima cosa da guardare.
+- Le misure sono di prima che entrasse l'illustrazione `empty-focus`. Non sono state rifatte, perché lo stato vuoto di Focus non compare in nessuno dei gesti misurati; le prove di funzionamento invece sono state rifatte tutte.
+
+### Passi a parte, dopo la fase 2a
+Ognuno si pubblica da solo, con le sue misure.
+
+- **Apertura del foglio «Nuova attività»**: è il gesto più pesante.
+  - In Chromium con la CPU 4 volte più lenta, l'apertura costa 316 ms sul thread principale, di cui 85 ms di ricalcolo dello stile in 57 ricalcoli.
+  - Serve una traccia dell'apertura per trovare dove va il tempo. I candidati: `resetAddSheet()` e i `sync*()` che ricompilano il modulo a ogni apertura, `showModal()`, `is-locked`.
+  - Poi si riduce, con la misura prima e dopo.
+- **«Dimensione testo» dell'iPhone**: oggi il testo ha dimensioni fisse in px.
+  - Si passa a `font: -apple-system-body` con il font dell'app, e a dimensioni in rem.
+  - I campi restano sempre ad almeno 16 px.
+  - Servono schermate con il testo grande, senza rompere i layout a 375 px.
+
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.
   - Ogni scheda ha icona e testo; aree di tocco ≥ 44 px; margine sotto con `env(safe-area-inset-bottom)`.
   - Un **indicatore**, una pillola tenue dietro la scheda attiva, scivola sulla scheda scelta con `transform`.
   - È un `<nav>` con tre pulsanti (`aria-current="page"` su quello attivo). Le schede sono tre `<section>`; quelle non attive hanno `hidden`.
-- **Cambio di scheda**: dissolvenza con un leggero scorrimento (circa 24 px) nella direzione del cambio, in `--dur-move`. Ogni scheda ricorda dov'era arrivato lo scorrimento.
+- **Cambio di scheda**: dissolvenza con un leggero scorrimento (circa 24 px) nella direzione del cambio, in `--dur-move`. Ogni scheda ricorda dov'era arrivato lo scorrimento. La scheda nuova entra come un blocco unico (`Aura.motion.slideIn`); la vecchia sparisce subito. Un tocco sulla scheda già aperta riporta in cima.
 - **All'apertura** l'app parte da **Focus**. Se si ricarica entro 30 minuti dall'ultimo uso (su iPhone succede spesso tornando dallo sfondo), riparte dall'ultima scheda.
 - **Intestazione "aura"** in tutte le schede, con logo, campanella e tema. In Agenda e Motivazione è più bassa.
 - «+ Nuova attività» e gli avvisi stanno sopra la barra.
 
 ## Focus: per fare
 - **In cima**, «Cosa faccio adesso?». Poi **In ritardo**, **Oggi** (in ordine d'ora) e **Senza data**. In fondo, «Completate oggi», chiusa.
-- **Intestazione**: saluto, data e i riquadri "Da fare", "Tempo stimato" e "Fatte oggi", come oggi.
-- **Serie e punti** restano visibili in piccolo (fiamma con i giorni, stella con i punti), con gli effetti di oggi. Un tocco porta a Motivazione.
-- Sulle card da fare c'è in più il pulsante ▶ **Focus**.
+- **Intestazione**, compatta (sotto i 220 px su iPhone 13): saluto, data e i riquadri "Da fare", "Tempo" e "Fatte oggi" in una riga sola, con etichetta e valore affiancati.
+- **Serie e punti** restano visibili in piccolo, in due chip nella riga del saluto (fiamma con i giorni, stella con i punti), con gli effetti di sempre. Un tocco porta a Motivazione.
+- **Niente ▶ sulle card**: toglierebbe spazio al titolo. Il focus si avvia dal foglio «Modifica attività» o dalla proposta di «Cosa faccio adesso?».
+- Nelle card di oggi l'ora già passata è in rosso, come «Ieri».
 
 ### «Cosa faccio adesso?»
-- Un pulsante grande in cima a Focus apre un foglio con due domande:
-  - "Quanto tempo hai?", con i chip 10/15/30/45/60/90/120+;
+- Un pulsante in cima a Focus, largo quanto la lista e a cavallo del bordo dell'intestazione, apre un foglio con due domande:
+  - "Quanto tempo hai?", con i chip 10/15/30/45/60/90/120+ («120+» vuol dire nessun limite; nello sfruttamento del tempo conta come 120);
   - "Come ti senti?", con energia bassa/media/alta.
-- Ricorda l'ultima scelta (`aura-tasks:prefs`).
+- Ricorda l'ultima scelta (`aura-tasks:prefs`); la prima volta propone 30 minuti ed energia media.
+- La proposta compare subito sotto le domande e si aggiorna a ogni scelta. Sotto ci sono due alternative: un tocco ne fa la proposta principale.
+- Il pulsante è nascosto quando non c'è niente da fare adesso.
 - **Algoritmo**: funzione pura `suggest(tasks, { minutes, energy, today, exclude, random })` in `js/suggest.js`.
   - **Candidate**: attività non completate, con `duration ≤ minutes`, con `ENERGY[t.energy].order ≤ ENERGY[energy].order` e con data nulla oppure `≤ oggi`.
   - **Punteggio** (i pesi stanno in costanti):
@@ -77,15 +169,26 @@ Fotogrammi persi, mediana delle prove: gli stessi gesti sulla versione pubblicat
     - anzianità: +1 ogni 2 giorni dalla creazione, fino a +10;
     - un pizzico di casualità (±5) per variare. Si disattiva nei test passando `random: () => 0.5`.
   - **Risultato**: la migliore più qualche alternativa, con il **motivo** in italiano. Per esempio: "È in ritardo da 2 giorni e ci sta nei tuoi 30 minuti".
-- **Azioni**: "Inizia focus", "Fatto", "Un'altra proposta". Quest'ultima esclude le attività già proposte nella sessione.
-- **Nessuna candidata**: un messaggio gentile con un suggerimento ("Hai più tempo?", "Una pausa ☕?") oppure l'attività più breve, con l'illustrazione `suggest-none`.
+- **Azioni**:
+  - "Inizia focus" chiude il foglio e apre il timer;
+  - "Fatto" chiude il foglio e completa l'attività come la spunta, con punti e "Annulla";
+  - "Un'altra proposta" esclude le attività già proposte finché il foglio resta aperto. Finite tutte, compare "Ricomincia".
+- **Nessuna candidata**: un messaggio gentile con l'illustrazione `suggest-none`, e uno di questi suggerimenti (`fallback` di `suggest()`):
+  - "Hai più tempo?", con il valore che basterebbe ("Ho 45 minuti");
+  - "Una pausa ☕?", con l'attività più breve se con questa energia non c'è niente di adatto ("Proponimela lo stesso");
+  - "Una pausa ☕?" e basta, se adesso non c'è niente da fare.
 
 ### Focus a tutto schermo con timer
-- **Avvio**: ▶ "Focus" sulla card, oppure "Inizia focus" dalla proposta.
+- **Avvio**: "Inizia focus" dal foglio «Modifica attività» (solo per le attività da fare; prima salva le modifiche) oppure dalla proposta.
 - **Interfaccia**: foglio a tutto schermo con il titolo dell'attività, un anello SVG che fa il conto alla rovescia partendo dalla durata stimata e il tempo grande (mm:ss). Comandi: Pausa/Riprendi, +5 min, Completa, Esci.
+- **Una sessione per volta**. Se l'attività del focus viene completata o eliminata, la sessione si chiude e i suoi minuti restano.
+- **Uscita**: Esc, il gesto "indietro" ed "Esci" chiudono la sessione. L'avviso "Focus terminato · 12 min" ha "Annulla", che la riapre com'era e toglie i minuti.
 - **Sfondo che respira**, come l'aura dell'intestazione: bagliori ciano e rosa disegnati come gradienti in livelli separati, che si muovono solo con `transform` e `opacity` in un ciclo lento (`--dur-breath`).
-  - È l'**unica animazione continua** dell'app, un'eccezione a "mai infinite": gira solo mentre il foglio è aperto e la pagina è visibile, e si ferma alla fine del tempo.
+  - È l'**unica animazione continua** dell'app, un'eccezione a "mai infinite": gira solo mentre il foglio è aperto, la pagina è visibile e il tempo scorre. Si ferma in pausa e alla fine del tempo (`.is-breathing`).
   - Con «Riduci movimento» lo sfondo resta fermo.
+  - I bagliori sono disegnati piccoli (30vmax) e ingranditi con `scale`: occupano un quarto della memoria.
+  - **Si ferma da solo dove pesa troppo**: dopo l'apertura `ui-focus.js` guarda 24 fotogrammi (`watchBreath()`); se più della metà dura oltre 45 ms, lo sfondo resta fermo per il resto della sessione.
+- **Schermi bassi**: l'anello si adatta all'altezza (38vh). Sotto i 700 px di altezza (iPhone SE, Safari con le sue barre) tutto è più raccolto e il titolo sta su due righe: titolo, anello e comandi stanno in una schermata da 320×568 in su. In orizzontale i comandi si raggiungono scorrendo.
 - **Tempo affidabile**
   - Lo stato sta in `aura-tasks:focus`: `{ taskId, startedAt, durationMs, pausedAt, pausedTotalMs }`.
   - Tempo rimanente = `durationMs − (adesso − startedAt − pausedTotalMs)`.
@@ -94,20 +197,31 @@ Fotogrammi persi, mediana delle prove: gli stessi gesti sulla versione pubblicat
 - **Aggiornamento**: un intervallo di 250 ms, solo mentre la pagina è visibile. L'anello cambia `stroke-dashoffset` a scatti, senza transizioni.
 - **Schermo acceso**: `navigator.wakeLock.request('screen')` dove supportato. Va richiesto di nuovo dopo `visibilitychange`, ed è facoltativo: senza, si continua lo stesso.
 - **Fine del tempo**
-  - Suono breve con Web Audio. L'`AudioContext` va creato o sbloccato al tocco su "Inizia", altrimenti iOS lo blocca.
+  - Suono breve con Web Audio, generato (nessun file). L'`AudioContext` va sbloccato al tocco su "Inizia focus", altrimenti iOS lo blocca. Si crea un attimo prima, quando il dito tocca il pulsante (`pointerdown`), perché crearlo costa tempo.
+  - Riaprendo Aura con un focus in corso l'audio non è sbloccato: lo sblocca il primo tocco nel foglio.
   - Vibrazione solo su Android: `navigator.vibrate` su iOS non esiste.
-  - Poi si propone "Completata" oppure "+5 min".
+  - Poi si propone "Completata" oppure "+5 min". A tempo finito "+5 min" dà altri 5 minuti da adesso.
+  - Se il tempo finisce con Aura nascosta, al ritorno si vede "Tempo finito", senza suono.
 - **Notifiche**: senza promemoria attivi non ci sono avvisi ad app chiusa, perché le notifiche programmate offline non esistono.
-- **Da valutare nella fase 2**: con i promemoria attivi, una **notifica push alla fine del focus**, che arriva anche a telefono bloccato.
-  - All'avvio l'app aggiunge all'elenco dei promemoria un avviso per la fine, e lo aggiorna con Pausa, Riprendi, +5 min, Completa ed Esci.
-  - Il Cron gira ogni minuto, quindi l'avviso può arrivare fino a un minuto dopo.
-  - Il testo ("Tempo finito: …") richiede un piccolo cambio nel server o nel service worker, che oggi scrivono "Tra 10 minuti, alle 10:00".
-  - Serve internet all'avvio e a ogni cambio. Offline resta il suono, ad app aperta.
-  - Su iPhone funziona solo con l'app installata e il permesso concesso, come i promemoria.
+- **Notifica push alla fine del focus (fase 2b)**: con i promemoria attivi, arriva anche a telefono bloccato. L'utente l'ha approvata il 10 novembre 2026, come **passo a parte**: si fa dopo la sua prova della 2a sull'iPhone, e si pubblica da sola.
+  - **Come**: all'avvio l'app aggiunge all'elenco dei promemoria un elemento per la fine (`id: focus-<id dell'attività>`, ora = fine prevista). Lo toglie in pausa e lo aggiorna con Riprendi, +5 min, Completa ed Esci.
+  - **Server**: nessun cambio. `cleanReminder()` lo accetta già com'è: l'id rispetta `ITEM_ID`, `fireAt` è uguale ad `at`, l'orario è nel formato HH:MM. Va fissato con un test del server.
+  - **Testo**: il titolo ("Tempo finito: …") lo scrive l'app; il service worker riconosce la notifica dal tag e cambia la riga sotto, che dal server arriva come "Adesso, alle 10:25".
+  - **Pro**: su iPhone è l'unico modo per avvisare a telefono bloccato o con Aura chiusa; usa cose che ci sono già; vale solo per chi ha già attivato i promemoria.
+  - **Contro**:
+    - il Cron gira ogni minuto, quindi l'avviso può arrivare fino a un minuto dopo;
+    - serve internet all'avvio e a ogni cambio; offline resta il suono, ad app aperta;
+    - il titolo dell'attività in focus va al server, come per i promemoria: va aggiornata la nota del foglio "Promemoria e Siri";
+    - su iPhone funziona solo con l'app installata e il permesso concesso, come i promemoria;
+    - con Aura aperta alla fine può arrivare la notifica oltre al suono;
+    - i promemoria push sono ancora da provare sull'iPhone, e questa notifica dipende da loro.
 - **Minuti di focus**:
-  - alla fine della sessione (Completa, Esci o fine del tempo) i minuti effettivi, pause escluse, si sommano in `stats.focus`, nel giorno locale in cui la sessione finisce;
+  - alla chiusura della sessione (Completa, Esci, attività completata o eliminata) i minuti effettivi si sommano in `stats.focus`;
+  - contano le pause escluse e al massimo la durata impostata, arrotondati al minuto;
+  - il giorno è quello locale in cui il focus si è fermato: la pausa, la fine del tempo, oppure la chiusura;
   - sotto un minuto non si registra nulla;
-  - non danno punti e non toccano la serie.
+  - non danno punti e non toccano la serie;
+  - si vedono nell'avviso ("Completata · +24 punti · 25 min di focus") e in una riga di Motivazione ("Focus: 25 min oggi · 5 h 40 min in tutto").
 - **Idee per dopo**: modalità Pomodoro (25/5); bonus punti per il focus.
 
 ## Agenda: per pianificare
@@ -165,17 +279,20 @@ Fotogrammi persi, mediana delle prove: gli stessi gesti sulla versione pubblicat
 - **Frase del giorno**: una frase incoraggiante da un elenco locale, scelta in base al giorno e uguale per tutto il giorno.
 - **Mai sensi di colpa**: a serie interrotta niente "hai perso", ma un invito a ripartire, con l'illustrazione `streak-restart`: "Ogni giorno è buono per ricominciare: completa un'attività e la fiamma si riaccende".
 - In fondo: "I dati restano solo su questo dispositivo" e «Backup dei dati».
-- La logica pura sta in `js/motivation.js`: obiettivo, calendario, minuti, frase del giorno.
+- **Invito al backup**: «Esporta» salva la data dell'ultimo backup (`lastBackupAt` nelle preferenze). Se sono passati 30 giorni, o se un backup non c'è mai stato, Motivazione mostra un invito gentile a farne uno.
+- La logica pura sta in `js/motivation.js`: obiettivo, calendario, minuti, frase del giorno, invito al backup.
 
 ## Dati
 - **Minuti di focus**: `stats.focus = { 'YYYY-MM-DD': minuti }`, una mappa del registro separata da `days`. Così le regole della serie non cambiano, e i minuti finiscono anche nel backup.
-  - **Schema v4**: `migrate()` cambia solo il numero di versione.
-  - `sanitizeStats()` aggiunge `focus: {}` e scarta giorni non validi e minuti non interi o fuori misura.
-  - `rebuildStats()` parte con `focus: {}`.
-- **Preferenze**: `aura-tasks:prefs = { weeklyGoal, lastTab, lastTabAt, suggest: { minutes, energy } }`.
+  - **Schema v4** (fase 2a): `migrate()` cambia solo il numero di versione.
+  - `sanitizeStats()` aggiunge `focus: {}` e scarta giorni non validi e minuti non interi o fuori da 1–1440 (`Aura.focus.sanitizeMinutes`).
+  - `emptyStats()` parte con `focus: {}`, quindi anche `rebuildStats()`.
+  - I backup della v1, v2 e v3 si importano ancora: passano dalle stesse migrazioni.
+- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy } }`. Nella fase 4 si aggiungono `weeklyGoal` e `lastBackupAt`.
   - È senza versione, come `aura-tasks:remote`, e fuori dal backup, come il tema.
-  - La scrive e la legge solo `js/storage.js` (`loadPrefs()` e `savePrefs()`, con pulizia dei valori).
-- **Focus in corso**: `aura-tasks:focus` (vedi "Tempo affidabile").
+  - La scrive e la legge solo `js/storage.js` (`loadPrefs()` e `savePrefs()`). `sanitizePrefs()` pulisce i valori e conserva i campi sconosciuti.
+  - `suggest.minutes` è una delle scelte del foglio; `null` vuol dire «120+».
+- **Focus in corso**: `aura-tasks:focus` (vedi "Tempo affidabile"). Lo scrive e lo legge solo `js/storage.js` (`loadFocus()`, `saveFocus()`, `clearFocus()`); lo pulisce `Aura.focus.sanitizeSession()`. È fuori dal backup.
 - **Livello**: si calcola dai punti, non si salva.
 
 ## Collegamenti e notifiche
@@ -215,7 +332,10 @@ Tutte le icone dell'interfaccia, nuove comprese, sono SVG disegnati a mano nello
 - **distintivi di riserva** dei 7 livelli (scintilla, fiamma, bagliore, stella, cometa, costellazione, aurora), usati finché mancano le illustrazioni.
 
 ## Illustrazioni
-Elenco, flusso e prompt stanno in [illustrazioni.md](illustrazioni.md). Finché un'immagine manca, l'app usa le icone (distintivi) o l'illustrazione SVG di oggi (stati vuoti).
+Elenco, flusso e prompt stanno in [illustrazioni.md](illustrazioni.md).
+- Ogni immagine entra con la fase che la usa, nella versione che c'è in quel momento.
+- Nell'app ci sono `suggest-none` ed `empty-focus`, dalla fase 2a.
+- Dove un'immagine non è ancora entrata, l'app usa le icone (distintivi) o uno stato vuoto di solo testo.
 
 ## Premium
 Le categorie stanno nella tabella di `CLAUDE.md`:
@@ -228,6 +348,8 @@ Le categorie stanno nella tabella di `CLAUDE.md`:
   - `js/agenda.js` (fase 3);
   - `js/motivation.js` (fase 4);
   - `LEVELS` e il calcolo del livello, Aurora 2, 3… compresi, in `js/points.js`.
-- `js/motion.js` (fase 1) tocca la pagina solo per le animazioni.
-- Se `app.js` diventa troppo lungo, ogni scheda va in un suo file (`js/ui-focus.js`, `js/ui-agenda.js`, `js/ui-motivation.js`), che come `app.js` può toccare la pagina.
+- `js/motion.js` (fase 1) tocca la pagina solo per le animazioni. `slideIn()` (fase 2a) fa entrare una scheda come un blocco unico.
+- Ogni scheda può avere un suo file che tocca la pagina, come `app.js`: così `app.js` non cresce troppo.
+  - `js/ui-focus.js` (fase 2a): i fogli «Cosa faccio adesso?» e Focus, il suono di fine e lo schermo acceso. `app.js` gli passa con `Aura.focusUI.init()` quello che gli serve: stato, `commit()`, fogli, avvisi, preferenze.
+  - `js/ui-agenda.js` e `js/ui-motivation.js` arrivano con le fasi 3 e 4.
 - Ogni file nuovo va in `index.html`, in `tests/index.html` se ha logica pura, e in `APP_FILES` di `sw.js`.

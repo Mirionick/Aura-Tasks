@@ -4,11 +4,12 @@
 - Un tocco sulla card (titolo, ma anche la riga di ora, durata ed energia) apre il foglio "Nuova attività" in modalità modifica:
   - titolo "Modifica attività", pulsante "Salva modifiche" con la spunta;
   - campi già compilati; niente "Scrivi in una frase", che con le parole avanzate riscriverebbe il titolo, e niente riga di Siri;
-  - per un'attività completata, la riga "Completata · i suoi 24 punti non cambiano".
+  - per un'attività completata, la riga "Completata · i suoi 24 punti non cambiano";
+  - per un'attività da fare, il pulsante **"Inizia focus"** sopra "Salva modifiche": salva le modifiche fatte, se sono valide, e apre il focus a tutto schermo con la durata appena scritta (vedi [tre-modalita.md](tre-modalita.md)).
 - Spunta e cestino funzionano come prima. Si modificano anche le attività completate.
 - Dopo il salvataggio:
   - la card si aggiorna, cambia sezione se è cambiato il giorno, si illumina (`.task--edited`: solo il bagliore) e torna in vista;
-  - avviso "Modifiche salvate" con "Annulla";
+  - avviso "Modifiche salvate" con "Annulla". Se l'attività è finita in un'altra scheda, l'avviso lo dice: "Modifiche salvate · ora in Agenda";
   - il focus torna sulla card, in `onSheetClosed()`, perché il pulsante che aveva aperto il foglio è stato ridisegnato;
   - senza modifiche il foglio si chiude e basta.
 - La prima attività aggiunta mostra "Attività aggiunta: toccala per modificarla".

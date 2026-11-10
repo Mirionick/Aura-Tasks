@@ -250,7 +250,8 @@
     const empty = { version: storage.SCHEMA_VERSION, tasks: [], stats: P.emptyStats() };
     assertEqual(storage.parse(null), empty);
     assertEqual(storage.parse(''), empty);
-    assertEqual(storage.SCHEMA_VERSION, 3);
+    assertEqual(storage.SCHEMA_VERSION, 4);
+    assertEqual(P.emptyStats().focus, {}, 'registro vuoto con i minuti di focus');
   });
 
   test('storage.parse: testo illeggibile o formato sbagliato → errore', () => {
@@ -314,7 +315,8 @@
       ]
     });
     const state = storage.parse(raw);
-    assertEqual(state.version, 3, 'dalla v1 si arriva fino all\'ultima versione');
+    assertEqual(state.version, storage.SCHEMA_VERSION, 'dalla v1 si arriva fino all\'ultima versione');
+    assertEqual(state.stats.focus, {}, 'minuti di focus (v4) vuoti');
     assertEqual(state.tasks.map(t => t.pointsAwarded), [24, 44, 13, 13, null]);
     assertEqual(state.stats.days, {
       '2026-10-27': { done: 1, points: 24 },
@@ -350,7 +352,7 @@
     const state = {
       version: storage.SCHEMA_VERSION,
       tasks: [make({ id: 'a', title: 'Andata e ritorno' }), make({ id: 'b', done: true, completedAt: 9, pointsAwarded: 24 })],
-      stats: { totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } } }
+      stats: { totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } }, focus: { '1970-01-01': 25 } }
     };
     assertEqual(storage.parse(storage.serialize(state)), state);
   });
@@ -409,10 +411,121 @@
       ]
     });
     const state = storage.parse(raw);
-    assertEqual(state.version, 3);
-    assertEqual(state.stats, stats, 'registro identico');
+    assertEqual(state.version, storage.SCHEMA_VERSION);
+    assertEqual(state.stats, { ...stats, focus: {} }, 'registro identico, più i minuti di focus (v4) vuoti');
     assertEqual(state.tasks.map(t => [t.time, t.pointsAwarded]), [[null, 24], [null, null]]);
     assertEqual([state.future, state.tasks[0].extra], ['ok', 1]);
+  });
+
+  /* ---------- Minuti di focus (schema v4), preferenze e schede ---------- */
+
+  test('storage.parse: dalla v3 alla v4 cambia solo la versione; il registro riceve i minuti di focus vuoti', () => {
+    const stats = { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-09': { done: 1, points: 24 } }, level: 2 };
+    const tasks = [
+      { id: 'a', title: 'Fatta', duration: 30, energy: 'medium', date: '2026-11-09', time: '10:00', done: true, createdAt: 1, completedAt: 5, pointsAwarded: 24, extra: 1 },
+      { id: 'b', title: 'Da fare', duration: 15, energy: 'low', date: null, time: null, done: false, createdAt: 2, completedAt: null, pointsAwarded: null }
+    ];
+    const state = storage.parse(JSON.stringify({ version: 3, future: 'ok', stats, tasks }));
+    assertEqual(state.version, 4);
+    assertEqual(state.tasks, tasks, 'attività identiche');
+    assertEqual(state.stats, { ...stats, focus: {} }, 'punti, serie e campi sconosciuti intatti');
+    assertEqual(state.future, 'ok');
+  });
+
+  test('storage.sanitizeStats: minuti di focus solo con giorni validi e minuti interi tra 1 e 1440', () => {
+    const stats = storage.sanitizeStats({
+      totalPoints: 0, bestStreak: 0, milestones: [], days: {},
+      focus: { '2026-11-09': 25, '2026-11-08': 0, '2026-11-07': 12.5, '2026-11-06': -3, '2026-11-05': 1441, '2026-02-30': 10, ieri: 5, '2026-11-04': '20' }
+    });
+    assertEqual(stats.focus, { '2026-11-09': 25 });
+    ['manca', null, [], 'testo', 7].forEach(value => {
+      const raw = { totalPoints: 0, bestStreak: 0, milestones: [], days: {} };
+      if (value !== 'manca') raw.focus = value;
+      assertEqual(storage.sanitizeStats(raw).focus, {}, 'focus: ' + JSON.stringify(value));
+    });
+  });
+
+  test('storage.parse: dati più nuovi con i minuti di focus restano intatti e ripuliti', () => {
+    const raw = JSON.stringify({ version: 9, tasks: [], stats: { ...P.emptyStats(), focus: { '2026-11-09': 40, rotto: 3 }, level: 5 } });
+    const state = storage.parse(raw);
+    assertEqual([state.version, state.stats.focus, state.stats.level], [9, { '2026-11-09': 40 }, 5]);
+  });
+
+  /** Archivio finto con i metodi del localStorage; `broken` = ogni accesso fallisce, come un archivio disattivato. */
+  function fakeArea(initial, broken) {
+    const items = new Map(Object.entries(initial || {}));
+    const check = () => { if (broken) throw new Error('SecurityError'); };
+    return {
+      items,
+      getItem: key => { check(); return items.has(key) ? items.get(key) : null; },
+      setItem: (key, value) => { check(); items.set(key, String(value)); },
+      removeItem: key => { check(); items.delete(key); }
+    };
+  }
+
+  test('storage.sanitizePrefs: valori non validi tornano a quelli di partenza, i campi sconosciuti restano', () => {
+    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' } };
+    [null, undefined, 'testo', [], 5].forEach(raw => assertEqual(storage.sanitizePrefs(raw), defaults, 'prefs: ' + JSON.stringify(raw)));
+    const messy = storage.sanitizePrefs({ lastTab: 'boh', lastTabAt: -5, suggest: { minutes: 25, energy: 'tanta', extra: 1 }, weeklyGoal: 10 });
+    assertEqual(messy, { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium', extra: 1 }, weeklyGoal: 10 });
+    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' } };
+    assertEqual(storage.sanitizePrefs(good), good, '«120+» (null) è una scelta valida');
+  });
+
+  test('storage.loadPrefs e savePrefs: andata e ritorno; archivio rotto o vuoto → preferenze di partenza', () => {
+    const area = fakeArea();
+    assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'niente salvato');
+    assert(storage.savePrefs({ lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' } }, area));
+    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' } });
+    area.items.set(storage.PREFS_KEY, '{rotto');
+    assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'testo illeggibile');
+    const broken = fakeArea({}, true);
+    assertEqual([storage.loadPrefs(broken).lastTab, storage.savePrefs({ lastTab: 'agenda' }, broken)], ['focus', false]);
+  });
+
+  test('tabOf: in ritardo, oggi e senza data → Focus; domani e oltre → Agenda; completate → Motivazione', () => {
+    const today = '2026-11-10';
+    const tab = overrides => T.tabOf(make(overrides), today);
+    assertEqual(
+      [tab({ date: '2026-11-08' }), tab({ date: today }), tab({ date: null }), tab({ date: '2026-11-11' }), tab({ date: '2026-12-01' }), tab({ done: true, completedAt: 1 })],
+      ['focus', 'focus', 'focus', 'agenda', 'agenda', 'motivation']
+    );
+    assertEqual(T.TABS, ['focus', 'agenda', 'motivation']);
+  });
+
+  test('isInTab: Focus mostra anche le completate di oggi; Agenda solo i giorni futuri; Motivazione tutte le completate', () => {
+    const today = '2026-11-10';
+    const doneToday = make({ done: true, completedAt: new Date(2026, 10, 10, 9).getTime() });
+    const doneYesterday = make({ done: true, completedAt: new Date(2026, 10, 9, 22).getTime() });
+    const tomorrow = make({ date: '2026-11-11' });
+    const where = task => T.TABS.filter(tab => T.isInTab(task, tab, today));
+    assertEqual([where(doneToday), where(doneYesterday), where(tomorrow), where(make({}))],
+      [['focus', 'motivation'], ['motivation'], ['agenda'], ['focus']]);
+  });
+
+  test('isTimePassed: solo le attività da fare di oggi con l\'ora già passata', () => {
+    const now = new Date(2026, 10, 10, 10, 30).getTime(); // martedì 10/11/2026 alle 10:30
+    const passed = overrides => T.isTimePassed(make({ date: '2026-11-10', ...overrides }), now);
+    assertEqual(
+      [passed({ time: '09:30' }), passed({ time: '10:29' }), passed({ time: '10:30' }), passed({ time: '18:00' }), passed({ time: null })],
+      [true, true, false, false, false]
+    );
+    assertEqual([passed({ time: '09:30', done: true, completedAt: now }), passed({ time: '09:30', date: '2026-11-09' }), passed({ time: '09:30', date: '2026-11-11' })],
+      [false, false, false], 'completata, di ieri (ha già la data in rosso), di domani');
+    const list = [make({ date: '2026-11-10', time: '08:00' }), make({ date: '2026-11-10', time: '23:00' }), make({ date: '2026-11-10', time: '10:00' })];
+    assertEqual([T.passedCount(list, now), T.passedCount(list, new Date(2026, 10, 10, 7).getTime())], [2, 0]);
+  });
+
+  test('completedOn: solo le completate nel giorno locale scelto, dalla più recente', () => {
+    const at = (day, hour, minute) => new Date(2026, 10, day, hour, minute || 0).getTime();
+    const list = [
+      make({ id: 'ieri-sera', done: true, completedAt: at(9, 23, 59) }),
+      make({ id: 'mattina', done: true, completedAt: at(10, 0, 1) }),
+      make({ id: 'sera', done: true, completedAt: at(10, 21) }),
+      make({ id: 'da-fare', done: false })
+    ];
+    assertEqual(T.completedOn(list, '2026-11-10').map(t => t.id), ['sera', 'mattina']);
+    assertEqual(T.completedOn(list, '2026-11-09').map(t => t.id), ['ieri-sera']);
   });
 
   test('storage.sanitizeTask: orario tenuto solo se valido e con un giorno', () => {

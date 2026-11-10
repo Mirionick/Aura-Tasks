@@ -12,12 +12,18 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 
 ## Cosa sa fare oggi
 - **Attività**: ognuna ha titolo, durata stimata in minuti, livello di energia (bassa/media/alta), data facoltativa e **orario** facoltativo.
+- **Tre schede**, con una barra in basso (vedi [docs/tre-modalita.md](docs/tre-modalita.md)):
+  - **Focus**, per fare: in ritardo, oggi, senza data e «Completate oggi»;
+  - **Agenda**, per pianificare: per ora «Domani» e «Prossimi giorni»;
+  - **Motivazione**, per i progressi: per ora serie e punti in grande, minuti di focus, storico delle completate e backup.
+- **«Cosa faccio adesso?»**: dici quanto tempo hai e come ti senti, e Aura propone un'attività, con il motivo.
+- **Focus a tutto schermo**: un timer sull'attività scelta, con pausa, +5 min e un suono alla fine. I **minuti di focus** finiscono nel registro.
 - **Gestione**: aggiungere, **modificare** (tocco sulla card), completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
-- **Backup dei dati**: esportare e importare un file JSON con attività, punti e serie (link "Backup dei dati" in fondo alla pagina).
+- **Backup dei dati**: esportare e importare un file JSON con attività, punti, serie e minuti di focus (link "Backup dei dati" in fondo a Motivazione).
 - **Scrivere una frase**, che compila il modulo da sola ("domani alle 10 dentista 30 min").
 - **Aprire il link `…/?add=testo`**, che apre il modulo già compilato (vedi [docs/linguaggio-naturale.md](docs/linguaggio-naturale.md)).
-- **Lista** divisa per giorno, con le attività in ordine d'ora.
-- **Riepilogo** nell'intestazione.
+- **Liste** divise per giorno, con le attività in ordine d'ora. In quelle di oggi l'ora già passata è in rosso.
+- **Riepilogo** nell'intestazione di Focus, compatta: "Da fare", "Tempo" e "Fatte oggi" in una riga, serie e punti in due chip.
 - **Tema** Automatico/Chiaro/Scuro e **uso offline**.
 - **Punti e serie**: ogni attività completata dà punti. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi [docs/punti-e-serie.md](docs/punti-e-serie.md)).
 - **Promemoria push** (facoltativi): un avviso prima delle attività con giorno e ora, anche ad app chiusa. L'anticipo si sceglie.
@@ -92,28 +98,32 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 
 | File | Ruolo |
 |---|---|
-| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; "Tema"; "Promemoria e Siri"; "Backup dei dati") e il `<template>` della card |
+| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, l'intestazione, le tre schede (`<section class="tab">`) con la barra (`<nav class="tabbar">`), i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; "Tema"; "Promemoria e Siri"; "Backup dei dati"; «Cosa faccio adesso?»; Focus a tutto schermo) e il `<template>` della card |
 | `css/style.css` | Design system: token (variabili) per i due temi, componenti, animazioni |
 | `js/theme.js` | Tema Automatico/Chiaro/Scuro. Caricato nel `<head>` **senza `defer`** per applicare il tema prima del primo disegno (niente lampi) |
 | `js/utils.js` | Date e orari locali, formattazione in italiano, saluto, id univoci |
-| `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, modifica, completamento, eliminazione e ripristino, sezioni, riepilogo |
+| `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, modifica, completamento, eliminazione e ripristino, sezioni, riepilogo. Schede: quali sezioni mostra ognuna (`TAB_SECTIONS`), in quale scheda si vede un'attività (`tabOf`, `isInTab`), completate di un giorno (`completedOn`), ora già passata (`isTimePassed`) |
 | `js/nlp.js` | Logica pura del linguaggio naturale: `parseTaskText(testo, adesso)` riconosce giorno, orario, durata ed energia in una frase |
 | `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione |
-| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione |
+| `js/focus.js` | Logica pura della modalità focus: sessione (`start`, `pause`, `resume`, `extend`), tempo che manca calcolato dagli istanti, esito di una sessione (`sessionResult`), minuti di focus nel registro (`recordMinutes`), pulizia di sessione e minuti |
+| `js/suggest.js` | Logica pura di «Cosa faccio adesso?»: `suggest(tasks, { minutes, energy, today, exclude, random })` sceglie la proposta e ne dice il motivo; pesi e scelte in `SUGGEST` |
+| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione. Preferenze (`aura-tasks:prefs`) e focus in corso (`aura-tasks:focus`) |
 | `js/reminders.js` | Logica pura dei promemoria: dalle attività con giorno e ora all'elenco per il server (`at`, `fireAt`), anticipi, impronta dell'elenco |
 | `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste, codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
-| `js/motion.js` | Movimento: durate e curve lette dai token di `style.css`, tecnica FLIP (`snapshot()` prima di `render()`, `play()` dopo), fantasmi degli elementi tolti, `flash()`. Tocca la pagina solo per le animazioni; `planFlip()` è pura e testata |
-| `js/app.js` | Interfaccia: disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", riquadri di serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Con `motion.js`, l'unico file che tocca la pagina |
+| `js/motion.js` | Movimento: durate e curve lette dai token di `style.css`, tecnica FLIP (`snapshot()` prima di `render()`, `play()` dopo), fantasmi degli elementi tolti, entrata di una scheda (`slideIn()`), `flash()`. Tocca la pagina solo per le animazioni; `planFlip()` è pura e testata |
+| `js/ui-focus.js` | Interfaccia dei fogli «Cosa faccio adesso?» e Focus a tutto schermo: proposta, timer, suono di fine (Web Audio), schermo acceso (wake lock), sfondo che respira. Tocca la pagina come `app.js`, che gli passa ciò che serve con `Aura.focusUI.init()` |
+| `js/app.js` | Interfaccia: schede e barra, disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Tocca la pagina insieme a `ui-focus.js` e, per le animazioni, a `motion.js` |
 | `sw.js` | Service worker: uso offline, notifiche dei promemoria (`push`) e tocco sulla notifica (`notificationclick`) |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
-| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`): si aprono con `tests/index.html` |
+| `images/` | Illustrazioni in WebP, ottimizzate dagli originali che restano fuori dal repository (vedi [docs/illustrazioni.md](docs/illustrazioni.md)). Per ora `suggest-none.webp` ed `empty-focus.webp` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`): si aprono con `tests/index.html` |
 | `docs/` | Le specifiche delle funzioni, una per file (vedi "Indice delle specifiche") |
 | `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md) e `server/README.md` |
 
-**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `app.js`.
-- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`).
-- `points.js` va prima di `storage.js`, che lo usa per la migrazione. `reminders.js` va prima di `remote.js`, che ne usa gli anticipi.
+**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `focus.js` → `suggest.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `ui-focus.js` → `app.js`.
+- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.focus`, `Aura.suggest`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`, `Aura.focusUI`).
+- `points.js`, `focus.js` e `suggest.js` vanno prima di `storage.js`, che li usa per la migrazione e per pulire registro, sessione e preferenze. `reminders.js` va prima di `remote.js`, che ne usa gli anticipi. `ui-focus.js` va prima di `app.js`, che lo avvia.
 
 Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 1. in `index.html`, con `defer`, prima di `app.js`;
@@ -125,7 +135,7 @@ Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 La chiave `aura-tasks:data` contiene:
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tasks": [
     {
       "id": "3f2c9a…",
@@ -144,7 +154,8 @@ La chiave `aura-tasks:data` contiene:
     "totalPoints": 24,
     "bestStreak": 1,
     "milestones": [],
-    "days": { "2026-10-29": { "done": 1, "points": 24 } }
+    "days": { "2026-10-29": { "done": 1, "points": 24 } },
+    "focus": { "2026-10-29": 25 }
   }
 }
 ```
@@ -160,8 +171,13 @@ La chiave `aura-tasks:data` contiene:
   - `totalPoints`: il totale dei punti.
   - `bestStreak`: il record, cioè la serie più lunga in `days`. Si ricalcola a ogni modifica.
   - `milestones`: i traguardi già festeggiati. Restano anche dopo "Annulla", così la festa non si ripete.
+  - `focus`: i minuti di focus per giorno (interi tra 1 e 1440). È una mappa separata da `days`: non tocca punti, serie e record. Il giorno è quello locale in cui il focus si è fermato.
 - Le altre chiavi:
   - `aura-tasks:theme`: `auto` | `light` | `dark`;
+  - `aura-tasks:prefs`: preferenze, **senza versione** e fuori dal backup. La scrive e la legge solo `js/storage.js` (`loadPrefs()`, `savePrefs()`), che pulisce i valori e conserva i campi sconosciuti. Contiene:
+    - `lastTab` e `lastTabAt`: l'ultima scheda e quando è stata usata. Riaprendo Aura entro 30 minuti si riparte da lì, altrimenti da Focus;
+    - `suggest`: `{ minutes, energy }`, l'ultima scelta di «Cosa faccio adesso?» (`minutes: null` vuol dire «120+»);
+  - `aura-tasks:focus`: il focus in corso, `{ taskId, startedAt, durationMs, pausedAt, pausedTotalMs }`. Fuori dal backup. La scrive e la legge solo `js/storage.js` (`loadFocus()`, `saveFocus()`, `clearFocus()`). Ricaricando la pagina il focus riprende da qui;
   - `aura-tasks:backup-<timestamp>`: copia di dati illeggibili trovati all'avvio; l'app la crea e riparte da una lista vuota;
   - `aura-tasks:remote`: collegamento al server, scritto solo da `js/remote.js` e separato dai dati, quindi **senza versione dello schema**. Contiene:
     - `code`: codice segreto del dispositivo, oppure `null` finché l'utente non attiva promemoria o Siri;
@@ -175,10 +191,10 @@ La chiave `aura-tasks:data` contiene:
 
 **File di backup** (`aura-tasks-backup-AAAA-MM-GG.json`, giorno locale):
 ```json
-{ "format": "aura-tasks-backup", "exportedAt": 1793…, "data": { "version": 3, "tasks": […], "stats": {…} } }
+{ "format": "aura-tasks-backup", "exportedAt": 1793…, "data": { "version": 4, "tasks": […], "stats": {…} } }
 ```
-- `data` è tutto `aura-tasks:data` così com'è, compresi i campi sconosciuti.
-- Non contiene mai `aura-tasks:remote` (codice segreto del dispositivo, promemoria, casella di Siri) né il tema: il backup legge solo lo stato.
+- `data` è tutto `aura-tasks:data` così com'è, compresi i campi sconosciuti e i minuti di focus.
+- Non contiene mai `aura-tasks:remote` (codice segreto del dispositivo, promemoria, casella di Siri), il tema, le preferenze o il focus in corso: il backup legge solo lo stato.
 - Leggendo un file si usa solo `data`, che passa da `fromData()`, cioè dagli stessi controlli e dalle stesse migrazioni dei dati salvati.
 
 **Dalla v1 alla v2**:
@@ -187,6 +203,8 @@ La chiave `aura-tasks:data` contiene:
 3. `parse()` ricostruisce `stats` con `Aura.points.rebuildStats()`. I traguardi già superati si segnano senza festa.
 
 **Dalla v2 alla v3**: `migrate()` cambia solo il numero di versione, e `sanitizeTask()` aggiunge `time: null` alle attività. Punti, registro e campi sconosciuti restano intatti, come verifica un test.
+
+**Dalla v3 alla v4**: `migrate()` cambia solo il numero di versione, e `sanitizeStats()` aggiunge `focus: {}` al registro. Attività, punti, serie e campi sconosciuti restano intatti, come verifica un test. I backup della v1, v2 e v3 si importano ancora.
 
 I dati migrati vengono salvati alla prima modifica.
 
@@ -202,7 +220,12 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
 
 ## Convenzioni
 
-- **Logica pura e pagina sono separate.** `utils.js`, `tasks.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. Solo `app.js` tocca la pagina, insieme a `motion.js` per le animazioni.
+- **Logica pura e pagina sono separate.** `utils.js`, `tasks.js`, `focus.js`, `suggest.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. La pagina la toccano solo `app.js` e `ui-focus.js`, insieme a `motion.js` per le animazioni.
+- **Schede**: sono tre `<section class="tab">` dentro `#main`; quelle non attive hanno `hidden`. Si cambiano solo con `showTab()`.
+  - `render()` ridisegna tutte e tre: una stessa attività può avere una card in due schede (completata oggi: «Completate oggi» in Focus e lo storico in Motivazione). Per cercare una card si usa `cardOf(id)`, che guarda solo la scheda attiva.
+  - Le animazioni FLIP lavorano su `#main` e saltano da sole ciò che sta sotto `[hidden]`.
+  - Serie e punti hanno due copie, i chip di Focus e i riquadri grandi di Motivazione: gli effetti vanno su quella che si vede (`rewardTargets()`).
+  - **Intestazione di Focus compatta**: su iPhone 13 in Safari (390×664) resta sotto i 220 px e lascia vedere 4 card. Prima di aggiungerle qualcosa, misura.
 - **Ogni modifica passa da `commit()`** in `app.js`, che salva e ridisegna. `render()` ridisegna tutto partendo da `state`: i dati sono pochi, quindi è veloce e non ci sono stati "sfasati". `commit()` fa anche scivolare le card al loro posto (vedi "Movimento").
   - Unica eccezione: importare un backup e ripristinare la copia sostituiscono **tutto** lo stato. Salvano `storage.replaceData()` e `storage.restoreBeforeImport()`, poi `applyState()` ridisegna.
 - **Date**: usa sempre `Aura.utils` (`todayISO`, `addDays`, `daysBetween`, `parseISODate`, `isISODate`…).
@@ -233,7 +256,7 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - testo dei campi ≥ 16 px, altrimenti iOS ingrandisce la pagina;
   - aree di tocco ≥ 44 px;
   - margini con `env(safe-area-inset-*)`;
-  - animazioni brevi, disattivate con `prefers-reduced-motion`, e **mai infinite** perché consumano batteria (vedi "Movimento").
+  - animazioni brevi, disattivate con `prefers-reduced-motion`, e **mai infinite** perché consumano batteria (vedi "Movimento"). Unica eccezione: lo sfondo del focus a tutto schermo.
 - **Movimento** (`js/motion.js`, token in `:root`):
   - durate e curve solo dai token `--dur-*` e `--ease-*`, anche come multipli con `calc()`. Il JavaScript li legge con `Aura.motion.ms('move')` e `Aura.motion.ease('out')`, timer di riserva compresi: nessuna durata scritta a mano;
   - movimenti, keyframes ed elementi grandi (card, fogli, intestazione, pagina) si animano **solo con `transform` e `opacity`**. I piccoli controlli (pulsanti, chip, campi, spunta, titolo barrato, opzioni del tema, fiamma) possono sfumare i colori, con `--dur-color` (al massimo 200 ms);
@@ -243,8 +266,15 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - **si anima il blocco più grande che si muove insieme**: le chiavi si annidano (le card dentro le sezioni). Una sezione scivola intera, e una sua card si sposta solo per la parte che la sezione non fa già; il contenuto di «Completate» entra ed esce come un blocco unico. Ogni elemento animato costa lavoro a ogni fotogramma: con una card per volta, «Completate» perdeva 15 fotogrammi invece di 2 (Edge con la CPU rallentata);
   - gli elementi tolti escono come **fantasmi** nel livello `.motion-ghosts`: senza `id`, `data-id` e `data-flip`, `inert`, tolti a fine animazione. Il loro aspetto non deve dipendere dal contenitore (per esempio il rosso di «In ritardo» sta sul titolo);
   - il cambio tema è istantaneo (`.theme-instant` spegne per un attimo le transizioni): far sfumare tutta la pagina pesava troppo, e le View Transitions facevano cadere WebKit nelle prove;
+  - **cambio di scheda**: la scheda nuova entra con `Aura.motion.slideIn()`, un'animazione sola per tutta la scheda; la vecchia sparisce subito;
+  - **sfondo del focus che respira**: è l'unica animazione continua. Gira solo con la classe `.is-breathing`, cioè a foglio aperto, pagina visibile e tempo che scorre.
+    - I due bagliori sono disegnati piccoli (30vmax) e ingranditi con `scale`, con `will-change`: così occupano poca memoria.
+    - `ui-focus.js` misura una volta i fotogrammi a regime (`watchBreath()`): se il dispositivo non regge, lo sfondo resta fermo;
+  - **lavoro pesante nel tocco**: ciò che blocca il thread principale all'inizio di un'animazione le fa perdere fotogrammi. L'`AudioContext` del focus si crea al `pointerdown`, mentre il dito è ancora giù, e si sblocca nel `click`;
   - con `prefers-reduced-motion` il CSS azzera le durate e `Aura.motion` non anima nulla.
 - **Fogli `<dialog>`**: aprili e chiudili con `openSheet()` e `closeSheet()` di `app.js`, che gestiscono animazione, blocco dello scorrimento e chiusura con Esc, "indietro" o tocco sullo sfondo. Non contare sull'evento `close` per pulizie indispensabili.
+  - `setupSheet(dialog, { onCancel, backdropClose })`: il focus a tutto schermo non si chiude toccando fuori, e per lui Esc e "indietro" valgono «Esci».
+  - Dentro un foglio aperto gli avvisi in basso non si vedono. Un'azione che ne ha bisogno, come «Fatto» o «Completa», prima chiude il foglio.
 - **Service worker**: quando aggiungi o rinomini un file dell'app, aggiungilo ad `APP_FILES` in `sw.js` e aumenta `CACHE_VERSION`.
 - **Test**: ogni nuova logica pura ha i suoi test in `tests/`.
 - **Premium**: qualsiasi controllo premium passa **solo** da `isPremium()` (vedi la sezione "Funzioni premium").
@@ -293,6 +323,10 @@ Note per i controlli automatici con Edge headless:
 - Per toccare la card in un punto preciso (per esempio la riga della durata) si usano le coordinate (`page.touchscreen.tap(x, y)`): lì il tocco arriva al `::after` del pulsante, e Playwright altrimenti si rifiuta di toccare.
 - La spunta si tocca su `.check` (l'etichetta), non sull'input invisibile che le sta sotto.
 - WebKit su Windows è caduto (crash della pagina) con le View Transitions, dopo una lunga sequenza di prove in un `<iframe>`: per questo l'app non le usa.
+- **Tempo finto** (`page.clock`, da installare prima di aprire la pagina): serve per il timer del focus e per l'ora che passa. `fastForward()` salta in avanti, ma tra un passo e l'altro l'orologio continua a scorrere: i controlli sul tempo mostrato tollerano qualche secondo.
+- WebKit su Windows **non ha `AudioContext`**: il suono di fine focus si può provare solo sull'iPhone. L'app continua senza errori.
+- Una scheda nascosta non è "visibile" per Playwright: dopo un ricaricamento si aspetta `#hero`, non un elemento della lista.
+- **Intestazione e card visibili**: si misurano a 390×664, cioè iPhone 13 in Safari, contando le card intere sopra la barra delle schede.
 
 **Animazioni** (con Playwright, script nella cartella temporanea):
 - **regola**: a ogni fotogramma si legge `document.getAnimations()`. Keyframes, `element.animate` e transizioni degli elementi grandi devono toccare solo `transform` e `opacity`; le transizioni di colore solo i piccoli controlli, per al massimo 200 ms. In più un controllo statico di `style.css`: `@keyframes` e `transition` con le stesse regole, tempi solo dai token, niente `backdrop-filter`;
@@ -301,7 +335,10 @@ Note per i controlli automatici con Edge headless:
   - Si misurano gli intervalli tra i fotogrammi con `requestAnimationFrame`: un intervallo oltre 1,5 × 16,7 ms conta come fotogrammi persi, tanti quanti ne salta.
   - Edge gira con la CPU rallentata 4 volte via CDP (`Emulation.setCPUThrottlingRate`), come un telefono di fascia media; WebKit gira come "iPhone 13".
   - Si fanno 5 ripetizioni e si usa la mediana.
-  - WebKit headless su Windows perde fotogrammi anche da fermo: i suoi numeri valgono solo come confronto.
+  - WebKit headless su Windows vale solo come confronto, e con due avvertenze misurate a novembre 2026:
+    - da fermo serve meno fotogrammi (circa 74 "persi" in 6 secondi), mentre con un puntino di 8 px che sfuma ne perde 0: un gesto che anima poco può sembrare peggiore di uno che anima molto;
+    - non ha accelerazione grafica: un'animazione a tutto schermo, anche solo di `opacity`, scende a circa 7 fotogrammi al secondo. Su iPhone quei livelli li muove la scheda grafica.
+  - Un tocco di Playwright è istantaneo. Per misurare ciò che succede mentre il dito è giù, in Edge si usano `touchStart` e `touchEnd` separati via CDP (`Input.dispatchTouchEvent`).
 
 ## Design
 
@@ -313,7 +350,13 @@ Note per i controlli automatici con Edge headless:
   - accento schiarito (`--accent-text`);
   - colori dell'energia ricalibrati su sfondi tenui.
 - **Energia**: verde acqua per bassa, ambra per media, rosa per alta. C'è sempre l'icona a barre più il testo, mai solo il colore.
-- **Serie e punti**: seconda riga di riquadri nell'intestazione.
+- **Barra delle schede**: in basso, con Focus, Agenda e Motivazione (icona e testo). Una pillola tenue dietro la scheda attiva scivola con `transform`. «+ Nuova attività» e gli avvisi stanno sopra la barra (`--tabbar-h`).
+- **Intestazione per scheda**:
+  - in Focus è compatta: saluto con i due chip di serie e punti, data, e "Da fare", "Tempo", "Fatte oggi" in una riga, con etichetta e valore affiancati. «Cosa faccio adesso?» sta a cavallo del suo bordo inferiore (`.hero--cta`);
+  - in Agenda c'è solo il nome della scheda;
+  - in Motivazione, fino alla fase 4, ci sono i riquadri grandi di serie e punti.
+- **Focus a tutto schermo**: i colori dell'intestazione "aura" in entrambi i temi, con testo chiaro, un grande anello del tempo che manca e due bagliori che respirano piano.
+- **Serie e punti**: due chip nell'intestazione di Focus e due riquadri grandi in quella di Motivazione, con gli stessi effetti.
   - Serie "accesa" quando oggi c'è già un completamento: gradiente caldo arancio-rosa e fiamma colorata.
   - Serie "da accendere" negli altri casi: fiamma grigia.
   - Per il testo sul riquadro acceso: `--streak-tile-a/b` sono scelti per il contrasto ≥ 4,5:1 col bianco.
@@ -321,7 +364,7 @@ Note per i controlli automatici con Edge headless:
   - Gli effetti (anello sulla spunta, "+N" che vola nel riquadro dei punti, conteggio, fiamma che si accende, coriandoli ai traguardi):
     - sono brevi e finiti;
     - si spengono con "Riduci movimento";
-    - animano il **contenuto** dei riquadri. Il bagliore dei traguardi è un livello della griglia (`.stats--rewards::before`), perché il riquadro ha `overflow: hidden` e lo taglierebbe.
+    - animano il **contenuto** dei riquadri. Il bagliore dei traguardi è un livello della griglia (`.stats--rewards::before`), perché il riquadro ha `overflow: hidden` e lo taglierebbe. Nel chip della serie il bagliore e lo sfondo caldo sono due livelli del chip (`.mini--streak::before` e `::after`).
 - **Promemoria e Siri**:
   - la campanella nell'intestazione ha un puntino dorato quando i promemoria sono attivi;
   - il foglio ha due riquadri (`.panel`);
@@ -346,8 +389,8 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 | [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md) | Server di Aura: promemoria push, casella di Siri, limiti; prova completa in locale | realizzata |
 | [docs/modifica.md](docs/modifica.md) | Modificare un'attività | realizzata |
 | [docs/backup.md](docs/backup.md) | Esportare, importare e ripristinare i dati | realizzata |
-| [docs/tre-modalita.md](docs/tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fase 1 fatta, da provare sull'iPhone |
-| [docs/illustrazioni.md](docs/illustrazioni.md) | Illustrazioni: flusso, elenco e prompt per Nano Banana | in corso |
+| [docs/tre-modalita.md](docs/tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fasi 1 e 2a fatte, da provare sull'iPhone |
+| [docs/illustrazioni.md](docs/illustrazioni.md) | Illustrazioni: flusso, revisione, elenco e prompt per Nano Banana | in corso: 2 nell'app (una da sostituire), 5 da rifare |
 | [docs/funzioni-future.md](docs/funzioni-future.md) | Web Share Target e scorciatoie (Android), promemoria `.ics`, altre idee | da fare |
 | [docs/premium.md](docs/premium.md) | Licenza premium: verifica offline, interfaccia e dati | da fare |
 
@@ -359,9 +402,14 @@ L'app si divide in tre schede, con una barra in basso:
 
 Niente si toglie né peggiora: ogni funzione di oggi resta, al massimo cambia posto. Le fasi sono quattro; ognuna si pubblica da sola e si prova sull'iPhone prima della successiva:
 1. animazioni più fluide (fatta, da provare sull'iPhone);
-2. barra delle schede e Focus;
+2. barra delle schede e Focus:
+   - 2a, con «Cosa faccio adesso?», il timer e i minuti di focus (fatta e pubblicata con la v9, da provare sull'iPhone);
+   - 2b, la notifica push alla fine del focus (approvata: è un passo a parte, da fare dopo la prova della 2a sull'iPhone);
+   - due passi a parte dopo la 2a: apertura più leggera di «Nuova attività» e «Dimensione testo» dell'iPhone;
 3. Agenda;
 4. Motivazione, con le illustrazioni.
+
+Ogni illustrazione entra con la fase che la usa, nella versione che c'è in quel momento (vedi [docs/illustrazioni.md](docs/illustrazioni.md)).
 
 ## Funzioni premium (in futuro)
 
@@ -404,7 +452,7 @@ Le funzioni di oggi restano gratuite anche dove cambiano posto (vedi [docs/tre-m
 Come funzionerà la licenza (verifica offline, interfaccia e dati): vedi [docs/premium.md](docs/premium.md).
 
 ## Ordine consigliato (visione "segretario personale")
-Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati.
+Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati, animazioni più fluide, barra delle schede e Focus con «Cosa faccio adesso?» e il timer (schema v4).
 1. ~~**Linguaggio naturale con orario** e aggiunta con il link `?add=testo`~~: fatto.
 2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
 3. ~~**Promemoria con notifiche Web Push**~~: fatto. Resta, facoltativa, l'esportazione `.ics`.

@@ -1,18 +1,22 @@
 /*
  * Aura Tasks — salvataggio nel localStorage e file di backup.
- * Le funzioni pure (parse, migrate, sanitizeTask, sanitizeStats, serialize, backupFile, readBackup) sono separate
- * da quelle che toccano l'archivio del browser (load, save e la copia di prima di un'importazione), così si possono
- * testare senza localStorage. Le funzioni della copia ricevono l'archivio come parametro: nei test è uno finto.
+ * Le funzioni pure (parse, migrate, sanitizeTask, sanitizeStats, sanitizePrefs, serialize, backupFile, readBackup) sono
+ * separate da quelle che toccano l'archivio del browser (load, save, la copia di prima di un'importazione, preferenze e
+ * focus in corso), così si possono testare senza localStorage. Le funzioni della copia, delle preferenze e del focus
+ * ricevono l'archivio come parametro: nei test è uno finto.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, points: P } = Aura;
+  const { utils, tasks: T, points: P, focus: F, suggest: S } = Aura;
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
   // Dati di prima dell'ultima importazione di un backup, per poterli ripristinare: una sola copia, sovrascritta ogni volta.
   const BEFORE_IMPORT_KEY = 'aura-tasks:before-import';
+  // Preferenze (ultima scheda, scelte di «Cosa faccio adesso?») e focus in corso: senza versione e fuori dal backup.
+  const PREFS_KEY = 'aura-tasks:prefs';
+  const FOCUS_KEY = 'aura-tasks:focus';
   const BACKUP_FORMAT = 'aura-tasks-backup';
   const BACKUP_ERRORS = {
     unreadable: 'Questo file non si può leggere: scegli un backup di Aura (un file .json).',
@@ -20,7 +24,7 @@
     damaged: 'Il backup è danneggiato: mancano le attività.'
   };
   // Per cambiare lo schema: aumenta questo numero e aggiungi un passo in migrate() (vedi CLAUDE.md).
-  const SCHEMA_VERSION = 3;
+  const SCHEMA_VERSION = 4;
 
   const isCount = value => Number.isInteger(value) && value >= 0;
 
@@ -40,6 +44,10 @@
     if (state.version === 2) {
       // v3: orario facoltativo. Le attività lo ricevono (null) da sanitizeTask(); punti e registro restano intatti.
       state.version = 3;
+    }
+    if (state.version === 3) {
+      // v4: minuti di focus nel registro (stats.focus). Li aggiunge vuoti sanitizeStats(); il resto resta intatto.
+      state.version = 4;
     }
     return state;
   }
@@ -81,7 +89,8 @@
 
   /**
    * Ripulisce il registro di punti e serie. I giorni non validi vengono scartati; totale e record
-   * non validi si ricalcolano dai giorni. I campi sconosciuti vengono conservati.
+   * non validi si ricalcolano dai giorni. I minuti di focus (v4) passano da Aura.focus.sanitizeMinutes.
+   * I campi sconosciuti vengono conservati.
    */
   function sanitizeStats(raw) {
     const rawDays = raw.days && typeof raw.days === 'object' ? raw.days : {};
@@ -100,7 +109,8 @@
       totalPoints: isCount(raw.totalPoints) ? raw.totalPoints : sum,
       bestStreak: isCount(raw.bestStreak) ? raw.bestStreak : P.longestStreak(days),
       milestones,
-      days
+      days,
+      focus: F.sanitizeMinutes(raw.focus)
     };
   }
 
@@ -241,6 +251,75 @@
     return true;
   }
 
+  /* ---------- Preferenze e focus in corso ---------- */
+
+  /**
+   * Preferenze ripulite: ultima scheda usata e quando (lastTab, lastTabAt), scelte di «Cosa faccio adesso?» (suggest).
+   * I valori non validi tornano a quelli di partenza; i campi sconosciuti vengono conservati.
+   */
+  function sanitizePrefs(raw) {
+    const base = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const suggest = base.suggest && typeof base.suggest === 'object' && !Array.isArray(base.suggest) ? base.suggest : {};
+    const defaults = S.SUGGEST.defaults;
+    return {
+      ...base,
+      lastTab: T.TABS.includes(base.lastTab) ? base.lastTab : T.TABS[0],
+      lastTabAt: Number.isFinite(base.lastTabAt) && base.lastTabAt > 0 ? base.lastTabAt : 0,
+      suggest: {
+        ...suggest,
+        minutes: S.SUGGEST.minutes.includes(suggest.minutes) ? suggest.minutes : defaults.minutes,
+        energy: T.ENERGY_KEYS.includes(suggest.energy) ? suggest.energy : defaults.energy
+      }
+    };
+  }
+
+  /** Le preferenze salvate, ripulite; quelle di partenza se mancano o sono illeggibili. */
+  function loadPrefs(area) {
+    try {
+      return sanitizePrefs(JSON.parse((area || window.localStorage).getItem(PREFS_KEY)));
+    } catch (err) {
+      return sanitizePrefs(null);
+    }
+  }
+
+  /** Salva le preferenze. Restituisce false se il browser non lo permette: non sono dati importanti, si continua lo stesso. */
+  function savePrefs(prefs, area) {
+    try {
+      (area || window.localStorage).setItem(PREFS_KEY, JSON.stringify(sanitizePrefs(prefs)));
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  /** Il focus in corso, ripulito da Aura.focus.sanitizeSession; null se non c'è o è illeggibile. */
+  function loadFocus(area) {
+    try {
+      const raw = (area || window.localStorage).getItem(FOCUS_KEY);
+      return raw === null ? null : F.sanitizeSession(JSON.parse(raw));
+    } catch (err) {
+      return null;
+    }
+  }
+
+  /** Salva il focus in corso: ricaricando la pagina riprende da qui. Restituisce false se non riesce. */
+  function saveFocus(session, area) {
+    try {
+      (area || window.localStorage).setItem(FOCUS_KEY, JSON.stringify(session));
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function clearFocus(area) {
+    try {
+      (area || window.localStorage).removeItem(FOCUS_KEY);
+    } catch (err) {
+      // Archivio non disponibile: non c'è niente da cancellare.
+    }
+  }
+
   /**
    * Legge i dati salvati. Restituisce { state, warning }: `warning` è un messaggio per l'utente
    * quando qualcosa non va (archivio non disponibile o dati illeggibili), altrimenti null.
@@ -297,6 +376,8 @@
   Aura.storage = {
     KEY,
     BEFORE_IMPORT_KEY,
+    PREFS_KEY,
+    FOCUS_KEY,
     SCHEMA_VERSION,
     BACKUP_FORMAT,
     emptyState,
@@ -313,6 +394,12 @@
     requestPersistence,
     replaceData,
     loadBeforeImport,
-    restoreBeforeImport
+    restoreBeforeImport,
+    sanitizePrefs,
+    loadPrefs,
+    savePrefs,
+    loadFocus,
+    saveFocus,
+    clearFocus
   };
 })(window.Aura = window.Aura || {});

@@ -1,14 +1,15 @@
 /*
  * Aura Tasks — interfaccia.
- * Unico file che tocca la pagina: disegna la lista partendo da `state` e trasforma i gesti
- * dell'utente in chiamate ad Aura.tasks, Aura.points e Aura.storage. Ogni modifica passa da commit();
- * solo l'importazione di un backup (e il suo ripristino) sostituisce tutto lo stato, con applyState().
+ * Disegna le tre schede (Focus, Agenda, Motivazione) partendo da `state` e trasforma i gesti dell'utente in chiamate
+ * ad Aura.tasks, Aura.points e Aura.storage. Ogni modifica passa da commit(); solo l'importazione di un backup
+ * (e il suo ripristino) sostituisce tutto lo stato, con applyState().
+ * I fogli «Cosa faccio adesso?» e Focus stanno in js/ui-focus.js, che riceve da qui quello che gli serve.
  * Promemoria e casella di Siri (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, storage, theme, reminders: RM, remote: R, motion: M } = Aura;
+  const { utils, tasks: T, nlp, points: P, focus: F, storage, theme, reminders: RM, remote: R, motion: M, focusUI: FocusUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -17,6 +18,28 @@
   const els = {
     hero: byId('hero'),
     scrim: byId('statusbar-scrim'),
+    heroFocus: byId('hero-focus'),
+    heroTab: byId('hero-tab'),
+    heroTitle: byId('hero-title'),
+    heroSubtitle: byId('hero-subtitle'),
+    miniRewards: byId('rewards-mini'),
+    miniStreak: byId('mini-streak'),
+    miniStreakValue: byId('mini-streak-value'),
+    miniPoints: byId('mini-points'),
+    miniPointsValue: byId('mini-points-value'),
+    tabbar: byId('tabbar'),
+    tabButtons: Array.from(document.querySelectorAll('.tabbar__tab')),
+    tabFocus: byId('tab-focus'),
+    tabAgenda: byId('tab-agenda'),
+    tabMotivation: byId('tab-motivation'),
+    suggestButton: byId('suggest-button'),
+    agendaSections: byId('agenda-sections'),
+    agendaEmpty: byId('agenda-empty'),
+    emptyAgendaLink: byId('empty-agenda-link'),
+    focusMinutesText: byId('focus-minutes-text'),
+    historyCount: byId('history-count'),
+    historyList: byId('history-list'),
+    historyEmpty: byId('history-empty'),
     greeting: byId('greeting'),
     today: byId('today-label'),
     statOpen: byId('stat-open'),
@@ -47,6 +70,7 @@
     form: byId('add-form'),
     submitIcon: byId('add-submit-icon'),
     submitText: byId('add-submit-text'),
+    editFocus: byId('edit-focus'),
     editNote: byId('edit-note'),
     editNoteText: byId('edit-note-text'),
     phraseField: byId('phrase-field'),
@@ -119,10 +143,22 @@
   const DATED_SECTIONS = ['overdue', 'upcoming']; // nelle altre sezioni la data è già nel titolo
   const ERROR_FIELDS = ['title', 'duration', 'energy', 'date', 'time'];
   const FIELD_INPUTS = { title: els.title, duration: els.duration, date: els.dateInput, time: els.timeInput };
+  // Le schede: nome, titolo nell'intestazione (Agenda e Motivazione) e la loro <section>.
+  const TABS = {
+    focus: { name: 'Focus', section: els.tabFocus },
+    agenda: { name: 'Agenda', title: 'Agenda', subtitle: 'Domani e i prossimi giorni', section: els.tabAgenda },
+    motivation: { name: 'Motivazione', title: 'Motivazione', subtitle: 'Serie, punti e attività completate', section: els.tabMotivation }
+  };
+  const LAST_TAB_MS = 30 * 60 * 1000; // riaprendo Aura entro 30 minuti dall'ultimo uso si riparte dall'ultima scheda
 
   const loaded = storage.load();
   let state = loaded.state;
+  let prefs = storage.loadPrefs(); // ultima scheda e scelte di «Cosa faccio adesso?» (aura-tasks:prefs)
+  let activeTab = Date.now() - prefs.lastTabAt < LAST_TAB_MS ? prefs.lastTab : 'focus';
+  const tabScroll = { focus: 0, agenda: 0, motivation: 0 }; // ogni scheda ricorda dov'era arrivato lo scorrimento
+  let focusCtl = null; // fogli «Cosa faccio adesso?» e Focus (js/ui-focus.js), pronti all'avvio
   let renderedDay = null;
+  let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
   let editedId = null; // attività appena modificata: solo il bagliore, senza l'entrata
   const busy = new Set(); // attività in animazione: i doppi tocchi vengono ignorati
@@ -148,6 +184,7 @@
     }
     if (!saved) showToast('Impossibile salvare: la memoria del browser è piena o disattivata.', { duration: 6000 });
     scheduleReminderSync(); // con i promemoria spenti non fa nulla
+    if (focusCtl) focusCtl.sync(); // l'attività del focus completata o eliminata: la sessione si chiude
     return saved;
   }
 
@@ -156,6 +193,65 @@
     state = next;
     render();
     scheduleReminderSync(); // con i promemoria attivi, il server riceve l'elenco nuovo
+    if (focusCtl) focusCtl.sync();
+  }
+
+  /* ---------- Schede ---------- */
+
+  /** Barra, intestazione e sezioni secondo la scheda attiva. Quelle non attive hanno `hidden`. */
+  function syncTabs() {
+    T.TABS.forEach(name => { TABS[name].section.hidden = name !== activeTab; });
+    els.tabButtons.forEach(button => {
+      if (button.dataset.tab === activeTab) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    els.tabbar.dataset.active = activeTab; // la pillola scivola sulla scheda (CSS, con transform)
+    const info = TABS[activeTab];
+    els.heroFocus.hidden = activeTab !== 'focus';
+    els.heroTab.hidden = activeTab === 'focus';
+    els.rewards.hidden = activeTab !== 'motivation'; // serie e punti in grande, fino alla fase 4
+    if (info.title) {
+      els.heroTitle.textContent = info.title;
+      els.heroSubtitle.textContent = info.subtitle;
+    }
+    syncHeroCta();
+  }
+
+  /**
+   * In Focus «Cosa faccio adesso?» sta a cavallo del bordo dell'intestazione, che gli lascia il posto (.hero--cta).
+   * Quando il pulsante compare o sparisce l'intestazione cambia altezza: va rimisurata per la fascia della barra di stato.
+   */
+  function syncHeroCta() {
+    const on = activeTab === 'focus' && !els.suggestButton.hidden;
+    if (els.hero.classList.contains('hero--cta') === on) return;
+    els.hero.classList.toggle('hero--cta', on);
+    measureHero();
+  }
+
+  /** Ricorda la scheda e quando è stata usata: riaprendo Aura entro 30 minuti si riparte da qui. */
+  function rememberTab() {
+    prefs = { ...prefs, lastTab: activeTab, lastTabAt: Date.now() };
+    storage.savePrefs(prefs);
+  }
+
+  /**
+   * Apre una scheda. Quella nuova entra con una dissolvenza e un breve scorrimento nella direzione del cambio:
+   * un'animazione sola per tutta la scheda (il blocco più grande che si muove insieme). Ogni scheda ritrova il suo scorrimento.
+   */
+  function showTab(tab, { animate = true } = {}) {
+    if (!TABS[tab]) tab = 'focus';
+    const previous = activeTab;
+    if (tab === previous) return;
+    tabScroll[previous] = window.scrollY;
+    activeTab = tab;
+    syncTabs();
+    measureHero();
+    window.scrollTo(0, tabScroll[tab]);
+    rememberTab();
+    if (!animate) return;
+    const direction = T.TABS.indexOf(tab) > T.TABS.indexOf(previous) ? 1 : -1;
+    M.slideIn(TABS[tab].section, direction * 24);
+    M.slideIn(activeTab === 'focus' ? els.heroFocus : els.heroTab, 0);
   }
 
   /* ---------- Disegno ---------- */
@@ -165,11 +261,24 @@
     const today = utils.toISODate(now);
     const hadFocus = els.main.contains(document.activeElement) && document.activeElement !== els.main;
     const { sections, completed } = T.groupTasks(state.tasks, today);
+    const focusSections = sections.filter(section => T.TAB_SECTIONS.focus.includes(section.key));
+    const agendaSections = sections.filter(section => T.TAB_SECTIONS.agenda.includes(section.key));
+    const agendaCount = agendaSections.reduce((sum, section) => sum + section.tasks.length, 0);
 
     renderHeader(now, today);
-    renderSections(sections, today);
-    renderCompleted(completed, today);
-    renderEmpty(sections.length === 0, completed.length, today);
+    // Focus: «Cosa faccio adesso?», In ritardo, Oggi, Senza data e «Completate oggi»
+    els.suggestButton.hidden = focusSections.length === 0;
+    syncHeroCta();
+    renderSections(els.sections, focusSections, now);
+    renderCompletedToday(T.completedOn(state.tasks, today), now);
+    renderEmpty(focusSections.length === 0, completed.length, agendaCount, today);
+    // Agenda (fino alla fase 3): Domani e Prossimi giorni
+    renderSections(els.agendaSections, agendaSections, now);
+    els.agendaEmpty.hidden = agendaSections.length > 0;
+    // Motivazione (fino alla fase 4): minuti di focus e storico delle completate
+    renderFocusMinutes(today);
+    renderHistory(completed, now);
+    renderedPassed = T.passedCount(state.tasks, now);
 
     // Se l'elemento che aveva il focus è stato ridisegnato, il focus resta nella lista (utile da tastiera).
     if (hadFocus && !els.main.contains(document.activeElement)) els.main.focus({ preventScroll: true });
@@ -191,13 +300,20 @@
 
   const daysLabel = count => (count === 1 ? '1 giorno' : count + ' giorni');
 
-  /** Riquadri della serie (accesa se oggi c'è già un completamento) e dei punti. */
+  /**
+   * Serie (accesa se oggi c'è già un completamento) e punti: in piccolo nell'intestazione di Focus,
+   * in grande in quella di Motivazione, con record, nota e barra del traguardo.
+   */
   function renderRewards(today, todayTotals) {
     const { stats } = state;
     const streak = P.currentStreak(stats.days, today);
     const lit = todayTotals.done > 0;
     const next = P.nextMilestone(streak);
     const isRecord = streak >= 3 && streak >= stats.bestStreak;
+
+    els.miniStreak.classList.toggle('is-lit', lit);
+    els.miniStreakValue.textContent = daysLabel(streak);
+    els.miniRewards.setAttribute('aria-label', 'Serie: ' + daysLabel(streak) + '. Punti: ' + utils.formatNumber(stats.totalPoints) + '. Apri Motivazione');
 
     els.statStreak.classList.toggle('is-lit', lit);
     els.streakValue.textContent = daysLabel(streak);
@@ -221,7 +337,11 @@
     shownPoints = total;
     cancelAnimationFrame(countFrame);
     clearTimeout(countTimer);
-    const show = value => { els.pointsValue.textContent = utils.formatNumber(value); };
+    const show = value => {
+      const text = utils.formatNumber(value);
+      els.pointsValue.textContent = text;
+      els.miniPointsValue.textContent = text;
+    };
     const duration = M.ms('reward');
     if (from === null || from === total || !duration || document.hidden) {
       show(total);
@@ -243,7 +363,8 @@
     }, duration + M.ms('exit'));
   }
 
-  function renderSections(sections, today) {
+  /** Sezioni della lista di una scheda. `now` (Date) dice qual è oggi e quali ore sono già passate. */
+  function renderSections(container, sections, now) {
     const fragment = document.createDocumentFragment();
     sections.forEach(section => {
       const el = document.createElement('section');
@@ -265,34 +386,60 @@
       const list = document.createElement('ul');
       list.className = 'task-list';
       const showDate = DATED_SECTIONS.includes(section.key);
-      section.tasks.forEach(task => list.appendChild(buildTask(task, today, showDate)));
+      section.tasks.forEach(task => list.appendChild(buildTask(task, now, showDate)));
 
       el.append(header, list);
       fragment.appendChild(el);
     });
-    els.sections.replaceChildren(fragment);
+    container.replaceChildren(fragment);
   }
 
-  function renderCompleted(completed, today) {
+  /** «Completate oggi», in fondo a Focus: chiusa, con le card che ci volano dentro. */
+  function renderCompletedToday(completed, now) {
     els.completed.hidden = completed.length === 0;
     els.completedCount.textContent = completed.length;
-    els.completedList.replaceChildren(...completed.map(task => buildTask(task, today, false)));
+    els.completedList.replaceChildren(...completed.map(task => buildTask(task, now, false)));
   }
 
-  function renderEmpty(isEmpty, completedCount, today) {
+  /** Storico in Motivazione: tutte le completate, dalla più recente, con «Svuota». */
+  function renderHistory(completed, now) {
+    els.historyCount.textContent = completed.length ? tasksLabel(completed.length) : '';
+    els.clearCompleted.hidden = completed.length === 0;
+    els.historyEmpty.hidden = completed.length > 0;
+    els.historyList.replaceChildren(...completed.map(task => buildTask(task, now, false)));
+  }
+
+  /** Minuti di focus di oggi e in tutto (Motivazione). */
+  function renderFocusMinutes(today) {
+    const total = F.totalMinutes(state.stats);
+    els.focusMinutesText.textContent = total
+      ? 'Focus: ' + utils.formatDuration(F.minutesOn(state.stats, today)) + ' oggi · ' + utils.formatDuration(total) + ' in tutto'
+      : 'Minuti di focus: avvia ▶ Focus su un\'attività di oggi';
+  }
+
+  function renderEmpty(isEmpty, completedCount, agendaCount, today) {
     els.empty.hidden = !isEmpty;
     if (!isEmpty) return;
     const allDone = completedCount > 0;
     const streak = P.currentStreak(state.stats.days, today);
     const lit = P.dayTotals(state.stats, today).done > 0;
+    const upcoming = agendaCount === 1 ? 'Hai 1 attività nei prossimi giorni.' : 'Hai ' + agendaCount + ' attività nei prossimi giorni.';
+    els.emptyAgendaLink.hidden = agendaCount === 0;
+    if (!allDone && agendaCount > 0) {
+      els.emptyTitle.textContent = 'Niente per oggi ✨';
+      els.emptyText.textContent = upcoming;
+      return;
+    }
     els.emptyTitle.textContent = allDone ? 'Hai fatto tutto! 🎉' : 'Tutto libero ✨';
     if (!allDone) els.emptyText.textContent = 'Aggiungi la tua prima attività con il pulsante qui sotto.';
     else if (lit && streak >= 2) els.emptyText.textContent = 'Serie di ' + daysLabel(streak) + ' 🔥: domani continuala.';
+    else if (agendaCount > 0) els.emptyText.textContent = 'Goditi il momento. ' + upcoming;
     else els.emptyText.textContent = 'Goditi il momento, oppure aggiungi una nuova attività.';
   }
 
-  /** Card di un'attività, copiata dal <template> e riempita con textContent. */
-  function buildTask(task, today, showDate) {
+  /** Card di un'attività, copiata dal <template> e riempita con textContent. `now` (Date): oggi, e le ore già passate. */
+  function buildTask(task, now, showDate) {
+    const today = utils.toISODate(now);
     const node = els.taskTemplate.content.firstElementChild.cloneNode(true);
     const energy = T.ENERGY[task.energy];
     const pending = pendingDone.has(task.id); // spuntata da poco: resta spuntata e barrata anche se la lista si ridisegna
@@ -309,8 +456,17 @@
 
     node.querySelector('.task__title').textContent = task.title;
     node.querySelector('.task__edit').setAttribute('aria-label', 'Modifica: ' + task.title);
-    if (task.time) node.querySelector('.meta__at').textContent = task.time;
-    else node.querySelector('.meta--at').remove();
+    const atMeta = node.querySelector('.meta--at');
+    if (task.time) {
+      node.querySelector('.meta__at').textContent = task.time;
+      // Oggi, con l'ora già passata: rossa come «Ieri», e detta anche al lettore di schermo.
+      if (T.isTimePassed(task, now)) {
+        atMeta.classList.add('meta--overdue');
+        atMeta.querySelector('.sr-only').textContent = 'In ritardo, era alle';
+      }
+    } else {
+      atMeta.remove();
+    }
     node.querySelector('.meta__time').textContent = utils.formatDuration(task.duration);
 
     const pill = node.querySelector('.pill');
@@ -355,7 +511,7 @@
       pendingDone.add(id);
       node.classList.add('task--completing');
       const task = state.tasks.find(t => t.id === id);
-      if (task) floatPoints(P.pointsFor(task), node.querySelector('.check'));
+      if (task) floatPoints(P.pointsFor(task), node.querySelector('.check').getBoundingClientRect());
     }
     // Completando, la spunta salta al suo posto; poi la card scivola in «Completate» (Aura.motion, in commit()).
     later(done ? M.ms('move') : 0, () => {
@@ -369,16 +525,29 @@
     });
   }
 
-  /** Dopo un completamento: avviso con i punti, e festa se la serie si accende o tocca un traguardo. */
-  function celebrate(id, result, firstToday) {
+  /** Serie e punti che si vedono adesso, per gli effetti: in piccolo in Focus, in grande in Motivazione, nessuno in Agenda. */
+  function rewardTargets() {
+    if (activeTab === 'focus') return { streak: els.miniStreak, points: els.miniPoints, glow: null }; // il chip ha il suo bagliore
+    if (activeTab === 'motivation') return { streak: els.statStreak, points: els.statPoints, glow: els.rewards };
+    return null;
+  }
+
+  /**
+   * Dopo un completamento: avviso con i punti, e festa se la serie si accende o tocca un traguardo.
+   * `focus` ({ minutes, day }): minuti di focus registrati insieme, detti nell'avviso e tolti anche da «Annulla».
+   */
+  function celebrate(id, result, firstToday, focus) {
     const milestone = result.reached.length ? Math.max(...result.reached) : 0;
-    if (firstToday) M.flash(els.statStreak, 'is-igniting');
+    const targets = rewardTargets();
+    if (firstToday && targets) M.flash(targets.streak, 'is-igniting');
     if (milestone) {
       vibrate([20, 60, 30, 60, 50]);
-      M.flash(els.statStreak, 'is-celebrating');
-      M.flash(els.rewards, 'is-celebrating'); // il bagliore sta in un livello della griglia, fuori dal riquadro
-      const tile = els.statStreak.getBoundingClientRect();
-      const tileVisible = tile.bottom > 0;
+      if (targets) {
+        M.flash(targets.streak, 'is-celebrating');
+        if (targets.glow) M.flash(targets.glow, 'is-celebrating'); // riquadro grande: il bagliore sta in un livello della griglia, fuori dal riquadro
+      }
+      const tile = targets ? targets.streak.getBoundingClientRect() : null;
+      const tileVisible = Boolean(tile) && tile.bottom > 0;
       burstConfetti(tileVisible ? tile.left + tile.width / 2 : window.innerWidth / 2, tileVisible ? tile.top + tile.height / 2 : 96);
     }
 
@@ -386,23 +555,51 @@
     let message = 'Completata · ' + points;
     if (milestone) message = '🎉 ' + daysLabel(milestone) + ' di fila! · ' + points;
     else if (firstToday) message = (result.streak === 1 ? '🔥 Serie iniziata · ' : '🔥 ' + daysLabel(result.streak) + ' di fila · ') + points;
+    if (focus) message += ' · ' + utils.formatDuration(focus.minutes) + ' di focus';
 
     showToast(message, {
       action: 'Annulla',
       duration: milestone ? 6500 : undefined,
       onAction: () => {
         const undo = P.setDone(state, id, false, Date.now());
-        commit(undo.tasks, undo.stats);
+        commit(undo.tasks, focus ? F.recordMinutes(undo.stats, focus.day, -focus.minutes) : undo.stats);
       }
     });
   }
 
-  /** "+24" che sale dalla spunta e, se l'intestazione si vede, vola nel riquadro dei punti. */
-  function floatPoints(points, fromEl) {
-    if (!M.canAnimate() || !fromEl) return;
-    const from = fromEl.getBoundingClientRect();
-    const target = els.statPoints.getBoundingClientRect();
-    const toTile = target.bottom > 0 && target.top < window.innerHeight;
+  /**
+   * Completa un'attività senza la spunta: «Fatto» di «Cosa faccio adesso?» e «Completa» del focus.
+   * Stessi punti, stessa festa e stesso «Annulla» della spunta. `focus` ({ minutes, day }) registra i minuti di focus
+   * nello stesso salvataggio; `delay` è il tempo di chiusura del foglio, così la card si vede scivolare.
+   * Restituisce false se l'attività non c'è, è già completata o si sta animando.
+   */
+  function completeTask(id, { delay = 0, focus = null } = {}) {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task || task.done || busy.has(id)) return false;
+    const firstToday = P.dayTotals(state.stats, utils.todayISO()).done === 0;
+    const result = P.setDone(state, id, true, Date.now());
+    let stats = result.stats;
+    let focusInfo = null;
+    if (focus && focus.minutes) {
+      const before = F.minutesOn(stats, focus.day);
+      stats = F.recordMinutes(stats, focus.day, focus.minutes);
+      const applied = F.minutesOn(stats, focus.day) - before;
+      if (applied) focusInfo = { minutes: applied, day: focus.day };
+    }
+    const check = TABS[activeTab].section.querySelector('.task[data-id="' + CSS.escape(id) + '"] .check');
+    const from = check ? check.getBoundingClientRect() : null;
+    if (!commit(result.tasks, stats, { delay })) return true;
+    if (from) setTimeout(() => floatPoints(result.points, from), delay);
+    celebrate(id, result, firstToday, focusInfo);
+    return true;
+  }
+
+  /** "+24" che sale dalla spunta (`from` è il suo rettangolo) e, se serie e punti si vedono, vola nel riquadro dei punti. */
+  function floatPoints(points, from) {
+    if (!M.canAnimate() || !from) return;
+    const targets = rewardTargets();
+    const target = targets ? targets.points.getBoundingClientRect() : null;
+    const toTile = Boolean(target) && target.bottom > 0 && target.top < window.innerHeight;
     const chip = document.createElement('div');
     chip.className = 'points-float';
     chip.setAttribute('aria-hidden', 'true');
@@ -414,8 +611,8 @@
     // Stessa sequenza di funzioni in ogni fotogramma: l'interpolazione resta lineare anche su Safari.
     const frame = (x, y, scale, opacity, offset) =>
       ({ transform: 'translate(-50%, -50%) translate(' + x + 'px, ' + y + 'px) scale(' + scale + ')', opacity, offset });
-    const dx = target.left + target.width / 2 - (from.left + from.width / 2);
-    const dy = target.top + target.height / 2 - (from.top + from.height / 2);
+    const dx = toTile ? target.left + target.width / 2 - (from.left + from.width / 2) : 0;
+    const dy = toTile ? target.top + target.height / 2 - (from.top + from.height / 2) : 0;
     const animation = chip.animate([
       frame(0, 0, 0.5, 0, 0),
       frame(0, -34, 1.12, 1, 0.25),
@@ -428,7 +625,7 @@
       if (finished) return;
       finished = true;
       chip.remove();
-      if (toTile) M.flash(els.statPoints, 'is-bumping');
+      if (toTile) M.flash(targets.points, 'is-bumping');
     };
     animation.finished.then(finish, finish);
     setTimeout(finish, M.ms('celebrate') + M.ms('move')); // rete di sicurezza
@@ -574,26 +771,33 @@
     closing.set(dialog, finish);
   }
 
-  function setupSheet(dialog) {
+  /**
+   * Comportamento comune dei fogli. Opzioni (per il focus a tutto schermo):
+   * - onCancel: cosa fanno Esc e il gesto "indietro" al posto della chiusura;
+   * - backdropClose: false se un tocco fuori non deve chiudere.
+   */
+  function setupSheet(dialog, { onCancel = null, backdropClose = true } = {}) {
     // Tasto Esc o gesto "indietro" su Android: chiusura animata.
     dialog.addEventListener('cancel', event => {
       event.preventDefault();
-      closeSheet(dialog);
+      if (onCancel) onCancel();
+      else closeSheet(dialog);
     });
     // Chiusure "native" (per esempio Esc quando il browser non permette di animarla).
     dialog.addEventListener('close', () => {
       releaseScroll();
       onSheetClosed(dialog);
     });
+    dialog.querySelectorAll('[data-close]').forEach(button => {
+      button.addEventListener('click', () => closeSheet(dialog));
+    });
+    if (!backdropClose) return;
     // Tocco sullo sfondo scuro: chiude (solo se anche la pressione è iniziata sullo sfondo).
     let pressedBackdrop = false;
     dialog.addEventListener('pointerdown', event => { pressedBackdrop = event.target === dialog; });
     dialog.addEventListener('click', event => {
       if (event.target === dialog && pressedBackdrop) closeSheet(dialog);
       pressedBackdrop = false;
-    });
-    dialog.querySelectorAll('[data-close]').forEach(button => {
-      button.addEventListener('click', () => closeSheet(dialog));
     });
   }
 
@@ -615,6 +819,7 @@
     setErrors({});
     els.inboxNote.hidden = true;
     els.editNote.hidden = true;
+    els.editFocus.hidden = true;
     els.phraseField.hidden = editing;
     els.addHeading.textContent = editing ? 'Modifica attività' : 'Nuova attività';
     els.submitText.textContent = editing ? 'Salva modifiche' : 'Aggiungi attività';
@@ -667,8 +872,32 @@
       els.editNoteText.textContent = 'Completata · ' + (points === 1 ? 'il suo punto non cambia' : 'i suoi ' + utils.formatNumber(points) + ' punti non cambiano');
       els.editNote.hidden = false;
     }
+    els.editFocus.hidden = task.done; // «Inizia focus» solo per le attività da fare
     setAutofocus(els.addSheet, finePointer.matches ? els.title : els.addHeading);
     openSheet(els.addSheet);
+  }
+
+  /**
+   * «Inizia focus» nel foglio di modifica: salva le modifiche fatte (se sono valide) e apre il focus a tutto schermo
+   * su questa attività, con la durata appena scritta.
+   */
+  function onFocusFromEdit() {
+    const id = editingId;
+    if (!id) return;
+    const { value, errors } = T.validateInput(readFields());
+    setErrors(errors);
+    const firstError = ERROR_FIELDS.find(field => errors[field]);
+    if (firstError) {
+      if (FIELD_INPUTS[firstError]) FIELD_INPUTS[firstError].focus();
+      return;
+    }
+    const result = T.updateTask(state.tasks, id, value);
+    if (result.changed) {
+      editedId = id;
+      if (!commit(result.tasks, undefined, { delay: M.ms('exit') })) return;
+    }
+    closeSheet(els.addSheet);
+    focusCtl.startFocus(id); // dentro il tocco: sblocca anche il suono di fine
   }
 
   /* ---------- Frase libera ---------- */
@@ -819,10 +1048,20 @@
     const saved = commit(state.tasks.concat(task), undefined, { delay: M.ms('exit') });
     closeSheet(els.addSheet);
     if (!saved) return;
+    if (isFirst) storage.requestPersistence();
+    // Finita in un'altra scheda (per esempio domani, vista da Focus): l'avviso dice dove, e «Mostra» la porta in vista.
+    const today = utils.todayISO();
+    const tab = T.tabOf(task, today);
+    if (tab !== activeTab) {
+      showToast('Attività aggiunta in ' + TABS[tab].name + (task.date ? ' · ' + utils.formatDateLabel(task.date, today) : ''), {
+        action: 'Mostra',
+        onAction: () => showTask(task.id)
+      });
+      return;
+    }
     // La prima volta si dice anche come correggerla.
     showToast(isFirst ? 'Attività aggiunta: toccala per modificarla' : 'Attività aggiunta');
     revealTask(task.id);
-    if (isFirst) storage.requestPersistence();
   }
 
   /**
@@ -843,7 +1082,11 @@
     closeSheet(els.addSheet);
     if (!saved) return;
     const before = T.editableFields(result.previous);
-    showToast('Modifiche salvate', {
+    // Spostata in un'altra scheda (per esempio a domani, da Focus): l'avviso dice dove è finita.
+    const today = utils.todayISO();
+    const edited = state.tasks.find(t => t.id === id);
+    const moved = edited && !T.isInTab(edited, activeTab, today);
+    showToast(moved ? 'Modifiche salvate · ora in ' + TABS[T.tabOf(edited, today)].name : 'Modifiche salvate', {
       action: 'Annulla',
       onAction: () => {
         const undo = T.updateTask(state.tasks, id, before);
@@ -853,9 +1096,14 @@
     revealTask(id);
   }
 
+  /** La card di un'attività nella scheda attiva (la stessa attività può avere una card anche in un'altra scheda). */
+  function cardOf(id) {
+    return TABS[activeTab].section.querySelector('.task[data-id="' + CSS.escape(id) + '"]');
+  }
+
   /** Porta in vista la card appena aggiunta o modificata, dopo la chiusura del foglio. */
   function revealTask(id) {
-    const node = els.main.querySelector('.task[data-id="' + CSS.escape(id) + '"]');
+    const node = cardOf(id);
     if (!node) return;
     later(M.ms('move'), () => node.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' }));
   }
@@ -1464,7 +1712,8 @@
    */
   function onSheetClosed(dialog) {
     if (dialog === els.addSheet && focusAfterEdit) {
-      const button = els.main.querySelector('.task[data-id="' + CSS.escape(focusAfterEdit) + '"] .task__edit');
+      const card = cardOf(focusAfterEdit);
+      const button = card && card.querySelector('.task__edit');
       focusAfterEdit = null;
       if (button) button.focus({ preventScroll: true });
     }
@@ -1566,9 +1815,15 @@
     }
   }
 
-  /** Dalla notifica di un promemoria: evidenzia l'attività e la porta in vista. */
+  /**
+   * Dalla notifica di un promemoria (o da «Mostra»): apre la scheda in cui l'attività si vede, la evidenzia e la porta
+   * in vista. In ritardo, oggi e senza data → Focus; un giorno futuro → Agenda; completata → Motivazione.
+   */
   function showTask(id) {
-    if (!id || !state.tasks.some(task => task.id === id)) return;
+    const task = id ? state.tasks.find(item => item.id === id) : null;
+    if (!task) return;
+    const today = utils.todayISO();
+    if (!T.isInTab(task, activeTab, today)) showTab(T.tabOf(task, today), { animate: false });
     highlightId = id;
     render();
     revealTask(id);
@@ -1645,6 +1900,19 @@
     if (button.dataset.action === 'delete') onDelete(node.dataset.id);
     else if (button.dataset.action === 'edit') openEditSheet(node.dataset.id);
   });
+  els.editFocus.addEventListener('pointerdown', () => focusCtl.prepareAudio()); // l'audio si prepara mentre il dito è ancora giù
+  els.editFocus.addEventListener('click', onFocusFromEdit);
+
+  // Barra delle schede: un tocco sulla scheda già aperta torna in cima.
+  els.tabbar.addEventListener('click', event => {
+    const button = event.target.closest('[data-tab]');
+    if (!button) return;
+    if (button.dataset.tab !== activeTab) showTab(button.dataset.tab);
+    else window.scrollTo({ top: 0, behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+  });
+  els.miniRewards.addEventListener('click', () => showTab('motivation'));
+  els.emptyAgendaLink.addEventListener('click', () => showTab('agenda'));
+  els.suggestButton.addEventListener('click', () => focusCtl.openSuggest());
 
   // «Completate» si apre e si chiude morbida: il suo contenuto entra (o esce) come un blocco unico e il fondo pagina scivola.
   els.completed.querySelector('summary').addEventListener('click', event => {
@@ -1769,18 +2037,24 @@
     toastTimer = setTimeout(hideToast, 2000);
   });
 
-  [els.addSheet, els.themeSheet, els.remoteSheet, els.backupSheet].forEach(setupSheet);
+  [els.addSheet, els.themeSheet, els.remoteSheet, els.backupSheet].forEach(sheet => setupSheet(sheet));
 
   // Tornando nell'app (o dopo mezzanotte) "Oggi" e "In ritardo" devono essere giusti.
   // E si guarda se Siri ha lasciato frasi nella casella (solo con un dispositivo collegato).
+  // Uscendo, si ricorda la scheda: riaprendo entro 30 minuti si riparte da lì.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
+    if (document.visibilityState !== 'visible') {
+      rememberTab();
+      return;
+    }
     render();
     refreshRemote();
   });
+  window.addEventListener('pagehide', rememberTab);
   setInterval(() => {
     const now = new Date();
-    if (utils.toISODate(now) !== renderedDay) render();
+    // Giorno nuovo, oppure l'ora di un'attività di oggi è appena passata (diventa rossa): si ridisegna.
+    if (utils.toISODate(now) !== renderedDay || T.passedCount(state.tasks, now) !== renderedPassed) render();
     else els.greeting.textContent = utils.greeting(now);
   }, 60 * 1000);
 
@@ -1789,6 +2063,7 @@
     if (event.key !== storage.KEY && event.key !== null) return;
     state = storage.load().state;
     render();
+    if (focusCtl) focusCtl.sync();
   });
 
   window.addEventListener('scroll', updateScrim, { passive: true });
@@ -1796,13 +2071,32 @@
 
   /* ---------- Avvio ---------- */
 
+  syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti
   render();
   syncThemeUI();
   measureHero();
   registerServiceWorker();
+  focusCtl = FocusUI.init({
+    getState: () => state,
+    commit,
+    completeTask,
+    openSheet,
+    closeSheet,
+    setupSheet,
+    setAutofocus,
+    showToast,
+    vibrate,
+    getPrefs: () => prefs,
+    setPrefs: change => {
+      prefs = storage.sanitizePrefs({ ...prefs, ...change });
+      storage.savePrefs(prefs);
+    }
+  });
   // All'apertura la fiamma accesa fa qualche guizzo, poi si ferma (niente animazioni infinite).
-  if (els.statStreak.classList.contains('is-lit')) M.flash(els.statStreak, 'is-flickering');
+  const targets = rewardTargets();
+  if (targets && targets.streak.classList.contains('is-lit')) M.flash(targets.streak, 'is-flickering');
   if (loaded.warning) showToast(loaded.warning, { duration: 8000 });
+  focusCtl.resume(); // un focus rimasto aperto riprende, anche dopo aver ricaricato la pagina
   openFromLink();
   syncRemoteBadges();
   showNextInboxItem(); // frasi di Siri già ritirate ma non ancora viste (anche offline)

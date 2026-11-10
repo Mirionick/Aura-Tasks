@@ -1,6 +1,6 @@
 # Backup dei dati (realizzata, gratuita)
 
-**Foglio "Backup dei dati"**: si apre dal link in fondo alla pagina. Riparte sempre dallo stato normale, che ha tre riquadri.
+**Foglio "Backup dei dati"**: si apre dal link in fondo alla scheda Motivazione. Riparte sempre dallo stato normale, che ha tre riquadri.
 - **Esporta**: "Esporta il backup", con due note.
   - Il file contiene le attività **in chiaro**: chi lo apre può leggerle, quindi va tenuto in un posto proprio.
   - Nel file non ci sono il codice segreto di Siri né le impostazioni dei promemoria.

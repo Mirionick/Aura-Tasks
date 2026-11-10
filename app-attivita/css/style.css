@@ -87,6 +87,7 @@
   --shadow-dialog: 0 24px 64px rgba(23, 21, 43, .22);
   --shadow-fab: 0 10px 26px rgba(90, 62, 230, .38), 0 3px 8px rgba(90, 62, 230, .22);
   --shadow-toast: 0 10px 30px rgba(23, 21, 43, .28);
+  --shadow-tabbar: 0 -4px 18px rgba(23, 21, 43, .06);
   --backdrop: rgba(17, 12, 40, .48);
 
   /* Avviso */
@@ -94,10 +95,6 @@
   --toast-text: #f4f3fa;
   --toast-action: #c3b5ff;
   --toast-border: transparent;
-
-  /* Illustrazione della lista vuota */
-  --aura-outer: .08;
-  --aura-inner: .14;
 
   /* Anteprime nel foglio "Tema": rappresentano i due temi, quindi sono uguali in entrambi */
   --preview-light-bg: #f4f3fa;
@@ -114,6 +111,7 @@
   --gutter: 16px;
   --content-max: 640px;
   --tap: 44px;
+  --tabbar-h: 54px;  /* barra delle schede, senza il margine sotto (safe area) */
 
   /* Movimento: durate e curve dell'app, lette anche da js/motion.js. «Riduci movimento» le azzera (sezione 7).
      Movimenti, keyframes ed elementi grandi usano solo transform e opacity; i piccoli controlli sfumano i colori con --dur-color. */
@@ -125,7 +123,7 @@
   --dur-reward: 600ms;     /* fiamma, stella, numeri che contano, barra del traguardo */
   --dur-celebrate: 1100ms; /* "+N" che vola, coriandoli, bagliore della serie */
   --dur-glow: 1600ms;      /* bagliore di una card nuova o modificata */
-  --dur-breath: 6s;        /* respiro dell'illustrazione della lista vuota */
+  --dur-breath: 6s;        /* respiro dello sfondo del focus a tutto schermo */
   --ease-out: cubic-bezier(.2, .8, .2, 1);        /* entrate e spostamenti */
   --ease-in: cubic-bezier(.4, 0, 1, 1);           /* uscite */
   --ease-in-out: cubic-bezier(.45, 0, .25, 1);    /* viaggi da un punto all'altro, respiri */
@@ -199,15 +197,13 @@
   --shadow-dialog: 0 24px 64px rgba(0, 0, 0, .6);
   --shadow-fab: 0 10px 28px rgba(112, 88, 246, .32), inset 0 1px 0 rgba(255, 255, 255, .14);
   --shadow-toast: 0 10px 30px rgba(0, 0, 0, .5);
+  --shadow-tabbar: none; /* nel tema scuro basta il bordo sottile */
   --backdrop: rgba(0, 0, 0, .62);
 
   --toast-bg: #2a2740;
   --toast-text: #f4f2ff;
   --toast-action: #c3b5ff;
   --toast-border: rgba(255, 255, 255, .08);
-
-  --aura-outer: .14;
-  --aura-inner: .22;
 }
 
 /* ---------- 2. Base ---------- */
@@ -302,9 +298,9 @@ button {
     linear-gradient(180deg, var(--hero-top) 0%, var(--hero-bottom) 100%);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   padding:
-    calc(env(safe-area-inset-top, 0px) + 10px)
+    calc(env(safe-area-inset-top, 0px) + 8px)
     max(var(--gutter), env(safe-area-inset-right, 0px))
-    20px
+    14px
     max(var(--gutter), env(safe-area-inset-left, 0px));
 }
 
@@ -316,7 +312,7 @@ button {
   align-items: center;
   justify-content: space-between;
   min-height: var(--tap);
-  margin-bottom: 14px;
+  margin-bottom: 4px;
 }
 
 .hero__actions { display: flex; align-items: center; gap: 8px; }
@@ -345,11 +341,88 @@ button {
 .hero__greeting { font-size: 15px; font-weight: 600; color: var(--hero-text-2); }
 
 .hero__date {
-  margin-top: 2px;
-  font-size: clamp(26px, 7.4vw, 32px);
+  font-size: clamp(22px, 6.2vw, 26px);
   font-weight: 800;
   line-height: 1.15;
   letter-spacing: -.02em;
+}
+
+/* Agenda e Motivazione: intestazione più bassa, con il nome della scheda */
+.hero__title {
+  font-size: clamp(24px, 6.6vw, 28px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+}
+.hero__subtitle { margin-top: 2px; font-size: 15px; font-weight: 600; color: var(--hero-text-2); }
+.hero__tab + .stats--rewards { margin-top: 16px; }
+
+/* Focus, intestazione compatta: nella riga del saluto ci sono serie e punti, in due chip */
+.hero__hello {
+  display: flex;
+  flex-wrap: wrap; /* con il testo molto grande i chip vanno a capo, invece di uscire dallo schermo */
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 8px;
+  min-height: 30px;
+}
+.hero__hello .hero__greeting { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Un pulsante solo per i due chip: un tocco porta a Motivazione */
+.rewards-mini {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hero-text);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.rewards-mini:active { transform: scale(.97); }
+/* I chip sono alti 30 px: questo livello porta l'area di tocco a 44 px, allargandola verso la data (che non si tocca) */
+.rewards-mini::after { content: ""; position: absolute; inset: -2px -4px -12px; }
+
+.mini {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px 0 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass);
+  isolation: isolate;
+}
+.mini__icon { flex: none; width: 18px; height: 18px; }
+.mini__value { display: inline-block; transform-origin: left center; white-space: nowrap; }
+/* Serie accesa: il chip si scalda, come il riquadro grande. Livelli assoluti che sfumano con opacity, senza tocchi:
+   ::after lo sfondo caldo, ::before il bagliore dei traguardi (con l'ombra già disegnata) */
+.mini--streak::before,
+.mini--streak::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+.mini--streak::before { box-shadow: 0 0 0 2px var(--streak-ring), 0 0 22px 4px var(--streak-glow); }
+.mini--streak::after {
+  z-index: -1;
+  background: linear-gradient(135deg, var(--streak-tile-a), var(--streak-tile-b));
+  transition: opacity var(--dur-reward) var(--ease-out);
+}
+.mini--streak.is-lit { border-color: var(--streak-border); }
+.mini--streak.is-lit::after { opacity: 1; }
+@media (hover: hover) {
+  .rewards-mini:hover .mini { border-color: var(--hero-text-2); }
 }
 
 .stats {
@@ -383,6 +456,18 @@ button {
   font-weight: 800;
   letter-spacing: -.01em;
   font-variant-numeric: tabular-nums;
+}
+
+/* Numeri di oggi (Focus): una riga sola, etichetta e valore affiancati. Ogni riquadro è largo quanto il suo testo,
+   più una parte uguale dello spazio che avanza; se lo spazio manca, si accorcia l'etichetta (mai il valore). */
+.stats--inline { display: flex; gap: 6px; margin-top: 8px; }
+.stats--inline .stat { display: flex; flex: 1 1 auto; align-items: baseline; gap: 6px; padding: 6px 10px; border-radius: 12px; line-height: 1.25; }
+.stats--inline .stat__label { flex: 0 1 auto; min-width: 0; }
+.stats--inline .stat__value { flex: none; margin: 0; font-size: 16px; white-space: nowrap; }
+/* «stimato»: nascosto alla vista dove non c'è spazio (resta per il lettore di schermo), visibile sugli schermi larghi */
+.stat__more { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (min-width: 430px) {
+  .stat__more { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
 
 /* Serie e punti: seconda riga di riquadri. Solo flex in riga e grid (niente flex: 1 in colonna, vedi Safari) */
@@ -471,12 +556,52 @@ button {
   max-width: var(--content-max);
   margin: 0 auto;
   padding:
-    22px
+    14px
     max(var(--gutter), env(safe-area-inset-right, 0px))
-    calc(112px + env(safe-area-inset-bottom, 0px))
+    calc(var(--tabbar-h) + 112px + env(safe-area-inset-bottom, 0px))
     max(var(--gutter), env(safe-area-inset-left, 0px));
 }
 .content:focus { outline: none; }
+
+/* «Cosa faccio adesso?»: il pulsante in cima a Focus, largo quanto la lista e su una riga sola.
+   Sta a cavallo del bordo dell'intestazione (metà sopra, metà sotto), che gli lascia il posto con .hero--cta:
+   così all'apertura si vedono più card. Il margine negativo è il margine della lista (14 px) più la metà del pulsante. */
+.hero--cta { padding-bottom: 32px; }
+.suggest-cta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin: -38px 0 10px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--text);
+  text-align: left;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.suggest-cta:active { transform: scale(.985); }
+.suggest-cta__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--on-accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.suggest-cta__icon .icon { width: 20px; height: 20px; }
+.suggest-cta__text { flex: 1; min-width: 0; }
+.suggest-cta__title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+.suggest-cta__go { color: var(--text-3); }
+@media (hover: hover) {
+  .suggest-cta:hover { border-color: var(--border-strong); }
+}
 
 .section + .section { margin-top: 24px; }
 
@@ -485,7 +610,7 @@ button {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   padding: 0 4px;
 }
 
@@ -518,12 +643,12 @@ button {
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  padding: 6px;
+  padding: 4px 6px;
   background: var(--surface);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-card);
-  scroll-margin: 80px 0 104px;
+  scroll-margin: 80px 0 calc(var(--tabbar-h) + 104px);
 }
 
 /* Livelli della card: ombra al passaggio del mouse (::before) e bagliore di una card nuova o modificata (::after).
@@ -646,6 +771,7 @@ button {
 .meta .icon { width: 15px; height: 15px; }
 .meta--overdue { color: var(--danger); font-weight: 600; }
 .meta--at { color: var(--accent-text); font-weight: 700; }
+.meta--at.meta--overdue { color: var(--danger); } /* oggi, con l'ora già passata: rossa come «Ieri» */
 
 .pill {
   display: inline-flex;
@@ -725,9 +851,36 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.completed__toolbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+/* Motivazione (provvisoria, fino alla fase 4): minuti di focus e storico delle completate */
+.focus-minutes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 12px 14px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.focus-minutes .icon { color: var(--accent-text); }
 
-/* In fondo alla pagina: dove stanno i dati, e il link al foglio "Backup dei dati" */
+.history__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+.history__header .section__info { flex: 1; }
+.btn.history__clear { min-height: var(--tap); } /* «Svuota»: area di tocco piena (più specifico di .btn--small, che viene dopo) */
+.history__empty { padding: 2px 4px 0; color: var(--text-2); }
+
+/* In fondo a Motivazione: dove stanno i dati, e il link al foglio "Backup dei dati" */
 .footnote {
   display: grid;
   justify-items: center;
@@ -826,11 +979,76 @@ button {
   text-underline-offset: 3px;
 }
 
+/* Barra delle schede, in basso. «+ Nuova attività» e gli avvisi stanno sopra */
+.tabbar {
+  position: fixed;
+  z-index: 35;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 0 max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(8px, env(safe-area-inset-left, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-tabbar);
+}
+.tabbar__inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: var(--content-max);
+  height: var(--tabbar-h);
+  margin: 0 auto;
+}
+/* Pillola dietro la scheda attiva: largo un terzo e spostato con transform. È assoluto: non è un elemento della griglia */
+.tabbar__indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% / 3);
+  pointer-events: none;
+  transition: transform var(--dur-move) var(--ease-out);
+}
+.tabbar__indicator::before {
+  content: "";
+  position: absolute;
+  inset: 6px 14%;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+.tabbar[data-active="agenda"] .tabbar__indicator { transform: translateX(100%); }
+.tabbar[data-active="motivation"] .tabbar__indicator { transform: translateX(200%); }
+
+.tabbar__tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 700;
+  transition: color var(--dur-color) var(--ease-out);
+}
+.tabbar__tab .icon { width: 22px; height: 22px; }
+.tabbar__tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tabbar__tab[aria-current="page"] { color: var(--accent-text); }
+@media (hover: hover) {
+  .tabbar__tab:hover { color: var(--text); }
+  .tabbar__tab[aria-current="page"]:hover { color: var(--accent-text); }
+}
+
 .fab {
   position: fixed;
   z-index: 30;
   right: max(var(--gutter), env(safe-area-inset-right, 0px), calc(50% - var(--content-max) / 2 + var(--gutter)));
-  bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--tabbar-h) + 14px + env(safe-area-inset-bottom, 0px));
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1125,6 +1343,7 @@ button {
   border-top: 1px solid var(--border);
   background: var(--surface-raised);
 }
+.sheet__footer .btn + .btn { margin-top: 8px; } /* «Inizia focus» sopra «Salva modifiche» */
 
 /* Foglio "Tema" */
 .theme-options { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
@@ -1290,12 +1509,245 @@ button {
 .compare dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 .compare__when { display: block; margin-top: 2px; font-size: 13.5px; font-weight: 500; color: var(--text-2); }
 
+/* Foglio «Cosa faccio adesso?»: la proposta, con il motivo, le azioni e due alternative */
+.proposal__card {
+  padding: 16px;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.proposal__reason { font-size: 14px; font-weight: 700; color: var(--accent-text); }
+.proposal__title { margin: 4px 0 0; font-size: 20px; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.proposal__card .task__meta { margin-top: 10px; }
+.proposal__actions { display: grid; gap: 8px; margin-top: 14px; }
+.proposal__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.proposal__row .btn { flex: 1 1 auto; }
+.proposal__alts { margin-top: 18px; }
+.proposal__alts-label {
+  margin: 0 4px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.proposal__alts-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+
+.alt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 12px;
+  border: 1.5px solid var(--field-border);
+  border-radius: 14px;
+  background: var(--field-bg);
+  color: var(--text);
+  text-align: left;
+  transition: border-color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.alt:active { transform: scale(.98); }
+@media (hover: hover) {
+  .alt:hover { border-color: var(--border-strong); }
+}
+.alt__title { flex: 1; min-width: 0; overflow: hidden; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.alt__time { flex: none; font-size: 13.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+.proposal-none { padding: 0 0 8px; text-align: center; }
+.proposal-none__art { display: block; width: 180px; height: 180px; margin: 0 auto 6px; }
+.proposal-none__title { margin: 0; font-size: 19px; font-weight: 800; }
+.proposal-none__text { max-width: 34ch; margin: 6px auto 0; color: var(--text-2); }
+.proposal-none .btn { margin-top: 14px; }
+
+/* Focus a tutto schermo: l'aura che respira dietro un grande anello del tempo che manca.
+   Colori dell'intestazione «aura» in entrambi i temi, testo chiaro. */
+.sheet--focus {
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  border-radius: 0;
+  color: var(--hero-text);
+  background: linear-gradient(180deg, var(--hero-top) 0%, var(--hero-bottom) 100%);
+  box-shadow: none;
+}
+
+.focus {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1 1 auto; /* "1 1 auto" e non "flex: 1", come negli altri fogli (Safari) */
+  min-height: 0;
+  /* Se lo schermo è troppo basso (telefono in orizzontale) i comandi restano raggiungibili scorrendo, invece di essere tagliati */
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  isolation: isolate;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 20px)
+    max(24px, env(safe-area-inset-right, 0px))
+    calc(env(safe-area-inset-bottom, 0px) + 24px)
+    max(24px, env(safe-area-inset-left, 0px));
+  text-align: center;
+}
+
+/* Bagliori ciano e rosa: livelli assoluti dietro il contenuto, senza tocchi. Si muovono solo con transform e opacity.
+   Sono disegnati piccoli (30vmax) e ingranditi con scale: una sfumatura non perde qualità, e il livello occupa un quarto
+   della memoria. will-change li tiene pronti così, senza ridisegnarli più grandi. */
+.focus__aura { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.focus__glow {
+  position: absolute;
+  width: 30vmax;
+  height: 30vmax;
+  border-radius: 50%;
+  transform: scale(2.6);
+  will-change: transform, opacity;
+}
+.focus__glow--a {
+  top: -7vmax;
+  right: -11vmax;
+  background: radial-gradient(closest-side, var(--hero-glow-1), transparent);
+  animation: focus-breathe-a var(--dur-breath) var(--ease-in-out) infinite alternate paused;
+}
+.focus__glow--b {
+  bottom: -9vmax;
+  left: -13vmax;
+  background: radial-gradient(closest-side, var(--hero-glow-2), transparent);
+  animation: focus-breathe-b calc(var(--dur-breath) * 1.25) var(--ease-in-out) infinite alternate paused;
+}
+/* L'unica animazione continua dell'app: gira solo mentre il tempo scorre, a foglio aperto e pagina visibile (js/ui-focus.js) */
+.sheet--focus.is-breathing .focus__glow { animation-play-state: running; }
+
+.focus__head { display: grid; justify-items: center; gap: 6px; width: 100%; max-width: 34rem; }
+.focus__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--hero-text-2);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.focus__label .icon { width: 16px; height: 16px; }
+.focus__title {
+  display: -webkit-box;
+  margin: 4px 0 0;
+  overflow: hidden;
+  font-size: clamp(22px, 6.4vw, 28px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -.01em;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.focus__meta { font-size: 15px; font-weight: 600; color: var(--hero-text-2); }
+
+/* L'anello si adatta all'altezza dello schermo (38vh): su un iPhone SE titolo, anello e comandi stanno in una schermata */
+.focus__dial { position: relative; display: grid; place-items: center; flex: none; width: min(74vw, 38vh, 320px); aspect-ratio: 1; }
+.focus__ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.focus__track,
+.focus__arc { fill: none; stroke-width: 6; }
+.focus__track { stroke: var(--progress-track); }
+/* Lunghezza dell'anello: 2π × 54. js/ui-focus.js sposta stroke-dashoffset a scatti, una volta al secondo, senza transizioni */
+.focus__arc { stroke: var(--progress-fill); stroke-linecap: round; stroke-dasharray: 339.292; stroke-dashoffset: 0; }
+.focus__readout { position: relative; display: grid; justify-items: center; gap: 4px; }
+.focus__clock {
+  font-size: clamp(40px, min(16vw, 8.5vh), 76px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.focus__state { min-height: 1.45em; font-size: 15px; font-weight: 700; color: var(--hero-text-2); }
+
+.focus__controls { display: grid; justify-items: center; gap: 14px; width: min(100%, 22rem); }
+.focus__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 11rem;
+  min-height: 60px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--hero-text);
+  color: var(--hero-top);
+  box-shadow: var(--shadow-toast);
+  font-size: 18px;
+  font-weight: 800;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.focus__toggle:active { transform: scale(.96); }
+.focus__toggle .icon { width: 24px; height: 24px; stroke-width: 2.6; }
+.focus__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.focus__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: var(--glass);
+  color: var(--hero-text);
+  font-size: 16px;
+  font-weight: 700;
+  transition: background-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.focus__btn:active { transform: scale(.97); }
+.focus__exit {
+  min-height: var(--tap);
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hero-text-2);
+  font-size: 15px;
+  font-weight: 700;
+  transition: background-color var(--dur-color) var(--ease-out);
+}
+@media (hover: hover) {
+  .focus__btn:hover,
+  .focus__exit:hover { background: var(--glass-hover); }
+}
+/* Schermi bassi (iPhone SE, Safari con le sue barre): tutto più raccolto, così titolo, anello e comandi stanno in una schermata */
+@media (max-height: 700px) {
+  .focus {
+    gap: 8px;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  }
+  .focus__title { font-size: 20px; -webkit-line-clamp: 2; }
+  .focus__dial { width: min(64vw, 34vh, 320px); }
+  .focus__controls { gap: 10px; }
+  .focus__toggle { min-height: 52px; }
+  .focus__btn { min-height: 48px; }
+}
+
+/* In pausa il tempo si attenua; a tempo finito «Completata» diventa il pulsante principale e l'anello sparisce */
+.sheet--focus.is-paused .focus__clock { opacity: .6; }
+.sheet--focus.is-finished .focus__arc { opacity: 0; }
+.sheet--focus.is-finished .focus__btn--done { border-color: transparent; background: var(--hero-text); color: var(--hero-top); }
+
 /* Avviso in basso, con "Annulla" */
 .toast {
   position: fixed;
   z-index: 50;
   left: 50%;
-  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--tabbar-h) + 86px + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1370,22 +1822,12 @@ button {
 
 /* Lista vuota */
 .empty { padding: 28px 16px 8px; text-align: center; }
-.empty__art { display: block; width: 168px; height: 148px; margin: 0 auto 8px; }
+/* Illustrazione (images/empty-focus.webp): 540 px mostrati a 180, con lo sfondo trasparente per i due temi */
+.empty__art { display: block; width: 180px; height: 180px; margin: 0 auto 4px; }
 .empty__title { font-size: 20px; font-weight: 800; }
 .empty__text { max-width: 30ch; margin: 6px auto 0; color: var(--text-2); }
-
-.aura-ring { fill: var(--accent); transform-box: fill-box; transform-origin: center; }
-/* Animazioni finite: qualche "respiro" e poi si fermano (un'animazione infinita consumerebbe batteria) */
-.aura-ring--outer { opacity: var(--aura-outer); animation: breathe var(--dur-breath) var(--ease-in-out) 3; }
-.aura-ring--inner { opacity: var(--aura-inner); animation: breathe var(--dur-breath) var(--ease-in-out) calc(var(--dur-breath) / 15) 3; }
-.aura-core { fill: url(#aura-core-gradient); }
-.aura-stop-a { stop-color: var(--accent); }
-.aura-stop-b { stop-color: var(--accent-2); }
-.aura-check { fill: none; stroke: var(--on-accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
-.aura-dot--pink { fill: var(--high); opacity: .6; }
-.aura-dot--teal { fill: var(--low); opacity: .6; }
-.aura-spark { fill: var(--accent-text); opacity: .75; transform-box: fill-box; transform-origin: center; animation: twinkle calc(var(--dur-breath) * .53) var(--ease-in-out) 4; }
-.aura-spark--small { animation-delay: calc(var(--dur-breath) / 5); }
+.empty .link-btn { margin-top: 4px; }
+.empty--small { padding-top: 16px; }
 
 /* ---------- 7. Desktop, animazioni e accessibilità ---------- */
 
@@ -1405,6 +1847,8 @@ button {
   .sheet__footer { padding-bottom: 18px; }
   .sheet--small .sheet__body { padding-bottom: 22px; }
   .hero__date { font-size: 34px; }
+  /* Il focus resta a tutto schermo anche sul computer */
+  .sheet--focus { width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; border-radius: 0; box-shadow: none; }
 }
 
 @keyframes sheet-up { from { transform: translateY(100%); } }
@@ -1413,8 +1857,6 @@ button {
 @keyframes dialog-out { to { opacity: 0; transform: translateY(16px) scale(.97); } }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes fade-out { to { opacity: 0; } }
-@keyframes breathe { 50% { transform: scale(1.06); } }
-@keyframes twinkle { 50% { opacity: .25; transform: scale(.8); } }
 
 /* Bagliori: livelli con l'ombra già disegnata (.task::after, .stats--rewards::before) che sfumano con opacity.
    Card aggiunta, modificata o aperta da una notifica: si illumina per un attimo (l'entrata la fa js/motion.js). */
@@ -1447,8 +1889,19 @@ button {
 .stat--streak.is-celebrating .stat__value { animation: value-pop var(--dur-reward) var(--ease-spring); }
 .stat--points.is-bumping .stat__value { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
 .stat--points.is-bumping .star { animation: star-spin var(--dur-reward) var(--ease-out); }
-/* Il contatore di «Completate» quando ci arriva una card */
+/* Gli stessi effetti su serie e punti in piccolo (Focus) */
+.mini--streak.is-flickering .flame { animation: flame-flicker calc(var(--dur-reward) * 2) var(--ease-in-out) 3; }
+.mini--streak.is-igniting .flame { animation: flame-ignite var(--dur-reward) var(--ease-spring), flame-flicker calc(var(--dur-reward) * 2) var(--ease-in-out) var(--dur-reward) 2; }
+.mini--streak.is-celebrating::before { animation: glow-pulse var(--dur-celebrate) var(--ease-out); }
+.mini--streak.is-celebrating .mini__value { animation: value-pop var(--dur-reward) var(--ease-spring); }
+.mini--points.is-bumping .mini__value { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
+.mini--points.is-bumping .star { animation: star-spin var(--dur-reward) var(--ease-out); }
+/* Il contatore di «Completate oggi» quando ci arriva una card */
 .badge.is-bumping { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
+
+/* Focus: l'aura respira piano (solo transform e opacity) */
+@keyframes focus-breathe-a { from { transform: scale(2.6); opacity: 1; } to { transform: translate(-8vmax, 6vmax) scale(3.1); opacity: .55; } }
+@keyframes focus-breathe-b { from { transform: scale(2.6); opacity: .9; } to { transform: translate(7vmax, -7vmax) scale(3.2); opacity: .5; } }
 
 /* Fantasmi (js/motion.js): elementi appena tolti dalla lista che escono dov'erano. Non ricevono tocchi,
    e dentro non ripartono le animazioni CSS (spunta, bagliore): si muove solo il fantasma intero. */

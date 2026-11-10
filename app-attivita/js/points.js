@@ -23,8 +23,9 @@
     return Math.round((POINTS.base + minutes / POINTS.minutesPerPoint) * multiplier);
   }
 
+  /** Registro vuoto. `focus` sono i minuti di focus per giorno (schema v4, vedi js/focus.js): non toccano punti e serie. */
   function emptyStats() {
-    return { totalPoints: 0, bestStreak: 0, milestones: [], days: {} };
+    return { totalPoints: 0, bestStreak: 0, milestones: [], days: {}, focus: {} };
   }
 
   /** Completamenti e punti di un giorno (zero se il giorno non è nel registro). */

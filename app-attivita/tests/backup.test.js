@@ -25,7 +25,7 @@
         task({ id: 'a', title: 'Dentista', date: '2026-11-04', time: '10:00' }),
         task({ id: 'b', title: 'Spesa', done: true, completedAt: NOW - 3600e3, pointsAwarded: 24, extra: 'campo sconosciuto' })
       ],
-      stats: { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-03': { done: 1, points: 24 } } },
+      stats: { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-03': { done: 1, points: 24 } }, focus: { '2026-11-03': 25 } },
       future: { x: 1 }
     };
   }
@@ -117,7 +117,24 @@
     const { state } = storage.readBackup(wrap(v1));
     assertEqual(state.version, storage.SCHEMA_VERSION);
     assertEqual(state.tasks.map(t => [t.pointsAwarded, t.time]), [[24, null], [44, null], [null, null]]);
-    assertEqual([state.stats.totalPoints, state.stats.bestStreak], [68, 2]);
+    assertEqual([state.stats.totalPoints, state.stats.bestStreak, state.stats.focus], [68, 2, {}]);
+  });
+
+  test('readBackup: i backup della v2 e della v3 arrivano alla v4 con punti e registro intatti', () => {
+    const stats = { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-02': { done: 1, points: 24 } } };
+    const done = { id: 'a', title: 'Spesa', duration: 30, energy: 'medium', date: '2026-11-02', done: true, createdAt: 1, completedAt: new Date(2026, 10, 2, 18).getTime(), pointsAwarded: 24 };
+    const v2 = { version: 2, tasks: [done], stats };
+    const v3 = { version: 3, tasks: [{ ...done, time: '18:00' }], stats };
+    [[v2, null], [v3, '18:00']].forEach(([data, time]) => {
+      const { state, error } = storage.readBackup(wrap(data));
+      assertEqual([error, state.version, state.tasks[0].time, state.tasks[0].pointsAwarded], [null, 4, time, 24], 'v' + data.version);
+      assertEqual(state.stats, { ...stats, focus: {} }, 'registro della v' + data.version);
+    });
+  });
+
+  test('readBackup: i minuti di focus del file passano dagli stessi controlli', () => {
+    const data = { ...sampleState(), stats: { ...sampleState().stats, focus: { '2026-11-03': 25, '2026-11-02': 9999, domani: 5 } } };
+    assertEqual(storage.readBackup(wrap(data)).state.stats.focus, { '2026-11-03': 25 });
   });
 
   test('readBackup: versione più nuova e campi sconosciuti restano; quelli accanto a "data" no', () => {

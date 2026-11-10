@@ -271,6 +271,23 @@
     return plan;
   }
 
+  /**
+   * Entrata di un blocco intero (per esempio una scheda): dissolvenza e un breve scorrimento orizzontale di dx px
+   * (0 = solo dissolvenza). Un'animazione sola per tutto il blocco; con «Riduci movimento» non fa nulla.
+   */
+  function slideIn(el, dx) {
+    if (!el || !canAnimate()) return null;
+    const animation = animate(el, [
+      { opacity: 0, transform: dx ? 'translateX(' + dx + 'px)' : 'none' },
+      { opacity: 1, transform: 'none' }
+    ], { duration: ms('move'), easing: ease('out') });
+    // Rete di sicurezza: se i fotogrammi si fermano (pagina nascosta, tempo virtuale), il blocco arriva comunque alla fine.
+    setTimeout(() => {
+      if (animation.playState === 'running' || animation.playState === 'paused') animation.finish();
+    }, ms('move') + 100);
+    return animation;
+  }
+
   /* ---------- Classi che fanno partire un'animazione CSS ---------- */
 
   const flashes = new WeakMap(); // elemento → { classe: gettone dell'ultima volta }
@@ -302,5 +319,5 @@
     }, end + 50);
   }
 
-  Aura.motion = { parseDuration, planFlip, ms, ease, reduced, canAnimate, snapshot, play, flash };
+  Aura.motion = { parseDuration, planFlip, ms, ease, reduced, canAnimate, snapshot, play, slideIn, flash };
 })(window.Aura = window.Aura || {});

@@ -25,10 +25,13 @@
   <script src="js/tasks.js" defer></script>
   <script src="js/nlp.js" defer></script>
   <script src="js/points.js" defer></script>
+  <script src="js/focus.js" defer></script>
+  <script src="js/suggest.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/reminders.js" defer></script>
   <script src="js/remote.js" defer></script>
   <script src="js/motion.js" defer></script>
+  <script src="js/ui-focus.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -53,6 +56,17 @@
     <symbol id="i-theme-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/></symbol>
     <symbol id="i-theme-light" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6L6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></symbol>
     <symbol id="i-theme-dark" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+    <!-- Barra delle schede: anelli dell'aura, calendario con puntini, medaglia -->
+    <symbol id="i-tab-focus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-tab-agenda" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.8" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="14.8" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="14.8" r="1.2" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-tab-motivation" viewBox="0 0 24 24"><circle cx="12" cy="14.5" r="6"/><path d="M8.3 9.8L5.8 3.5h4.4l1.8 4M15.7 9.8l2.5-6.3h-4.4L12 7.5M12 11.8l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z"/></symbol>
+    <!-- Focus: bussola («Cosa faccio adesso?»), inizia, pausa, un'altra proposta, minuti di focus -->
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 5.8v12.4L18.5 12z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3.5 7h3.3c2 0 3.1.9 4.2 2.6l2.4 3.9c1.1 1.7 2.2 2.5 4.2 2.5h2.9M3.5 17h3.3c1.3 0 2.2-.4 3-1.2M13.6 8.2c.8-.8 1.7-1.2 3-1.2h2.9M17.5 4.5L20 7l-2.5 2.5M17.5 14.5L20 17l-2.5 2.5"/></symbol>
+    <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5c0 4.2 4 5.4 4 8.5s-4 4.3-4 8.5M16 3.5c0 4.2-4 5.4-4 8.5s4 4.3 4 8.5"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M9 5.5l6.5 6.5L9 18.5"/></symbol>
   </svg>
 
   <!-- Su iPhone, con l'app installata, la barra di stato è sopra la pagina: questa fascia la tiene leggibile quando si scorre. -->
@@ -79,26 +93,53 @@
         </div>
       </div>
 
-      <p class="hero__greeting" id="greeting">Ciao</p>
-      <p class="hero__date" id="today-label">Oggi</p>
+      <!-- Focus, compatta: saluto con serie e punti in due chip (un tocco porta a Motivazione), data, numeri di oggi in una riga -->
+      <div class="hero__focus" id="hero-focus">
+        <div class="hero__hello">
+          <p class="hero__greeting" id="greeting">Ciao</p>
+          <button class="rewards-mini" id="rewards-mini" type="button" aria-label="Serie e punti: apri Motivazione">
+            <span class="mini mini--streak" id="mini-streak">
+              <svg class="mini__icon flame" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path class="flame__outer" d="M12 2c.6 3.1 3.2 4.9 4.9 7.6 1.1 1.7 1.6 3.3 1.6 5 0 3.8-2.9 6.9-6.5 6.9s-6.5-3.1-6.5-6.7c0-2.2.9-4.2 2.4-5.7.1 1.5.8 2.6 2 3.2C9.6 8.4 10.4 5 12 2z"/>
+                <path class="flame__core" d="M12 21.5c-2.1 0-3.7-1.7-3.7-3.8 0-1.7 1-3.1 2.3-4.3.2 1.2.9 2 1.8 2.4.2-1.2 0-2.4-.4-3.6 2.1 1.3 3.7 3.2 3.7 5.5 0 2.1-1.6 3.8-3.7 3.8z"/>
+              </svg>
+              <span class="mini__value" id="mini-streak-value">0 giorni</span>
+            </span>
+            <span class="mini mini--points" id="mini-points">
+              <svg class="mini__icon star" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 2.6l2.83 5.73 6.32.92-4.57 4.46 1.08 6.29L12 17.03l-5.66 2.97 1.08-6.29-4.57-4.46 6.32-.92z"/>
+              </svg>
+              <span class="mini__value" id="mini-points-value">0</span>
+            </span>
+          </button>
+        </div>
+        <p class="hero__date" id="today-label">Oggi</p>
 
-      <dl class="stats">
-        <div class="stat">
-          <dt class="stat__label">Da fare</dt>
-          <dd class="stat__value" id="stat-open">0</dd>
-        </div>
-        <div class="stat">
-          <dt class="stat__label">Tempo stimato</dt>
-          <dd class="stat__value" id="stat-time">0 min</dd>
-        </div>
-        <div class="stat">
-          <dt class="stat__label">Fatte oggi</dt>
-          <dd class="stat__value" id="stat-done">0</dd>
-        </div>
-      </dl>
+        <!-- Etichetta e valore affiancati. «stimato» si vede solo dove c'è spazio; il lettore di schermo lo legge sempre. -->
+        <dl class="stats stats--inline">
+          <div class="stat">
+            <dt class="stat__label">Da fare</dt>
+            <dd class="stat__value" id="stat-open">0</dd>
+          </div>
+          <div class="stat">
+            <dt class="stat__label">Tempo<span class="stat__more"> stimato</span></dt>
+            <dd class="stat__value" id="stat-time">0 min</dd>
+          </div>
+          <div class="stat">
+            <dt class="stat__label">Fatte oggi</dt>
+            <dd class="stat__value" id="stat-done">0</dd>
+          </div>
+        </dl>
+      </div>
 
-      <!-- Serie e punti: app.js li aggiorna e li anima (vedi docs/punti-e-serie.md). -->
-      <dl class="stats stats--rewards" id="rewards">
+      <!-- Agenda e Motivazione: intestazione più bassa, con il nome della scheda -->
+      <div class="hero__tab" id="hero-tab" hidden>
+        <h2 class="hero__title" id="hero-title">Agenda</h2>
+        <p class="hero__subtitle" id="hero-subtitle"></p>
+      </div>
+
+      <!-- Serie e punti in grande, in Motivazione: app.js li aggiorna e li anima (vedi docs/punti-e-serie.md). -->
+      <dl class="stats stats--rewards" id="rewards" hidden>
         <div class="stat stat--streak" id="stat-streak">
           <dt class="stat__label">
             <span class="stat__name">Serie</span>
@@ -133,55 +174,100 @@
   <!-- data-flip: elementi che scivolano al loro posto quando la lista cambia (js/motion.js).
        Le sezioni e le card lo ricevono da app.js. -->
   <main class="content" id="main" tabindex="-1">
-    <div id="sections"></div>
+    <!-- Scheda Focus, per fare: «Cosa faccio adesso?», In ritardo, Oggi, Senza data e «Completate oggi» -->
+    <section class="tab" id="tab-focus" aria-label="Focus">
+      <button class="suggest-cta" id="suggest-button" type="button" aria-haspopup="dialog" data-flip="suggest-cta" hidden>
+        <span class="suggest-cta__icon" aria-hidden="true">
+          <svg class="icon" focusable="false"><use href="#i-compass"></use></svg>
+        </span>
+        <span class="suggest-cta__text">
+          <span class="suggest-cta__title">Cosa faccio adesso?</span>
+          <span class="sr-only">Dimmi quanto tempo hai: ti propongo un'attività</span>
+        </span>
+        <svg class="icon suggest-cta__go" aria-hidden="true" focusable="false"><use href="#i-arrow-right"></use></svg>
+      </button>
 
-    <section class="empty" id="empty-state" data-flip="empty" hidden>
-      <svg class="empty__art" viewBox="0 0 160 140" aria-hidden="true" focusable="false">
-        <defs>
-          <linearGradient id="aura-core-gradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" class="aura-stop-a"/>
-            <stop offset="1" class="aura-stop-b"/>
-          </linearGradient>
-        </defs>
-        <circle class="aura-ring aura-ring--outer" cx="80" cy="70" r="62"/>
-        <circle class="aura-ring aura-ring--inner" cx="80" cy="70" r="46"/>
-        <circle class="aura-core" cx="80" cy="70" r="30"/>
-        <path class="aura-check" d="M67 70.5l9 9 17-18"/>
-        <circle class="aura-dot aura-dot--pink" cx="128" cy="30" r="4"/>
-        <circle class="aura-dot aura-dot--teal" cx="30" cy="112" r="3.5"/>
-        <path class="aura-spark" d="M133 92l2.2 5.3 5.3 2.2-5.3 2.2-2.2 5.3-2.2-5.3-5.3-2.2 5.3-2.2z"/>
-        <path class="aura-spark aura-spark--small" d="M28 24l1.5 3.5 3.5 1.5-3.5 1.5-1.5 3.5-1.5-3.5-3.5-1.5 3.5-1.5z"/>
-      </svg>
-      <h2 class="empty__title" id="empty-title">Tutto libero ✨</h2>
-      <p class="empty__text" id="empty-text">Aggiungi la tua prima attività con il pulsante qui sotto.</p>
+      <div id="sections"></div>
+
+      <section class="empty" id="empty-state" data-flip="empty" hidden>
+        <!-- Illustrazione di Focus senza attività (vedi docs/illustrazioni.md): decorativa, quindi senza testo alternativo -->
+        <img class="empty__art" src="images/empty-focus.webp" width="180" height="180" alt="">
+        <h2 class="empty__title" id="empty-title">Tutto libero ✨</h2>
+        <p class="empty__text" id="empty-text">Aggiungi la tua prima attività con il pulsante qui sotto.</p>
+        <button class="link-btn" id="empty-agenda-link" type="button" hidden>Apri l'Agenda</button>
+      </section>
+
+      <details class="completed" id="completed" hidden>
+        <summary class="completed__summary" data-flip="completed">
+          <span>Completate oggi</span>
+          <span class="badge" id="completed-count">0</span>
+          <svg class="icon completed__chevron" aria-hidden="true" focusable="false"><use href="#i-chevron"></use></svg>
+        </summary>
+        <!-- Il contenuto entra ed esce come un blocco unico (js/motion.js): un'animazione sola invece di una per card -->
+        <div class="completed__body" data-flip="completed-body">
+          <ul class="task-list" id="completed-list"></ul>
+        </div>
+      </details>
     </section>
 
-    <details class="completed" id="completed" hidden>
-      <summary class="completed__summary" data-flip="completed">
-        <span>Completate</span>
-        <span class="badge" id="completed-count">0</span>
-        <svg class="icon completed__chevron" aria-hidden="true" focusable="false"><use href="#i-chevron"></use></svg>
-      </summary>
-      <!-- Il contenuto entra ed esce come un blocco unico (js/motion.js): un'animazione sola invece di una per card -->
-      <div class="completed__body" data-flip="completed-body">
-        <div class="completed__toolbar">
-          <button class="btn btn--ghost btn--small" id="clear-completed" type="button">
+    <!-- Scheda Agenda, per pianificare. Fino alla fase 3: le sezioni Domani e Prossimi giorni di sempre -->
+    <section class="tab" id="tab-agenda" aria-label="Agenda" hidden>
+      <div id="agenda-sections"></div>
+      <section class="empty empty--small" id="agenda-empty" data-flip="agenda-empty" hidden>
+        <h2 class="empty__title">Niente in programma 🗓️</h2>
+        <p class="empty__text">Le attività con una data da domani in poi compaiono qui.</p>
+      </section>
+    </section>
+
+    <!-- Scheda Motivazione, per i progressi. Fino alla fase 4: minuti di focus, storico delle completate e backup;
+         serie e punti in grande stanno nell'intestazione -->
+    <section class="tab" id="tab-motivation" aria-label="Motivazione" hidden>
+      <p class="focus-minutes" id="focus-minutes" data-flip="focus-minutes">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-hourglass"></use></svg>
+        <span id="focus-minutes-text">Minuti di focus: nessuno per ora</span>
+      </p>
+
+      <section class="history" id="history" aria-labelledby="history-title" data-flip="history">
+        <div class="history__header">
+          <h2 class="section__title" id="history-title">Completate</h2>
+          <span class="section__info" id="history-count"></span>
+          <button class="btn btn--ghost btn--small history__clear" id="clear-completed" type="button" hidden>
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
             Svuota
           </button>
         </div>
-        <ul class="task-list" id="completed-list"></ul>
-      </div>
-    </details>
+        <ul class="task-list" id="history-list"></ul>
+        <p class="history__empty" id="history-empty">Qui compaiono le attività completate.</p>
+      </section>
 
-    <div class="footnote" data-flip="footnote">
-      <p class="footnote__text">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"></use></svg>
-        <span id="footnote-text">I dati restano solo su questo dispositivo.</span>
-      </p>
-      <button class="link-btn" id="backup-button" type="button" aria-haspopup="dialog">Backup dei dati</button>
-    </div>
+      <div class="footnote" data-flip="footnote">
+        <p class="footnote__text">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"></use></svg>
+          <span id="footnote-text">I dati restano solo su questo dispositivo.</span>
+        </p>
+        <button class="link-btn" id="backup-button" type="button" aria-haspopup="dialog">Backup dei dati</button>
+      </div>
+    </section>
   </main>
+
+  <!-- Barra delle schede: la pillola dietro la scheda attiva scivola con transform (attributo data-active) -->
+  <nav class="tabbar" id="tabbar" aria-label="Schede" data-active="focus">
+    <div class="tabbar__inner">
+      <span class="tabbar__indicator" aria-hidden="true"></span>
+      <button class="tabbar__tab" type="button" data-tab="focus" aria-current="page">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-tab-focus"></use></svg>
+        <span>Focus</span>
+      </button>
+      <button class="tabbar__tab" type="button" data-tab="agenda">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-tab-agenda"></use></svg>
+        <span>Agenda</span>
+      </button>
+      <button class="tabbar__tab" type="button" data-tab="motivation">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-tab-motivation"></use></svg>
+        <span>Motivazione</span>
+      </button>
+    </div>
+  </nav>
 
   <button class="fab" id="add-button" type="button" aria-haspopup="dialog">
     <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
@@ -330,6 +416,11 @@
       </div>
 
       <footer class="sheet__footer">
+        <!-- Solo modificando un'attività da fare: salva le modifiche e apre il focus a tutto schermo -->
+        <button class="btn btn--soft btn--block" id="edit-focus" type="button" hidden>
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
+          Inizia focus
+        </button>
         <button class="btn btn--primary btn--block" type="submit">
           <svg class="icon" aria-hidden="true" focusable="false"><use id="add-submit-icon" href="#i-plus"></use></svg>
           <span id="add-submit-text">Aggiungi attività</span>
@@ -552,6 +643,164 @@
             <button class="btn btn--ghost" id="backup-confirm-cancel" type="button">Annulla</button>
           </div>
         </section>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Foglio «Cosa faccio adesso?»: la proposta si aggiorna a ogni scelta (js/ui-focus.js; la logica sta in js/suggest.js) -->
+  <dialog class="sheet sheet--small" id="suggest-sheet" aria-labelledby="suggest-sheet-title">
+    <div class="sheet__panel">
+      <header class="sheet__header">
+        <h2 class="sheet__title" id="suggest-sheet-title" tabindex="-1">Cosa faccio adesso?</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Chiudi">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+      <div class="sheet__body">
+        <fieldset class="field">
+          <legend class="field__label">Quanto tempo hai?</legend>
+          <div class="chips" id="suggest-minutes">
+            <button class="chip" type="button" data-minutes="10" aria-pressed="false" aria-label="10 minuti">10</button>
+            <button class="chip" type="button" data-minutes="15" aria-pressed="false" aria-label="15 minuti">15</button>
+            <button class="chip" type="button" data-minutes="30" aria-pressed="true" aria-label="30 minuti">30</button>
+            <button class="chip" type="button" data-minutes="45" aria-pressed="false" aria-label="45 minuti">45</button>
+            <button class="chip" type="button" data-minutes="60" aria-pressed="false" aria-label="60 minuti">60</button>
+            <button class="chip" type="button" data-minutes="90" aria-pressed="false" aria-label="90 minuti">90</button>
+            <button class="chip" type="button" data-minutes="open" aria-pressed="false" aria-label="120 minuti o più">120+</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="field">
+          <legend class="field__label">Come ti senti?</legend>
+          <div class="segmented" id="suggest-energy-choice">
+            <label class="segment segment--low">
+              <input type="radio" name="suggest-energy" value="low">
+              <span class="segment__body">
+                <svg class="energy-bars" data-level="1" viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+                  <rect x="0" y="7" width="3.2" height="5" rx="1.2"/><rect x="5.4" y="3.5" width="3.2" height="8.5" rx="1.2"/><rect x="10.8" y="0" width="3.2" height="12" rx="1.2"/>
+                </svg>
+                Bassa
+              </span>
+            </label>
+            <label class="segment segment--medium">
+              <input type="radio" name="suggest-energy" value="medium" checked>
+              <span class="segment__body">
+                <svg class="energy-bars" data-level="2" viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+                  <rect x="0" y="7" width="3.2" height="5" rx="1.2"/><rect x="5.4" y="3.5" width="3.2" height="8.5" rx="1.2"/><rect x="10.8" y="0" width="3.2" height="12" rx="1.2"/>
+                </svg>
+                Media
+              </span>
+            </label>
+            <label class="segment segment--high">
+              <input type="radio" name="suggest-energy" value="high">
+              <span class="segment__body">
+                <svg class="energy-bars" data-level="3" viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+                  <rect x="0" y="7" width="3.2" height="5" rx="1.2"/><rect x="5.4" y="3.5" width="3.2" height="8.5" rx="1.2"/><rect x="10.8" y="0" width="3.2" height="12" rx="1.2"/>
+                </svg>
+                Alta
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- La proposta, con il motivo e due alternative -->
+        <section class="proposal" id="suggest-result" aria-labelledby="suggest-title" aria-live="polite" hidden>
+          <div class="proposal__card">
+            <p class="proposal__reason" id="suggest-reason"></p>
+            <h3 class="proposal__title" id="suggest-title"></h3>
+            <div class="task__meta">
+              <span class="meta" id="suggest-when">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-calendar"></use></svg>
+                <span id="suggest-when-text"></span>
+              </span>
+              <span class="meta">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg>
+                <span id="suggest-duration"></span>
+              </span>
+              <span class="pill" id="suggest-energy">
+                <svg class="energy-bars" viewBox="0 0 14 12" aria-hidden="true" focusable="false">
+                  <rect x="0" y="7" width="3.2" height="5" rx="1.2"/><rect x="5.4" y="3.5" width="3.2" height="8.5" rx="1.2"/><rect x="10.8" y="0" width="3.2" height="12" rx="1.2"/>
+                </svg>
+                <span class="sr-only">Energia</span>
+                <span class="pill__text" id="suggest-energy-text"></span>
+              </span>
+            </div>
+          </div>
+          <div class="proposal__actions">
+            <button class="btn btn--primary btn--block" id="suggest-start" type="button">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"></use></svg>
+              Inizia focus
+            </button>
+            <div class="proposal__row">
+              <button class="btn btn--soft" id="suggest-done" type="button">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+                Fatto
+              </button>
+              <button class="btn btn--ghost" id="suggest-next" type="button">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shuffle"></use></svg>
+                Un'altra proposta
+              </button>
+            </div>
+          </div>
+          <div class="proposal__alts" id="suggest-alts-box" hidden>
+            <p class="proposal__alts-label">Oppure</p>
+            <ul class="proposal__alts-list" id="suggest-alts"></ul>
+          </div>
+        </section>
+
+        <!-- Niente da proporre: un messaggio gentile, con un suggerimento -->
+        <section class="proposal-none" id="suggest-none" aria-live="polite" hidden>
+          <img class="proposal-none__art" src="images/suggest-none.webp" width="180" height="180" alt="">
+          <h3 class="proposal-none__title" id="suggest-none-title"></h3>
+          <p class="proposal-none__text" id="suggest-none-text"></p>
+          <button class="btn btn--soft" id="suggest-none-action" type="button" hidden></button>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Focus a tutto schermo con il timer (js/ui-focus.js; la logica sta in js/focus.js) -->
+  <dialog class="sheet sheet--focus" id="focus-sheet" aria-labelledby="focus-title">
+    <div class="focus">
+      <!-- Sfondo che respira: due bagliori in livelli separati, solo transform e opacity -->
+      <div class="focus__aura" aria-hidden="true">
+        <span class="focus__glow focus__glow--a"></span>
+        <span class="focus__glow focus__glow--b"></span>
+      </div>
+
+      <header class="focus__head">
+        <p class="focus__label">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-tab-focus"></use></svg>
+          Focus
+        </p>
+        <h2 class="focus__title" id="focus-title" tabindex="-1"></h2>
+        <p class="focus__meta" id="focus-meta"></p>
+      </header>
+
+      <div class="focus__dial">
+        <svg class="focus__ring" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+          <circle class="focus__track" cx="60" cy="60" r="54"/>
+          <circle class="focus__arc" id="focus-arc" cx="60" cy="60" r="54"/>
+        </svg>
+        <div class="focus__readout">
+          <p class="focus__clock" id="focus-clock" role="timer">00:00</p>
+          <p class="focus__state" id="focus-state" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="focus__controls">
+        <button class="focus__toggle" id="focus-toggle" type="button">
+          <svg class="icon" aria-hidden="true" focusable="false"><use id="focus-toggle-icon" href="#i-pause"></use></svg>
+          <span id="focus-toggle-text">Pausa</span>
+        </button>
+        <div class="focus__row">
+          <button class="focus__btn" id="focus-extend" type="button">+5 min</button>
+          <button class="focus__btn focus__btn--done" id="focus-complete" type="button">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+            <span id="focus-complete-text">Completa</span>
+          </button>
+        </div>
+        <button class="focus__exit" id="focus-exit" type="button">Esci</button>
       </div>
     </div>
   </dialog>

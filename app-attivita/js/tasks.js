@@ -28,6 +28,10 @@
     { key: 'someday', title: 'Senza data' }
   ];
 
+  /** Le schede dell'app, nell'ordine della barra, e le sezioni della lista che mostrano (le completate vanno a parte). */
+  const TABS = ['focus', 'agenda', 'motivation'];
+  const TAB_SECTIONS = { focus: ['overdue', 'today', 'someday'], agenda: ['tomorrow', 'upcoming'] };
+
   /**
    * Controlla i dati del modulo "Nuova attività".
    * Restituisce { value, errors }: `value` è normalizzato, `errors` ha un messaggio per ogni campo sbagliato.
@@ -153,6 +157,36 @@
     return 'upcoming';
   }
 
+  /** In quale scheda si vede un'attività: completata → Motivazione (storico); da fare → Focus o Agenda, secondo la sezione. */
+  function tabOf(task, today) {
+    if (task.done) return 'motivation';
+    return TAB_SECTIONS.focus.includes(sectionOf(task, today)) ? 'focus' : 'agenda';
+  }
+
+  /** true se l'attività si vede nella scheda. Focus mostra anche le completate di oggi («Completate oggi»). */
+  function isInTab(task, tab, today) {
+    if (task.done) return tab === 'motivation' || (tab === 'focus' && utils.todayISO(task.completedAt) === today);
+    return tabOf(task, today) === tab;
+  }
+
+  /** true se l'attività è da fare, è di oggi e la sua ora è già passata: la card mostra l'ora in rosso, come «Ieri». */
+  function isTimePassed(task, now) {
+    const moment = new Date(now);
+    return !task.done && Boolean(task.time) && task.date === utils.toISODate(moment) && task.time < utils.formatTime(moment);
+  }
+
+  /** Quante attività di oggi hanno l'ora già passata: se cambia, la lista va ridisegnata. */
+  function passedCount(tasks, now) {
+    return tasks.filter(task => isTimePassed(task, now)).length;
+  }
+
+  /** Le completate in un giorno (quello locale di completedAt), dalla più recente. */
+  function completedOn(tasks, day) {
+    return tasks
+      .filter(task => task.done && Number.isFinite(task.completedAt) && utils.todayISO(task.completedAt) === day)
+      .sort((a, b) => b.completedAt - a.completedAt);
+  }
+
   function totalMinutes(tasks) {
     return tasks.reduce((sum, task) => sum + task.duration, 0);
   }
@@ -207,6 +241,8 @@
     LIMITS,
     DEFAULTS,
     SECTIONS,
+    TABS,
+    TAB_SECTIONS,
     EDITABLE_FIELDS,
     validateInput,
     createTask,
@@ -218,6 +254,11 @@
     removeCompleted,
     restoreMany,
     sectionOf,
+    tabOf,
+    isInTab,
+    isTimePassed,
+    passedCount,
+    completedOn,
     groupTasks,
     totalMinutes,
     summarize
