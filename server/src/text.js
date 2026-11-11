@@ -35,3 +35,18 @@ export const LIMIT_TEXTS = {
   tooMany: 'Troppe richieste da questa rete: riprova tra un minuto',
   dailyCap: 'Oggi il server di Aura ha già accolto il massimo di nuovi dispositivi: riprova domani'
 };
+
+/** Messaggi JSON dell'assistente: limiti del giorno, errori dell'IA e della registrazione. */
+export const ASSISTANT_TEXTS = {
+  dailyCap: 'Per oggi le risposte dell\'assistente sono finite: riprova domani',
+  deviceMessages: 'Per oggi hai finito i messaggi all\'assistente: riprova domani',
+  deviceOpens: 'Per oggi le proposte all\'apertura sono finite',
+  deviceAudio: 'Per oggi hai finito i minuti di voce: scrivi, oppure riprova domani',
+  unavailable: 'L\'assistente non è configurato sul server',
+  aiDown: 'L\'assistente non risponde: riprova tra poco',
+  badReply: 'L\'assistente non ha risposto in modo chiaro: riprova con altre parole',
+  badAudio: 'Non riesco a leggere la registrazione',
+  audioType: 'Formato della registrazione non ammesso',
+  audioTooLarge: 'Registrazione troppo lunga: al massimo 30 secondi',
+  audioEmpty: 'Non è arrivata nessuna registrazione'
+};

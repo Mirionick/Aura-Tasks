@@ -48,3 +48,18 @@ CREATE TABLE IF NOT EXISTS reminders (
 );
 CREATE INDEX IF NOT EXISTS reminders_due ON reminders (fire_at);
 CREATE INDEX IF NOT EXISTS reminders_at ON reminders (at);
+
+-- Conteggi dell'assistente, per i limiti: solo numeri, mai contenuti (né messaggi, né audio, né attività).
+-- Una riga per dispositivo e giorno, più la riga del totale di tutti (device_id = '*').
+-- day è il giorno UTC ('AAAA-MM-GG'), come la quota di Workers AI, che riparte alle 00:00 UTC.
+-- neurons_milli = millesimi di neurone. La pulizia oraria toglie le righe più vecchie di due giorni.
+CREATE TABLE IF NOT EXISTS assistant_usage (
+  device_id TEXT NOT NULL,
+  day TEXT NOT NULL,
+  messages INTEGER NOT NULL DEFAULT 0,
+  opens INTEGER NOT NULL DEFAULT 0,
+  audio_ms INTEGER NOT NULL DEFAULT 0,
+  neurons_milli INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (device_id, day)
+);
+CREATE INDEX IF NOT EXISTS assistant_usage_day ON assistant_usage (day);

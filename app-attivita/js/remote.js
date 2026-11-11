@@ -1,9 +1,9 @@
 /*
  * Aura Tasks — collegamento al server di Aura (Cloudflare Workers, cartella server/ del repository):
- * casella del Comando Rapido di Siri e promemoria push.
+ * casella del Comando Rapido di Siri, promemoria push e assistente (trascrizione della voce e risposte).
  * Niente DOM: richieste al server, sottoscrizione push del browser, impostazioni in `aura-tasks:remote`.
  * Le funzioni pure (codice del dispositivo, coda della casella, impostazioni) hanno i loro test in tests/.
- * Tutto è facoltativo: finché l'utente non attiva promemoria o Siri, l'app non fa nessuna richiesta.
+ * Tutto è facoltativo: finché l'utente non attiva promemoria, Siri o l'assistente, l'app non fa nessuna richiesta.
  */
 (function (Aura) {
   'use strict';
@@ -15,6 +15,7 @@
   const KEY = 'aura-tasks:remote';
   const SERVER_OVERRIDE_KEY = 'aura-tasks:server'; // solo per le prove, su localhost o da file://
   const TIMEOUT_MS = 12000;
+  const ASSISTANT_TIMEOUT_MS = 25000; // trascrizione e risposta dell'IA possono metterci qualche secondo
   const CODE_BYTES = 24; // 192 bit casuali → 32 caratteri
   const CODE_PATTERN = /^[A-Za-z0-9_-]{32,64}$/;
   const INBOX_MAX = 30;
@@ -166,20 +167,24 @@
     return 'ok';
   }
 
-  /** Richiesta al server. Non lancia mai: { ok, status, data }, con status 0 se la rete non risponde. */
-  async function request(method, path, { code, body } = {}) {
+  /**
+   * Richiesta al server. Non lancia mai: { ok, status, data }, con status 0 se la rete non risponde.
+   * `body` parte come JSON; `text` parte così com'è, come testo semplice (la registrazione della voce, in base64).
+   */
+  async function request(method, path, { code, body, text, headers: extra, timeout = TIMEOUT_MS } = {}) {
     const base = serverUrl();
     if (!base) return { ok: false, status: 0, data: null };
-    const headers = {};
+    const headers = { ...(extra || {}) };
     if (code) headers.Authorization = 'Bearer ' + code;
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (text !== undefined) headers['Content-Type'] = 'text/plain';
+    else if (body !== undefined) headers['Content-Type'] = 'application/json';
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), TIMEOUT_MS) : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeout) : null;
     try {
       const response = await fetch(base + path, {
         method,
         headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: text !== undefined ? text : body === undefined ? undefined : JSON.stringify(body),
         cache: 'no-store',
         signal: controller ? controller.signal : undefined
       });
@@ -206,7 +211,12 @@
     putSubscription: (code, subscription) => request('PUT', '/api/push/subscription', { code, body: subscription }),
     deleteSubscription: code => request('DELETE', '/api/push/subscription', { code }),
     putReminders: (code, list) => request('PUT', '/api/reminders', { code, body: { reminders: list } }),
-    testPush: code => request('POST', '/api/push/test', { code })
+    testPush: code => request('POST', '/api/push/test', { code }),
+    // Assistente (vedi docs/assistente.md). `audio` è la registrazione in base64, `type` il suo formato ("audio/mp4").
+    transcribe: (code, audio, type) => request('POST', '/api/assistant/transcribe', {
+      code, text: audio, headers: { 'X-Audio-Type': type }, timeout: ASSISTANT_TIMEOUT_MS
+    }),
+    chat: (code, payload) => request('POST', '/api/assistant/chat', { code, body: payload, timeout: ASSISTANT_TIMEOUT_MS })
   };
 
   /* ---------- Notifiche push del browser ---------- */

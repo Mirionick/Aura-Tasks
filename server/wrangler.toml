@@ -49,8 +49,25 @@ namespace_id = "1003"
   limit = 120
   period = 60
 
+# POST /api/assistant/… (trascrizione della voce e risposte dell'assistente)
+[[ratelimits]]
+name = "RATE_LIMIT_ASSISTANT"
+namespace_id = "1004"
+
+  [ratelimits.simple]
+  limit = 12
+  period = 60
+
+# Workers AI, per l'assistente: Whisper per la voce e un modello per le risposte.
+# È un collegamento dell'account: non esiste nessuna chiave. Sul piano gratuito ci sono 10.000 neuroni al giorno,
+# e oltre la quota le richieste falliscono; il server si ferma prima, a 8.500 (vedi ASSISTANT_LIMITS in src/assistant.js).
+[ai]
+binding = "AI"
+
 [vars]
 # Le pagine che possono chiamare il server (CORS). Il Comando Rapido non ne ha bisogno.
 ALLOWED_ORIGINS = "https://mirionick.github.io"
 # Contatto per i servizi push (Apple, Google…), richiesto dalla firma VAPID.
 VAPID_SUBJECT = "https://mirionick.github.io/Aura-Tasks/app-attivita/"
+# Modello delle risposte dell'assistente: uno di quelli elencati in MODELS (src/assistant.js), dove ci sono i prezzi.
+ASSISTANT_MODEL = "@cf/google/gemma-4-26b-a4b-it"

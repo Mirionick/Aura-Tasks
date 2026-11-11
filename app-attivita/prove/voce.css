@@ -1,0 +1,73 @@
+/*
+ * Aura Tasks — pagina provvisoria «Prova della voce» (passo 0 dell'assistente).
+ * Usa i token e i componenti di css/style.css (riquadri, pulsanti, campi, righe di stato): qui c'è solo ciò che manca.
+ * Nessun colore nuovo.
+ */
+
+.probe {
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 12px)
+    max(var(--gutter), env(safe-area-inset-right, 0px))
+    calc(env(safe-area-inset-bottom, 0px) + 32px)
+    max(var(--gutter), env(safe-area-inset-left, 0px));
+}
+
+.probe__head,
+.probe__main { max-width: var(--content-max); margin: 0 auto; }
+
+.probe__head { margin-bottom: 16px; }
+.probe__title { margin: 4px 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+.probe__lead { font-size: 15px; color: var(--text-2); }
+
+.probe .panel { background: var(--surface); }
+.probe .panel__title { margin: 0; }
+.probe .panel__actions .btn { flex: 1 1 auto; }
+
+/* Il nome «steps» è già del foglio "Promemoria e Siri", in style.css */
+.probe__steps { margin: 0; padding-left: 22px; font-size: 15px; color: var(--text-2); }
+.probe__steps li + li { margin-top: 6px; }
+
+/* Che cosa sa fare questo dispositivo: etichetta e valore affiancati */
+.facts { display: grid; grid-template-columns: minmax(7.5rem, auto) minmax(0, 1fr); gap: 6px 12px; font-size: 14.5px; }
+.facts dt { font-weight: 700; color: var(--text-2); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+
+.probe__field { margin: 0; }
+.probe .chip { min-height: var(--tap); }
+.probe .chip:disabled { opacity: .55; }
+
+.probe__audio { display: block; width: 100%; }
+.probe__audio[hidden] { display: none; }
+
+/* Il microfono si tiene premuto: niente selezione del testo, menu di iOS o scorrimento mentre il dito è giù */
+.mic {
+  min-height: 72px;
+  font-size: 17px;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.mic[data-state="asking"],
+.mic[data-state="sending"] { color: var(--accent-text); background: var(--accent-soft); box-shadow: none; }
+.mic[data-state="hold"],
+.mic[data-state="tap"] { color: var(--danger); background: var(--danger-soft); box-shadow: none; }
+
+.check-row { display: flex; align-items: flex-start; gap: 10px; min-height: var(--tap); padding: 6px 0; font-size: 15px; color: var(--text-2); }
+.check-row input { flex: none; width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--accent); }
+
+/* Elenco delle prove fatte, dalla più recente */
+.log { margin: 0; padding: 0; list-style: none; }
+.log:empty { display: none; }
+.log__item { padding: 12px; border-radius: var(--radius-sm); background: var(--surface-raised); border: 1px solid var(--border); font-size: 14.5px; }
+.log__item + .log__item { margin-top: 8px; }
+.log__head { font-weight: 700; }
+.log__line { margin: 4px 0 0; color: var(--text-2); overflow-wrap: anywhere; }
+.log__text { margin: 6px 0 0; font-size: 16px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.log__text--error { color: var(--danger); }
+.log__ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; color: var(--text-2); }
+
+.link-btn--inline { display: inline; min-height: 0; padding: 0; font-size: inherit; }
+
+/* Testo a 16 px anche qui: sotto, iOS ingrandisce la pagina al tocco */
+.probe__report { min-height: 220px; font: 16px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; resize: vertical; white-space: pre; overflow: auto; }

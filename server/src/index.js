@@ -2,9 +2,12 @@
  * Aura — server su Cloudflare Workers (piano gratuito).
  * - Casella del Comando Rapido di Siri: il comando scrive una frase, l'app la ritira quando si apre.
  * - Promemoria Web Push: l'app manda l'elenco dei promemoria, il Cron (ogni minuto) invia quelli arrivati all'ora.
+ * - Assistente con l'IA (Workers AI): trascrizione della voce e risposte, in assistant.js.
  * Ogni dispositivo si presenta con un codice segreto casuale generato dall'app ("Authorization: Bearer <codice>"):
  * il server ne conserva solo l'impronta SHA-256. Le chiavi VAPID arrivano dai secrets di Cloudflare.
  */
+import { ASSISTANT_LIMITS, chat, forgetUsage, pruneUsage, transcribe } from './assistant.js';
+import { HttpError, checkLength, cleanText, json, plain, readBody, readJson } from './http.js';
 import { base64urlDecode, base64urlEncode, createSigner, importVapidKeys, isUncompressedKey, sendPush } from './webpush.js';
 import { INBOX_TEXTS, LIMIT_TEXTS, TEST_MESSAGE, reminderBody } from './text.js';
 
@@ -25,7 +28,8 @@ export const LIMITS = {
   maxAttempts: 5,
   late: 15 * MINUTE,    // passato questo tempo dall'ora dell'attività, il promemoria non si manda più
   inboxDays: 30,
-  deviceDays: 180
+  deviceDays: 180,
+  assistant: ASSISTANT_LIMITS // messaggi, voce e neuroni dell'assistente: vedi assistant.js
 };
 
 /** Servizi push ammessi (dominio dell'endpoint): così il server non manda richieste a indirizzi qualsiasi. */
@@ -43,14 +47,6 @@ export default {
   }
 };
 
-/** Errore con il suo stato HTTP: il messaggio arriva all'app. */
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
 /* ---------- Richieste ---------- */
 
 /** Gestisce una richiesta. `deps` = { now, fetch }: nei test sono finti. */
@@ -66,7 +62,7 @@ export async function handle(request, env, deps) {
       status: 204,
       headers: {
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Audio-Type', // X-Audio-Type: formato della registrazione
         'Access-Control-Max-Age': '86400'
       }
     });
@@ -105,7 +101,10 @@ const ROUTES = {
   'PUT /api/push/subscription': putSubscription,
   'DELETE /api/push/subscription': deleteSubscription,
   'PUT /api/reminders': putReminders,
-  'POST /api/push/test': sendTestPush
+  'POST /api/push/test': sendTestPush,
+  // Assistente: prima il codice del dispositivo, che serve solo a contare e non arriva mai al modello.
+  'POST /api/assistant/transcribe': async (request, env, deps) => transcribe(request, env, deps, await requireDevice(request, env, deps)),
+  'POST /api/assistant/chat': async (request, env, deps) => chat(request, env, deps, await requireDevice(request, env, deps))
 };
 
 function route(request, env, deps) {
@@ -124,6 +123,7 @@ function rateLimitFor(method, pathname) {
   if (method === 'POST' && pathname === '/api/devices') return { binding: 'RATE_LIMIT_STRICT', prefix: 'devices' };
   if (method === 'POST' && pathname === '/api/push/test') return { binding: 'RATE_LIMIT_STRICT', prefix: 'push-test' };
   if (method === 'POST' && pathname === '/api/inbox') return { binding: 'RATE_LIMIT_INBOX', prefix: 'inbox' };
+  if (pathname.startsWith('/api/assistant/')) return { binding: 'RATE_LIMIT_ASSISTANT', prefix: 'assistant' };
   return { binding: 'RATE_LIMIT_API', prefix: 'api' };
 }
 
@@ -222,8 +222,8 @@ async function registerDevice(request, env, deps) {
 }
 
 /**
- * "Scollega": via casella, sottoscrizione e promemoria; il dispositivo diventa un segno anonimo che conserva
- * created_at. Il codice smette subito di valere, e registrarsi e scollegarsi di continuo non aggira il tetto.
+ * "Scollega": via casella, sottoscrizione, promemoria e conteggi dell'assistente; il dispositivo diventa un segno
+ * anonimo che conserva created_at. Il codice smette subito di valere, e registrarsi e scollegarsi di continuo non aggira il tetto.
  */
 async function deleteDevice(request, env, deps) {
   const id = await requireDevice(request, env, deps);
@@ -231,6 +231,7 @@ async function deleteDevice(request, env, deps) {
     env.DB.prepare('DELETE FROM reminders WHERE device_id = ?').bind(id),
     env.DB.prepare('DELETE FROM subscriptions WHERE device_id = ?').bind(id),
     env.DB.prepare('DELETE FROM inbox WHERE device_id = ?').bind(id),
+    forgetUsage(env, id),
     env.DB.prepare('UPDATE devices SET id = ? WHERE id = ?').bind(markerId(), id)
   ]);
   return json({ ok: true });
@@ -479,11 +480,15 @@ function ttlFor(at, now) {
   return Math.min(3600, Math.max(60, Math.round((at + LIMITS.late - now) / 1000)));
 }
 
-/** Pulizia oraria: frasi dimenticate, promemoria passati, segni anonimi di oltre un giorno, dispositivi non più visti. */
+/**
+ * Pulizia oraria: frasi dimenticate, promemoria passati, segni anonimi di oltre un giorno, dispositivi non più visti,
+ * conteggi dell'assistente dei giorni passati.
+ */
 async function cleanup(env, now) {
   const oldDevices = 'SELECT id FROM devices WHERE seen_at < ?';
   const deviceLimit = now - LIMITS.deviceDays * DAY;
   await env.DB.batch([
+    pruneUsage(env, now),
     env.DB.prepare("DELETE FROM devices WHERE id LIKE 'segno:%' AND created_at < ?").bind(now - DAY),
     env.DB.prepare('DELETE FROM inbox WHERE created_at < ?').bind(now - LIMITS.inboxDays * DAY),
     env.DB.prepare('DELETE FROM reminders WHERE at < ?').bind(now - LIMITS.late),
@@ -542,42 +547,6 @@ function isKey(value, length) {
   }
 }
 
-/** Una riga di testo pulita: niente caratteri di controllo, spazi compressi. */
-function cleanText(value) {
-  if (typeof value !== 'string') return '';
-  return value.normalize('NFC').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
 function randomId() {
   return base64urlEncode(crypto.getRandomValues(new Uint8Array(12)));
-}
-
-function checkLength(request, max, message) {
-  if (Number(request.headers.get('Content-Length')) > max) throw new HttpError(413, message || 'Richiesta troppo grande');
-}
-
-async function readBody(request, max, message) {
-  checkLength(request, max, message);
-  const raw = await request.text();
-  if (raw.length > max) throw new HttpError(413, message || 'Richiesta troppo grande');
-  return raw;
-}
-
-async function readJson(request, max) {
-  const raw = await readBody(request, max);
-  try {
-    return JSON.parse(raw);
-  } catch (err) {
-    throw new HttpError(400, 'Dati non validi');
-  }
-}
-
-const COMMON_HEADERS = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { ...COMMON_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } });
-}
-
-function plain(text, status = 200) {
-  return new Response(text, { status, headers: { ...COMMON_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } });
 }

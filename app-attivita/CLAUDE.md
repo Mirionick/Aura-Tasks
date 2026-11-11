@@ -9,6 +9,7 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
   - quanto è più affidabile che venga ricordato?
 - Tutti i dati restano nel `localStorage` del dispositivo.
 - L'unica eccezione a "niente server" è il **server di Aura** (cartella `server/` del repository, Cloudflare Workers, piano gratuito). È facoltativo: se l'utente attiva promemoria o Siri, riceve solo titolo e ora dei promemoria e le frasi dettate a Siri (vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md)).
+  - Con l'**assistente** (in costruzione, vedi [docs/assistente.md](docs/assistente.md)) il server riceverà anche messaggi, registrazioni della voce e l'elenco delle attività da fare, per passarli a Workers AI **senza salvarli**. Per ora lo fa solo la pagina di prova della voce.
 
 ## Cosa sa fare oggi
 - **Attività**: ognuna ha titolo, durata stimata in minuti, livello di energia (bassa/media/alta), data facoltativa e **orario** facoltativo.
@@ -79,6 +80,7 @@ Quando l'utente dice **"pubblica"**:
 2. Esegui i test (vedi "Test"): devono essere tutti verdi.
    - Se sono cambiati file dell'app, controlla anche `sw.js` (`APP_FILES`, `CACHE_VERSION`).
    - Se è cambiato `server/`: `npm test` e poi `npm run deploy` in `server/`, **prima** del push se l'app pubblicata ne ha bisogno. Il push aggiorna solo l'app.
+     - Se è cambiato `schema.sql`: `npm run db:init` **prima** di `npm run deploy` (aggiunge solo ciò che manca, non cancella nulla).
 3. Fai il commit con un messaggio chiaro in italiano: la prima riga dice cosa cambia per chi usa l'app, le righe dopo danno i dettagli.
    - Su Windows PowerShell 5.1 scrivi il messaggio in un file UTF-8 e usa `git commit -F <file>`. Con `-m`, le virgolette dentro il messaggio si perdono o fanno fallire il comando.
 4. Esegui `git push`. Se Git chiede di accedere a GitHub, avvisa l'utente: farà il login dalla finestra del browser.
@@ -109,7 +111,7 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 | `js/suggest.js` | Logica pura di «Cosa faccio adesso?»: `suggest(tasks, { minutes, energy, today, exclude, random })` sceglie la proposta e ne dice il motivo; pesi e scelte in `SUGGEST` |
 | `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione. Preferenze (`aura-tasks:prefs`) e focus in corso (`aura-tasks:focus`) |
 | `js/reminders.js` | Logica pura dei promemoria: dalle attività con giorno e ora all'elenco per il server (`at`, `fireAt`), anticipi, impronta dell'elenco |
-| `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste, codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
+| `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste (anche quelle dell'assistente: `api.transcribe`, `api.chat`), codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
 | `js/motion.js` | Movimento: durate e curve lette dai token di `style.css`, tecnica FLIP (`snapshot()` prima di `render()`, `play()` dopo), fantasmi degli elementi tolti, entrata di una scheda (`slideIn()`), `flash()`. Tocca la pagina solo per le animazioni; `planFlip()` è pura e testata |
 | `js/ui-focus.js` | Interfaccia dei fogli «Cosa faccio adesso?» e Focus a tutto schermo: proposta, timer, suono di fine (Web Audio), schermo acceso (wake lock), sfondo che respira. Tocca la pagina come `app.js`, che gli passa ciò che serve con `Aura.focusUI.init()` |
 | `js/app.js` | Interfaccia: schede e barra, disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Tocca la pagina insieme a `ui-focus.js` e, per le animazioni, a `motion.js` |
@@ -117,6 +119,7 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
 | `images/` | Illustrazioni in WebP, ottimizzate dagli originali che restano fuori dal repository (vedi [docs/illustrazioni.md](docs/illustrazioni.md)). Per ora `suggest-none.webp` ed `empty-focus.webp` |
+| `prove/` | Pagine **provvisorie** di prova, fuori da `APP_FILES`. Per ora `voce.html` (con `voce.css` e `voce.js`): prova tecnica di microfono, trascrizione e voce del telefono per l'assistente. Si apre dal link in fondo a Motivazione e sparisce con il passo 2 di [docs/assistente.md](docs/assistente.md) |
 | `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`): si aprono con `tests/index.html` |
 | `docs/` | Le specifiche delle funzioni, una per file (vedi "Indice delle specifiche") |
 | `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md) e `server/README.md` |
@@ -235,6 +238,7 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
 - **Content-Security-Policy** (`<meta>` subito dopo `charset` in `index.html`):
   - permette solo i file dell'app e, in `connect-src`, il server di Aura;
   - **niente script, `<style>` o attributi `style=` inline**: sarebbero bloccati. Lo stile da JavaScript passa per il CSSOM (`el.style.prop = …`) o per `element.animate()`, che la CSP permette;
+  - **niente `<select>`**: con questa CSP, in WebKit ogni `<select>` fa comparire in console un avviso («Refused to apply a stylesheet…»). Visto con Playwright sul PC, in una pagina minima; in Edge no. Per le scelte si usano i chip, come nel resto dell'app;
   - un servizio esterno nuovo va aggiunto a `connect-src`;
   - `file:` nella CSP serve solo per il doppio clic su `index.html` e non ha effetto su https;
   - con la CSP via `<meta>` non si possono usare `frame-ancestors` né i report: GitHub Pages non permette di impostare intestazioni HTTP;
@@ -276,6 +280,7 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - `setupSheet(dialog, { onCancel, backdropClose })`: il focus a tutto schermo non si chiude toccando fuori, e per lui Esc e "indietro" valgono «Esci».
   - Dentro un foglio aperto gli avvisi in basso non si vedono. Un'azione che ne ha bisogno, come «Fatto» o «Completa», prima chiude il foglio.
 - **Service worker**: quando aggiungi o rinomini un file dell'app, aggiungilo ad `APP_FILES` in `sw.js` e aumenta `CACHE_VERSION`.
+  - Con la rete lenta o assente `index.html` fa da riserva **solo per la pagina dell'app** (`isAppPage()` in `sw.js`). Le altre pagine, come `prove/voce.html`, stanno fuori da `APP_FILES`: si salvano in cache alla prima apertura, e prima di allora senza rete il browser mostra il suo errore.
 - **Test**: ogni nuova logica pura ha i suoi test in `tests/`.
 - **Premium**: qualsiasi controllo premium passa **solo** da `isPremium()` (vedi la sezione "Funzioni premium").
 
@@ -302,7 +307,10 @@ Note per i controlli automatici con Edge headless:
 - la cifratura Web Push, confrontata byte per byte con l'esempio della RFC 8291;
 - la firma VAPID;
 - tutte le API, sull'SQL vero (D1 simulato con `node:sqlite`);
-- il Cron, con un servizio push finto e i messaggi decifrati.
+- il Cron, con un servizio push finto e i messaggi decifrati;
+- l'assistente, con un'IA finta al posto di Workers AI: limiti, conteggi, ciò che va al modello e ciò che ne torna. Non consuma quota.
+
+**Workers AI vero** si prova solo con `wrangler dev` (anche in locale consuma la quota gratuita) e con `server/scripts/eval-assistant.mjs`, la prova dei modelli sulle frasi italiane: vedi `server/README.md`.
 
 **Prova completa in locale** (app + server vero): vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md). Va rifatta quando cambiano server, `remote.js`, la casella o la CSP.
 
@@ -391,6 +399,7 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 | [docs/backup.md](docs/backup.md) | Esportare, importare e ripristinare i dati | realizzata |
 | [docs/tre-modalita.md](docs/tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fasi 1 e 2a fatte, da provare sull'iPhone |
 | [docs/illustrazioni.md](docs/illustrazioni.md) | Illustrazioni: flusso, revisione, elenco e prompt per Nano Banana | in corso: 2 nell'app (una da sostituire), 5 da rifare |
+| [docs/assistente.md](docs/assistente.md) | Assistente con l'IA: scrivere o parlare ad Aura, permessi, memoria breve, frasi di Siri, server e limiti | in corso: passo 0 (prova tecnica) pubblicato, da provare sull'iPhone |
 | [docs/funzioni-future.md](docs/funzioni-future.md) | Web Share Target e scorciatoie (Android), promemoria `.ics`, altre idee | da fare |
 | [docs/premium.md](docs/premium.md) | Licenza premium: verifica offline, interfaccia e dati | da fare |
 
@@ -437,6 +446,7 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 | Calendario delle ultime settimane | da decidere |
 | Frase del giorno | da decidere |
 | Illustrazioni | da decidere |
+| Assistente con l'IA (scrivere e parlare ad Aura) | da decidere |
 
 Le funzioni di oggi restano gratuite anche dove cambiano posto (vedi [docs/tre-modalita.md](docs/tre-modalita.md)).
 
@@ -457,6 +467,7 @@ Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?a
 2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
 3. ~~**Promemoria con notifiche Web Push**~~: fatto. Resta, facoltativa, l'esportazione `.ics`.
 4. **«Tre modalità»**: Focus (con «Cosa faccio adesso?» e la modalità focus), Agenda e Motivazione, in quattro fasi (vedi [docs/tre-modalita.md](docs/tre-modalita.md)).
+5. **Assistente con l'IA**: scrivere o parlare ad Aura, che propone, aggiunge e sposta secondo i permessi dell'utente. Quattro passi, a partire da una prova tecnica (vedi [docs/assistente.md](docs/assistente.md)).
 
 La licenza premium va fatta quando serve.
 
@@ -467,5 +478,5 @@ La licenza premium va fatta quando serve.
 - [ ] Nessun errore in console, sia aprendo da `file://` sia da `http://localhost`.
 - [ ] `sw.js` è aggiornato (`APP_FILES`, `CACHE_VERSION`) se sono cambiati file.
 - [ ] Se lo schema è cambiato: `SCHEMA_VERSION` aumentato e passo aggiunto in `migrate()`.
-- [ ] Se è cambiato `server/`: `npm test` verde, prova completa in locale, `npm run deploy` fatto, nessun segreto nei file.
+- [ ] Se è cambiato `server/`: `npm test` verde, prova completa in locale, `npm run db:init` se è cambiato `schema.sql`, `npm run deploy` fatto, nessun segreto nei file.
 - [ ] Questo file e la specifica della funzione in `docs/` sono aggiornati, compresa la categoria gratuita/premium delle funzioni nuove.

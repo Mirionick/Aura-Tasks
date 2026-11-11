@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <!-- Stessa Content-Security-Policy dell'app, più "media-src blob:" per riascoltare la registrazione appena fatta. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file:; media-src 'self' blob:; connect-src 'self' https://aura.auramirionick.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Prova della voce · Aura Tasks</title>
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#4b2fd0">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="voce.css">
+  <!-- Pagina provvisoria del passo 0 dell'assistente (vedi docs/assistente.md): sparisce con il passo 2. -->
+  <script src="../js/theme.js"></script>
+  <script src="../js/utils.js" defer></script>
+  <script src="../js/reminders.js" defer></script>
+  <script src="../js/remote.js" defer></script>
+  <script src="voce.js" defer></script>
+</head>
+<body class="probe">
+  <header class="probe__head">
+    <a class="link-btn" href="../">‹ Torna ad Aura</a>
+    <h1 class="probe__title">Prova della voce</h1>
+    <p class="probe__lead">Pagina provvisoria. Serve a capire come si comportano microfono e voce su questo telefono, prima di costruire l'assistente.</p>
+  </header>
+
+  <main class="probe__main">
+    <section class="panel" aria-labelledby="steps-title">
+      <h2 class="panel__title" id="steps-title">Cosa provare</h2>
+      <ol class="probe__steps">
+        <li>Tocca «Attiva la prova».</li>
+        <li>Tieni premuto il microfono e di' una frase. Dopo ogni prova segna se iOS ha chiesto il permesso.</li>
+        <li>Aspetta due minuti e riprova.</li>
+        <li>Chiudi Aura del tutto, riaprila, torna qui e riprova.</li>
+        <li>Tocca «Registra 30 secondi» e parla finché si ferma.</li>
+        <li>Fai le tre prove della voce, anche con il silenzioso acceso.</li>
+        <li>Tocca «Copia i risultati» e incollali nella conversazione.</li>
+      </ol>
+    </section>
+
+    <section class="panel" aria-labelledby="env-title">
+      <h2 class="panel__title" id="env-title">Questo dispositivo</h2>
+      <dl class="facts" id="env-list"></dl>
+    </section>
+
+    <section class="panel" aria-labelledby="link-title">
+      <h2 class="panel__title" id="link-title">1 · Collegamento</h2>
+      <p class="panel__text">Le registrazioni di questa prova vanno al server di Aura, che le fa trascrivere a Cloudflare e non le salva.</p>
+      <p class="status" id="link-status" data-tone="off" role="status">Non attiva</p>
+      <div class="panel__actions">
+        <button class="btn btn--primary" id="activate" type="button">Attiva la prova</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="mic-title">
+      <h2 class="panel__title" id="mic-title">2 · Microfono</h2>
+      <p class="panel__text">Tieni premuto il pulsante e di' una frase, per esempio «domani devo chiamare il medico». Al rilascio parte.</p>
+      <!-- Chip e non <select>: in Safari ogni <select> fa scrivere in console un avviso della Content-Security-Policy. -->
+      <div class="probe__field">
+        <p class="field__label" id="mic-type-label">Formato della registrazione</p>
+        <div class="chips" id="mic-type" role="group" aria-labelledby="mic-type-label"></div>
+      </div>
+      <button class="btn btn--primary btn--block mic" id="mic" type="button" data-state="idle" disabled>Tieni premuto e parla</button>
+      <p class="status" id="mic-status" data-tone="off" role="status">Prima attiva la prova</p>
+      <div class="panel__actions">
+        <button class="btn btn--soft" id="mic-long" type="button" disabled>Registra 30 secondi</button>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" id="speak-after" checked>
+        <span>Dopo la trascrizione, ripeti a voce quello che ho detto</span>
+      </label>
+      <audio class="probe__audio" id="playback" controls hidden></audio>
+      <ol class="log" id="mic-log" aria-label="Registrazioni fatte"></ol>
+    </section>
+
+    <section class="panel" aria-labelledby="speech-title">
+      <h2 class="panel__title" id="speech-title">3 · Voce del telefono</h2>
+      <p class="panel__text">Aura risponderà con la voce del telefono. iOS la lascia parlare solo dentro un tocco: qui si vede se lo «sblocco» basta per una risposta che arriva dopo.</p>
+      <div class="probe__field">
+        <p class="field__label" id="voice-label">Voce</p>
+        <div class="chips" id="voice" role="group" aria-labelledby="voice-label"></div>
+      </div>
+      <div class="panel__actions">
+        <button class="btn btn--soft" id="say-now" type="button">Parla subito</button>
+        <button class="btn btn--soft" id="say-unlocked" type="button">Sblocca, poi parla dopo 3 secondi</button>
+        <button class="btn btn--soft" id="say-locked" type="button">Parla dopo 3 secondi, senza sblocco</button>
+      </div>
+      <p class="panel__note">La terza prova vale solo a pagina appena aperta: prima <button class="link-btn link-btn--inline" id="reload" type="button">ricarica la pagina</button>, poi toccala per prima.</p>
+      <ol class="log" id="speech-log" aria-label="Prove della voce"></ol>
+    </section>
+
+    <section class="panel" aria-labelledby="report-title">
+      <h2 class="panel__title" id="report-title">4 · Risultati</h2>
+      <p class="panel__text">Copia il riepilogo e incollalo nella conversazione. Contiene le frasi trascritte, non il codice del dispositivo.</p>
+      <textarea class="input probe__report" id="report" readonly rows="10" aria-label="Riepilogo dei risultati"></textarea>
+      <div class="panel__actions">
+        <button class="btn btn--primary" id="copy" type="button">Copia i risultati</button>
+      </div>
+      <p class="status" id="copy-status" data-tone="on" role="status" hidden></p>
+    </section>
+  </main>
+</body>
+</html>

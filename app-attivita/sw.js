@@ -7,7 +7,7 @@
 'use strict';
 
 // Quando aggiungi, togli o rinomini un file dell'app: aggiorna APP_FILES e aumenta la versione.
-const CACHE_VERSION = 'aura-tasks-v9';
+const CACHE_VERSION = 'aura-tasks-v10';
 const APP_FILES = [
   './',
   './index.html',
@@ -82,9 +82,20 @@ async function respond(request, network) {
   } catch (err) {
     const cache = await caches.open(CACHE_VERSION);
     const cached = await cache.match(request, { ignoreSearch: true }) ||
-      (request.mode === 'navigate' ? await cache.match('./index.html') : undefined);
+      (isAppPage(request) ? await cache.match('./index.html') : undefined);
     return cached || network; // niente in cache: si aspetta comunque la rete
   }
+}
+
+/**
+ * true se si sta aprendo la pagina dell'app: la sua cartella o index.html, con qualunque parametro (?add=, ?task=).
+ * Solo per lei index.html fa da riserva. Per un'altra pagina, come prove/voce.html, comparirebbe l'app al suo posto.
+ */
+function isAppPage(request) {
+  if (request.mode !== 'navigate') return false;
+  const path = new URL(request.url).pathname;
+  const scope = new URL(self.registration.scope).pathname;
+  return path === scope || path === scope + 'index.html';
 }
 
 function withTimeout(promise, ms) {
