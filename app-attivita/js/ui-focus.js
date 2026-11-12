@@ -65,9 +65,10 @@
   /** Ricalcola la proposta (logica in js/suggest.js) e la mostra; senza proposte, un messaggio gentile. */
   function updateSuggestion() {
     const state = ctx.getState();
-    const today = utils.todayISO();
+    const now = Date.now();
+    const today = utils.todayISO(now);
     const { minutes, energy } = currentChoice();
-    let result = SG.suggest(state.tasks, { minutes, energy, today, exclude: excluded });
+    let result = SG.suggest(state.tasks, { minutes, energy, today, now, exclude: excluded });
 
     const forcedTask = forced && state.tasks.find(task => task.id === forced && !task.done);
     if (forcedTask) {
@@ -184,7 +185,7 @@
 
   const taskOf = current => (current ? ctx.getState().tasks.find(task => task.id === current.taskId) || null : null);
 
-  /** ▶ su una card o «Inizia focus»: una sessione per volta. Va chiamata dentro il tocco (sblocca l'audio). */
+  /** «Inizia focus» (nella proposta di «Cosa faccio adesso?» o nel foglio di un'attività): una sessione per volta. Va chiamata dentro il tocco (sblocca l'audio). */
   function startFocus(id) {
     const task = ctx.getState().tasks.find(item => item.id === id);
     if (!task || task.done) return;
@@ -472,7 +473,7 @@
     if (!Context) return;
     try {
       if (!audio) audio = new Context();
-      if (audio.state === 'suspended') audio.resume().catch(() => {});
+      resumeAudio();
       const silence = audio.createBufferSource(); // un suono vuoto: su iPhone apre l'uscita audio
       silence.buffer = audio.createBuffer(1, 1, 22050);
       silence.connect(audio.destination);
@@ -482,10 +483,18 @@
     }
   }
 
+  /**
+   * Riprende l'audio se non sta suonando. Non basta «suspended»: su iPhone, dopo essere usciti e rientrati,
+   * Safari può lasciarlo «interrupted» (WebKit bug 263627 e 273511), e allora resta muto finché non si chiama resume().
+   */
+  function resumeAudio() {
+    if (audio.state !== 'running') audio.resume().catch(() => {});
+  }
+
   function chime() {
     if (!audio) return;
     try {
-      if (audio.state === 'suspended') audio.resume().catch(() => {});
+      resumeAudio();
       const start = audio.currentTime + 0.05;
       CHIME.notes.forEach(([frequency, offset]) => {
         const oscillator = audio.createOscillator();

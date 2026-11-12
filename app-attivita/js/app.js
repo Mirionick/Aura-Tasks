@@ -414,7 +414,7 @@
     const total = F.totalMinutes(state.stats);
     els.focusMinutesText.textContent = total
       ? 'Focus: ' + utils.formatDuration(F.minutesOn(state.stats, today)) + ' oggi · ' + utils.formatDuration(total) + ' in tutto'
-      : 'Minuti di focus: avvia ▶ Focus su un\'attività di oggi';
+      : 'Minuti di focus: tocca «Inizia focus» in «Cosa faccio adesso?» o nel foglio di un\'attività';
   }
 
   function renderEmpty(isEmpty, completedCount, agendaCount, today) {

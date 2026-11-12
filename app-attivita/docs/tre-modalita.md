@@ -160,8 +160,9 @@ Ognuno si pubblica da solo, con le sue misure.
 - Ricorda l'ultima scelta (`aura-tasks:prefs`); la prima volta propone 30 minuti ed energia media.
 - La proposta compare subito sotto le domande e si aggiorna a ogni scelta. Sotto ci sono due alternative: un tocco ne fa la proposta principale.
 - Il pulsante è nascosto quando non c'è niente da fare adesso.
-- **Algoritmo**: funzione pura `suggest(tasks, { minutes, energy, today, exclude, random })` in `js/suggest.js`.
+- **Algoritmo**: funzione pura `suggest(tasks, { minutes, energy, today, now, exclude, random })` in `js/suggest.js`. `now` è l'istante attuale in millisecondi.
   - **Candidate**: attività non completate, con `duration ≤ minutes`, con `ENERGY[t.energy].order ≤ ENERGY[energy].order` e con data nulla oppure `≤ oggi`.
+  - **Orario** (correzione del 12 novembre 2026): un'attività di oggi con l'orario è candidata solo quando l'ora è passata o mancano al massimo 15 minuti (`SUGGEST.soonMinutes`). Di mattina «Dentista» delle 16:30 non si propone. Quelle in ritardo si propongono a qualsiasi ora.
   - **Punteggio** (i pesi stanno in costanti):
     - urgenza: in ritardo +50, più 5 per ogni giorno di ritardo fino a +30; oggi +30; senza data +10;
     - sfruttamento del tempo: `20 × durata / minuti`;

@@ -408,7 +408,7 @@ Registrazioni fatte da Edge con un microfono finto (una voce sintetica italiana)
   - La registrazione di 30 secondi ne usa 7, e una risposta altrettanti.
   - Il corpo più lungo che il server accetta ne ha usati 12. Cloudflare ha risposto lo stesso, ma non è detto che lo faccia sempre.
   - La CPU cresce con la lunghezza del corpo. Con due sole misure, i 10 ms cadono intorno ai 900.000 caratteri: è una stima.
-  - Cosa fare: guardare quanto è lunga una registrazione di 30 secondi fatta dall'iPhone (il riepilogo della pagina di prova la scrive). Se si avvicina ai 900.000 caratteri, nel passo 2 si abbassa il limite del corpo o il bitrate della registrazione.
+  - Cosa fare: guardare quanto è lunga una registrazione di 30 secondi fatta dall'iPhone (il riepilogo della pagina di prova la scrive). Nel passo 2 il limite del corpo scende a circa il doppio di quella misura (vedi "Da fare nel passo 2: limite del corpo").
 - **Conteggi**: 1 messaggio, 58 secondi di voce e 60,3 neuroni, uguali nella riga del dispositivo e nel totale del giorno.
   - Dopo «Scollega» la riga del dispositivo sparisce e il totale resta.
   - Il codice scollegato non vale più: 401.
@@ -424,9 +424,16 @@ Si chiude con l'iPhone.
 3. **Permesso del microfono**: quante volte iOS lo chiede (subito, dopo due minuti, dopo aver chiuso e riaperto Aura), in Safari e nell'app installata.
 4. **Voce**: lo sblocco dopo un tocco lungo, con e senza silenzioso; le voci italiane disponibili.
 5. **Tempi veri** di trascrizione e di risposta dal telefono.
-6. **Piano dell'account Cloudflare**: si vede solo nella dashboard, non dagli strumenti usati qui.
-   - Il tetto del server (8.500 neuroni al giorno) sta comunque sotto la quota gratuita.
+6. ~~Piano dell'account Cloudflare~~: controllato dall'utente il 12 novembre 2026, è quello **gratuito**.
+   - Il tetto del server (8.500 neuroni al giorno) sta sotto la quota gratuita.
    - La quota si supera solo se, nello stesso giorno, si sommano prove fatte in locale con `wrangler dev`.
+
+### Da fare nel passo 2: limite del corpo
+Deciso dall'utente il 12 novembre 2026, da fare quando ci sarà la misura di 30 secondi registrati dall'iPhone:
+- porta `audioChars` (in `server/src/assistant.js`) a **circa il doppio** di quella misura;
+- togli da `AUDIO_TYPES` i formati che il MediaRecorder dei telefoni non usa, come `audio/wav`.
+
+**Perché**: oggi il limite è 1,2 milioni di caratteri, e il corpo più lungo ammesso ha usato 12 ms di CPU, sopra i 10 del piano gratuito. Col nuovo limite anche il caso peggiore resta sotto i 10 ms, e una sola richiesta non può contenere minuti di audio: al bitrate dell'iPhone, il doppio di 30 secondi è circa un minuto. Togliere i formati inutili riduce ciò che il server accetta. Aggiorna anche i test del server che usano `ASSISTANT_LIMITS.audioChars`.
 
 ## Scelte dell'utente (11 novembre 2026)
 

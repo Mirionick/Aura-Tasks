@@ -16,7 +16,9 @@
       ...overrides
     };
   }
-  const run = (tasks, options) => S.suggest(tasks, { today: TODAY, random: calm, ...options });
+  const at = (h, m) => new Date(2026, 10, 10, h, m || 0).getTime(); // un istante di TODAY
+  const MORNING = at(9);
+  const run = (tasks, options) => S.suggest(tasks, { today: TODAY, now: MORNING, random: calm, ...options });
   const ids = result => (result.best ? [result.best.task.id] : []).concat(result.alternatives.map(item => item.task.id));
 
   test('suggest: candidate solo da fare adesso, che stanno nel tempo e nell\'energia', () => {
@@ -69,7 +71,7 @@
     const reason = (overrides, minutes) => run([make(overrides)], { minutes, energy: 'high' }).best.reason;
     assertEqual(reason({ date: '2026-11-08', duration: 20 }, 30), 'È in ritardo da 2 giorni e ci sta nei tuoi 30 minuti');
     assertEqual(reason({ date: '2026-11-09', duration: 15 }, 30), 'È in ritardo da ieri e ci sta nei tuoi 30 minuti');
-    assertEqual(reason({ date: TODAY, time: '15:00', duration: 45 }, 45), 'È per oggi alle 15:00 e occupa giusto i tuoi 45 minuti');
+    assertEqual(reason({ date: TODAY, time: '09:10', duration: 45 }, 45), 'È per oggi alle 09:10 e occupa giusto i tuoi 45 minuti');
     assertEqual(reason({ date: TODAY }, 90), 'È per oggi e ci sta nella tua ora e mezza');
     assertEqual(reason({ date: TODAY, duration: 60 }, 60), 'È per oggi e occupa giusto la tua ora');
     assertEqual(reason({ createdAt: day(1) }, null), 'Aspetta da 9 giorni e dura 30 minuti');
@@ -96,8 +98,30 @@
     assert(result.alternatives[0].score >= result.alternatives[1].score, 'ordinate');
   });
 
+  test('suggest: un\'attività di oggi con l\'orario lontano non si propone', () => {
+    const dentista = make({ id: 'dentista', date: TODAY, time: '16:30', duration: 60 });
+    const palestra = make({ id: 'palestra', date: TODAY, time: '18:00', duration: 90, energy: 'high' });
+    const libera = make({ id: 'libera', duration: 20 });
+    assertEqual(ids(run([dentista, libera], { minutes: 60, energy: 'medium' })), ['libera'], 'di mattina, con 60 minuti: niente «Dentista» delle 16:30');
+    assertEqual(ids(run([palestra, libera], { minutes: null, energy: 'high' })), ['libera'], 'con «120+» ed energia alta: niente «Palestra» delle 18:00');
+    assertEqual(run([dentista], { minutes: 60, energy: 'medium' }).fallback, { kind: 'rest', task: null }, 'solo attività più tardi: una pausa');
+  });
+
+  test('suggest: con l\'orario si propone da 15 minuti prima, e dopo', () => {
+    const dentista = make({ id: 'dentista', date: TODAY, time: '16:30', duration: 60 });
+    const proposed = now => ids(run([dentista], { minutes: 60, now })).includes('dentista');
+    assertEqual([at(16, 14), at(16, 15), at(16, 30), at(17, 45), at(23, 59)].map(proposed), [false, true, true, true, true]);
+    assertEqual(S.SUGGEST.soonMinutes, 15);
+    const ieri = make({ id: 'ieri', date: '2026-11-09', time: '23:00' });
+    assertEqual(ids(run([ieri], { now: at(0, 5) })), ['ieri'], 'in ritardo: si propone a qualsiasi ora');
+    const presto = make({ id: 'presto', date: TODAY, time: '00:10' });
+    assertEqual(ids(run([presto], { now: at(0, 0) })), ['presto'], 'subito dopo mezzanotte, mancano 10 minuti');
+    assertEqual(run([dentista], { minutes: 60, now: at(16, 20) }).best.reason, 'È per oggi alle 16:30 e occupa giusto la tua ora');
+  });
+
   test('suggest.countNow conta le attività da fare adesso', () => {
-    const list = [make({}), make({ date: TODAY }), make({ date: '2026-11-11' }), make({ done: true, completedAt: 1 })];
-    assertEqual(S.countNow(list, TODAY), 2);
+    const list = [make({}), make({ date: TODAY }), make({ date: '2026-11-11' }), make({ done: true, completedAt: 1 }), make({ date: TODAY, time: '16:30' })];
+    assertEqual(S.countNow(list, TODAY, MORNING), 2);
+    assertEqual(S.countNow(list, TODAY, at(16, 30)), 3, 'all\'ora giusta conta anche quella con l\'orario');
   });
 })();

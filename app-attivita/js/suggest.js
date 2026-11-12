@@ -14,6 +14,7 @@
     openEnded: 120,                          // «120+» conta come 120 minuti nello sfruttamento del tempo
     defaults: { minutes: 30, energy: 'medium' },
     alternatives: 2,                         // proposte in più, sotto la migliore
+    soonMinutes: 15,                         // un'attività di oggi con l'orario si propone solo da 15 minuti prima
     weights: {
       overdue: 50,       // in ritardo…
       overduePerDay: 5,  // …più 5 per ogni giorno di ritardo…
@@ -28,8 +29,19 @@
     }
   };
 
-  /** Da fare adesso: non completata, senza data oppure di oggi o in ritardo. */
-  const isNow = (task, today) => !task.done && (!task.date || task.date <= today);
+  const minuteOfDay = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+
+  /**
+   * Da fare adesso: non completata, senza data oppure di oggi o in ritardo.
+   * Se è di oggi e ha l'orario, solo quando l'ora è passata o manca poco (SUGGEST.soonMinutes):
+   * di mattina «Dentista» delle 16:30 non si propone. `now` è un istante in millisecondi.
+   */
+  function isNow(task, today, now) {
+    if (task.done || (task.date && task.date > today)) return false;
+    if (task.date !== today || !task.time) return true;
+    const moment = new Date(now);
+    return minuteOfDay(task.time) - (moment.getHours() * 60 + moment.getMinutes()) <= SUGGEST.soonMinutes;
+  }
   const fitsTime = (task, minutes) => minutes === null || task.duration <= minutes;
   const fitsEnergy = (task, energy) => T.ENERGY[task.energy].order <= T.ENERGY[energy].order;
   const ageDays = (task, today) => Math.max(0, utils.daysBetween(utils.todayISO(task.createdAt), today));
@@ -102,6 +114,7 @@
    * - minutes: una delle scelte di SUGGEST.minutes (null = «120+»);
    * - energy: 'low' | 'medium' | 'high';
    * - today: 'YYYY-MM-DD';
+   * - now: l'istante attuale in millisecondi (per gli orari di oggi; di solito Date.now());
    * - exclude: id già proposti in questa sessione;
    * - random: funzione come Math.random (nei test, () => 0.5 toglie il caso).
    * Restituisce { best, alternatives, fallback }: best e alternatives sono { task, score, reason }.
@@ -110,10 +123,10 @@
    * - { kind: 'more-time', task, minutes }: con più tempo ci sarebbe `task`; `minutes` è la scelta che basta;
    * - { kind: 'rest', task }: con questa energia non c'è niente; `task` è la più breve da fare adesso, oppure null.
    */
-  function suggest(tasks, { minutes = SUGGEST.defaults.minutes, energy = SUGGEST.defaults.energy, today, exclude = [], random = Math.random }) {
+  function suggest(tasks, { minutes = SUGGEST.defaults.minutes, energy = SUGGEST.defaults.energy, today, now = Date.now(), exclude = [], random = Math.random }) {
     const options = { minutes, energy, today, random };
     const excluded = new Set(exclude);
-    const open = tasks.filter(task => isNow(task, today));
+    const open = tasks.filter(task => isNow(task, today, now));
     const fitting = open.filter(task => fitsTime(task, minutes) && fitsEnergy(task, energy));
     const ranked = fitting
       .filter(task => !excluded.has(task.id))
@@ -125,8 +138,8 @@
   }
 
   /** Quante attività si possono fare adesso (per mostrare o nascondere il pulsante). */
-  function countNow(tasks, today) {
-    return tasks.filter(task => isNow(task, today)).length;
+  function countNow(tasks, today, now = Date.now()) {
+    return tasks.filter(task => isNow(task, today, now)).length;
   }
 
   Aura.suggest = { SUGGEST, suggest, score, reasonFor, minutesLabel, countNow };
