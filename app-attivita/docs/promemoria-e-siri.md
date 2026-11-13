@@ -32,6 +32,8 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
   - "Aggiungi" o "Annulla" la segnano come vista (`done`) e passano alla successiva. L'aggancio è `onSheetClosed()`, chiamato da `closeSheet()` e dall'evento `close`.
   - Se un foglio è già aperto, si aspetta che si chiuda.
   - Le frasi in coda si mostrano anche all'avvio offline.
+- **Con l'assistente acceso** (passo 1 di [assistente.md](assistente.md)) le frasi passano prima da lui, con i suoi permessi: `showNextInboxItem()` le dà a `handleSiri()` di `js/ui-assistant.js`. Quelle che lui non gestisce (IA che non risponde, frase non capita, aggiunta che aspetta un tocco) si aprono in "Nuova attività" come qui sopra, e non si riprovano con l'IA.
+- "Scollega questo dispositivo" spegne anche l'assistente e ne cancella la memoria breve; "Annulla" lo riaccende com'era.
 - Le guide al Comando Rapido stanno nel foglio, con i pulsanti "Copia", e in `server/README.md`. Il link `?add=` resta valido come alternativa senza server.
 
 **Promemoria**

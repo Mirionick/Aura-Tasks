@@ -96,6 +96,11 @@
   --toast-action: #c3b5ff;
   --toast-border: transparent;
 
+  /* Interruttori (assistente): binario spento con contrasto ≥ 3:1 sullo sfondo dei riquadri (#f5f4fa: 3,3:1) */
+  --switch-off: #87829f;
+  --switch-knob: #ffffff;
+  --shadow-switch-knob: 0 1px 3px rgba(0, 0, 0, .25);
+
   /* Anteprime nel foglio "Tema": rappresentano i due temi, quindi sono uguali in entrambi */
   --preview-light-bg: #f4f3fa;
   --preview-light-card: #ffffff;
@@ -204,6 +209,10 @@
   --toast-text: #f4f2ff;
   --toast-action: #c3b5ff;
   --toast-border: rgba(255, 255, 255, .08);
+
+  --switch-off: #75709a; /* su #211f30: 3,4:1 */
+  --switch-knob: #ffffff;
+  --shadow-switch-knob: 0 1px 3px rgba(0, 0, 0, .4);
 }
 
 /* ---------- 2. Base ---------- */
@@ -563,9 +572,10 @@ button {
 }
 .content:focus { outline: none; }
 
-/* «Cosa faccio adesso?»: il pulsante in cima a Focus, largo quanto la lista e su una riga sola.
-   Sta a cavallo del bordo dell'intestazione (metà sopra, metà sotto), che gli lascia il posto con .hero--cta:
-   così all'apertura si vedono più card. Il margine negativo è il margine della lista (14 px) più la metà del pulsante. */
+/* Striscia della proposta: in cima a Focus, larga quanto la lista, alta 48 px fissi su due righe (la frase e il titolo).
+   Sta a cavallo del bordo dell'intestazione (metà sopra, metà sotto), che le lascia il posto con .hero--cta:
+   così all'apertura si vedono più card. Il margine negativo è il margine della lista (14 px) più la metà della striscia.
+   L'altezza non cambia mai, neanche quando arriva la proposta dell'IA: nessuna card si sposta. */
 .hero--cta { padding-bottom: 32px; }
 .suggest-cta {
   position: relative;
@@ -573,9 +583,9 @@ button {
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 48px;
+  height: 48px;
   margin: -38px 0 10px;
-  padding: 6px 12px 6px 6px;
+  padding: 5px 12px 5px 5px; /* 1 px di bordo + 5 + icona da 36 + 5 + 1 = 48 */
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -596,8 +606,18 @@ button {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 .suggest-cta__icon .icon { width: 20px; height: 20px; }
-.suggest-cta__text { flex: 1; min-width: 0; }
-.suggest-cta__title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+/* Testo su due righe, ognuna su una riga sola con i puntini. La dissolvenza (quando arriva l'IA) usa solo opacity. */
+.suggest-cta__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+.suggest-cta__text.is-fading { opacity: 0; }
+.suggest-cta__kicker,
+.suggest-cta__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-cta__kicker { font-size: 12.5px; font-weight: 700; line-height: 15px; color: var(--accent-text); }
+.suggest-cta__title { font-size: 16px; font-weight: 800; line-height: 19px; letter-spacing: -.01em; }
 .suggest-cta__go { color: var(--text-3); }
 @media (hover: hover) {
   .suggest-cta:hover { border-color: var(--border-strong); }
@@ -1559,6 +1579,136 @@ button {
 .proposal-none__title { margin: 0; font-size: 19px; font-weight: 800; }
 .proposal-none__text { max-width: 34ch; margin: 6px auto 0; color: var(--text-2); }
 .proposal-none .btn { margin-top: 14px; }
+
+/* ---------- Assistente (js/ui-assistant.js) ---------- */
+
+/* Intestazione del foglio con due pulsanti: impostazioni dell'assistente e chiudi */
+.sheet__tools { display: flex; align-items: center; gap: 2px; }
+
+/* In alto: la frase di Aura e le azioni che aspettano un tocco */
+.assist-top { margin: 0 0 18px; }
+.assist-say {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: pre-line; /* più frasi, una per riga */
+  overflow-wrap: anywhere;
+}
+.assist-say:empty { display: none; }
+.assist-asks { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.assist-say:not(:empty) + .assist-asks:not(:empty) { margin-top: 8px; }
+.ask {
+  padding: 12px 14px;
+  border: 1.5px solid var(--field-border);
+  border-radius: var(--radius);
+  background: var(--field-bg);
+}
+.ask__text { margin: 0; font-weight: 650; overflow-wrap: anywhere; }
+.ask__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.ask__actions .btn { flex: 1 1 auto; min-height: var(--tap); }
+/* Dopo il tocco: la frase dell'esito, con «Annulla» accanto se si può tornare indietro */
+.ask__done { flex: 1 1 auto; align-self: center; margin: 0; font-size: 14px; color: var(--text-2); }
+.ask__actions .ask__done + .btn { flex: none; }
+
+/* In fondo, sempre in vista: il campo per scrivere ad Aura */
+.sheet--assist:has(.assist-footer:not([hidden])) .sheet__body { padding-bottom: 16px; }
+.assist-footer { display: grid; gap: 10px; }
+.assist-status { margin: 0; }
+.assist-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; margin: 0; }
+.assist-form__input { min-height: 48px; }
+.assist-form__send {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.assist-form__send:active { transform: scale(.92); }
+.assist-form__send:disabled { opacity: .5; }
+.assist-form__send:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--focus-ring); }
+
+/* Consenso al primo uso: due righe, i due permessi, «Attiva» e «Non ora» */
+.consent {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.consent__title { margin: 0; font-size: 16px; font-weight: 800; }
+.consent__text { margin: 0; font-size: 14.5px; color: var(--text-2); }
+.consent__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.consent__actions .btn { flex: 1 1 auto; }
+
+/* Interruttore: la casella vera resta (per tastiera e lettori di schermo), si vede il binario con il pallino */
+.switch-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+.panel > .switch-row + .switch-row,
+.panel > .switch-row + .fixed-row { margin-top: 4px; }
+.switch-row__text { display: grid; font-size: 15px; font-weight: 600; }
+.switch-row--main .switch-row__text { font-size: 17px; font-weight: 800; }
+.switch-row__hint { font-size: 13.5px; font-weight: 600; color: var(--text-2); }
+/* La frase del consenso, subito sotto l'interruttore che accende l'assistente */
+.switch-row__note { margin: 2px 0 10px; font-size: 14.5px; color: var(--text-2); }
+.switch-row__hint[data-tone="on"] { color: var(--low); }
+.switch-row__input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.switch {
+  position: relative;
+  flex: none;
+  width: 50px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--switch-off);
+  transition: background-color var(--dur-color) var(--ease-out);
+}
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--switch-knob);
+  box-shadow: var(--shadow-switch-knob);
+  pointer-events: none;
+  transition: transform var(--dur-color) var(--ease-out);
+}
+.switch-row__input:checked + .switch { background: var(--accent); }
+.switch-row__input:checked + .switch::before { transform: translateX(20px); }
+.switch-row__input:focus-visible + .switch { box-shadow: 0 0 0 4px var(--focus-ring); }
+.switch-row__input:disabled + .switch { opacity: .45; }
+.switch-row:has(.switch-row__input:disabled) { cursor: not-allowed; }
+
+/* Riga fissa, senza interruttore */
+.fixed-row { display: flex; align-items: center; gap: 8px; min-height: var(--tap); font-size: 15px; font-weight: 600; color: var(--text-2); }
+.fixed-row .icon { flex: none; color: var(--text-3); }
+
+/* «Cosa ha fatto l'assistente» */
+.log { display: grid; gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.log:empty { display: none; }
+.log__item { padding: 12px; border-radius: var(--radius-sm); background: var(--surface-raised); }
+.log__what { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.log__item.is-undone .log__what { color: var(--text-3); text-decoration: line-through; }
+.log__meta { margin: 4px 0 0; font-size: 13.5px; color: var(--text-2); overflow-wrap: anywhere; }
+.log__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
 /* Focus a tutto schermo: l'aura che respira dietro un grande anello del tempo che manca.
    Colori dell'intestazione «aura» in entrambi i temi, testo chiaro. */

@@ -4,12 +4,13 @@
  * ad Aura.tasks, Aura.points e Aura.storage. Ogni modifica passa da commit(); solo l'importazione di un backup
  * (e il suo ripristino) sostituisce tutto lo stato, con applyState().
  * I fogli «Cosa faccio adesso?» e Focus stanno in js/ui-focus.js, che riceve da qui quello che gli serve.
- * Promemoria e casella di Siri (facoltativi) passano da Aura.remote, che parla con il server di Aura.
+ * L'assistente (striscia, campo nel foglio «Aura», foglio «Assistente») sta in js/ui-assistant.js, avviato allo stesso modo.
+ * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, focus: F, storage, theme, reminders: RM, remote: R, motion: M, focusUI: FocusUI } = Aura;
+  const { utils, tasks: T, nlp, points: P, focus: F, storage, theme, reminders: RM, remote: R, motion: M, focusUI: FocusUI, assistantUI: AssistantUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -106,6 +107,8 @@
     reminderTest: byId('reminder-test'),
     reminderOff: byId('reminder-off'),
     siriStatus: byId('siri-status'),
+    siriText: byId('siri-text'),
+    siriAssistantNote: byId('siri-assistant-note'),
     siriSetup: byId('siri-setup'),
     siriDetails: byId('siri-details'),
     siriUrl: byId('siri-url'),
@@ -157,6 +160,7 @@
   let activeTab = Date.now() - prefs.lastTabAt < LAST_TAB_MS ? prefs.lastTab : 'focus';
   const tabScroll = { focus: 0, agenda: 0, motivation: 0 }; // ogni scheda ricorda dov'era arrivato lo scorrimento
   let focusCtl = null; // fogli «Cosa faccio adesso?» e Focus (js/ui-focus.js), pronti all'avvio
+  let assistantCtl = null; // striscia, foglio «Aura» e foglio «Assistente» (js/ui-assistant.js), pronti all'avvio
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -266,8 +270,9 @@
     const agendaCount = agendaSections.reduce((sum, section) => sum + section.tasks.length, 0);
 
     renderHeader(now, today);
-    // Focus: «Cosa faccio adesso?», In ritardo, Oggi, Senza data e «Completate oggi»
-    els.suggestButton.hidden = focusSections.length === 0;
+    // Focus: la striscia della proposta, In ritardo, Oggi, Senza data e «Completate oggi»
+    if (assistantCtl) assistantCtl.renderStrip({ focusCount: focusSections.length });
+    else els.suggestButton.hidden = focusSections.length === 0;
     syncHeroCta();
     renderSections(els.sections, focusSections, now);
     renderCompletedToday(T.completedOn(state.tasks, today), now);
@@ -1426,13 +1431,22 @@
     syncRemoteBadges();
   }
 
-  /** Puntino sulla campanella e frase in fondo alla pagina: dicono se il server è in uso. */
+  /** Puntino sulla campanella, frase in fondo alla pagina e testo di Siri: dicono se il server è in uso, e per cosa. */
   function syncRemoteBadges() {
+    const assistantOn = Boolean(assistantCtl && assistantCtl.isActive());
     els.remoteButton.classList.toggle('has-dot', remote.reminders.enabled);
     els.remoteButton.setAttribute('aria-label', remote.reminders.enabled ? 'Promemoria e Siri: promemoria attivi' : 'Promemoria e Siri');
-    els.footnoteText.textContent = remote.code
-      ? 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri.'
-      : 'I dati restano solo su questo dispositivo.';
+    if (assistantOn) {
+      els.footnoteText.textContent = 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria, frasi di Siri e messaggi all\'assistente.';
+    } else {
+      els.footnoteText.textContent = remote.code
+        ? 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri.'
+        : 'I dati restano solo su questo dispositivo.';
+    }
+    els.siriText.textContent = assistantOn
+      ? 'Di\' "Ehi Siri, Aura" e detta l\'impegno: quando apri Aura, l\'assistente lo sistema secondo i suoi permessi.'
+      : 'Di\' "Ehi Siri, Aura" e detta l\'impegno: quando apri Aura lo trovi già compilato, da confermare.';
+    els.siriAssistantNote.hidden = !assistantOn;
   }
 
   function setMessage(area, text, tone) {
@@ -1636,30 +1650,48 @@
     setTimeout(() => { button.textContent = button.dataset.label; }, 1800);
   }
 
-  /** "Scollega": il server dimentica il dispositivo (codice, casella, promemoria). Si può annullare. */
-  async function onDisconnect() {
-    if (remoteBusy || !remote.code) return;
+  /**
+   * "Scollega": il server dimentica il dispositivo (codice, casella, promemoria, conteggi dell'assistente) e l'assistente
+   * si spegne, con la sua memoria breve. Si può annullare. Restituisce { ok, message } (anche al foglio «Assistente»).
+   */
+  async function disconnectDevice() {
+    if (remoteBusy || !remote.code) return { ok: false, message: null };
     remoteBusy = true;
-    setMessage('siri', 'Scollego il dispositivo…', 'busy');
+    // Prima si spegne l'assistente, così le frasi di Siri ritirate qui sotto vanno nel foglio di sempre.
+    const previousAssistant = prefs.assistant;
+    if (assistantCtl) assistantCtl.forget();
     await checkInbox({ force: true }); // prima si ritirano le frasi in attesa: non vanno perse
     const previous = remote;
     const result = await R.api.unregister(previous.code);
     remoteBusy = false;
     if (!result.ok && result.status !== 401) {
-      setMessage('siri', R.troubleMessage(result, navigator.onLine));
-      return;
+      setPrefs({ assistant: previousAssistant });
+      syncAfterAssistantChange();
+      return { ok: false, message: R.troubleMessage(result, navigator.onLine) };
     }
     remote = Object.assign(R.defaults(), { inbox: previous.inbox, done: previous.done });
     remote.reminders.lead = previous.reminders.lead;
     saveRemote();
     messages.siri = null;
     syncRemoteUI();
-    closeSheet(els.remoteSheet);
-    showToast('Dispositivo scollegato', { action: 'Annulla', onAction: () => restoreConnection(previous) });
+    syncAfterAssistantChange();
+    showToast('Dispositivo scollegato', { action: 'Annulla', onAction: () => restoreConnection(previous, previousAssistant) });
+    return { ok: true, message: null };
   }
 
-  /** "Annulla" dopo "Scollega": torna lo stesso codice, così il Comando Rapido continua a funzionare. */
-  async function restoreConnection(previous) {
+  async function onDisconnect() {
+    if (remoteBusy || !remote.code) return;
+    setMessage('siri', 'Scollego il dispositivo…', 'busy');
+    const result = await disconnectDevice();
+    if (!result.ok) {
+      setMessage('siri', result.message);
+      return;
+    }
+    closeSheet(els.remoteSheet);
+  }
+
+  /** "Annulla" dopo "Scollega": torna lo stesso codice, così il Comando Rapido continua a funzionare; e l'assistente com'era. */
+  async function restoreConnection(previous, previousAssistant) {
     const result = await R.api.register(previous.code);
     if (!result.ok) {
       showToast('Non sono riuscito a ricollegare il dispositivo. ' + R.troubleMessage(result, navigator.onLine), { duration: 5000 });
@@ -1667,7 +1699,9 @@
     }
     remote = Object.assign({}, previous, { inbox: remote.inbox, done: remote.done, sent: R.emptySent() });
     saveRemote();
+    if (previousAssistant) setPrefs({ assistant: previousAssistant });
     syncRemoteUI();
+    syncAfterAssistantChange();
     showToast('Dispositivo ricollegato');
     if (remote.reminders.enabled) await refreshPush({ force: true });
   }
@@ -1675,9 +1709,13 @@
   /* ---------- Casella del Comando Rapido di Siri ---------- */
 
   const INBOX_INTERVAL_MS = 15 * 1000;
+  const ASSISTANT_BUSY = '(assistente)'; // al posto di un id in inboxShowing: l'assistente sta gestendo la coda
   let inboxCheckedAt = 0;
   let inboxShowing = null; // id della frase mostrata adesso nel foglio "Nuova attività"
   let inboxShown = 0; // frasi già mostrate in questa serie, per "2 di 3"
+  // Frasi che l'assistente non ha gestito (IA che non risponde, quota finita, non capita): vanno nel foglio di sempre,
+  // e quando il foglio si chiude escono dalla coda come prima. Non si riprovano con l'IA.
+  const inboxForSheet = new Set();
 
   /** Ritira le frasi dal server, le salva nella coda e solo dopo le conferma al server: così nessuna si perde. */
   async function checkInbox({ force = false } = {}) {
@@ -1697,13 +1735,47 @@
     showNextInboxItem();
   }
 
-  /** Apre la prossima frase in coda nel foglio "Nuova attività", se non c'è già un foglio aperto. */
+  /**
+   * Le frasi in coda, se non c'è già un foglio aperto. Con l'assistente acceso (e internet) passano prima da lui;
+   * quelle che non gestisce, e tutte con l'assistente spento, si aprono una alla volta nel foglio "Nuova attività".
+   */
   function showNextInboxItem() {
     if (inboxShowing || !remote.inbox.length || document.querySelector('dialog[open]')) return;
+    if (assistantCtl && assistantCtl.takesSiri()) {
+      const items = remote.inbox.filter(item => !inboxForSheet.has(item.id));
+      if (items.length && document.readyState !== 'complete') {
+        // Le richieste all'IA partono dopo il caricamento: il primo disegno resta senza attese.
+        window.addEventListener('load', () => setTimeout(showNextInboxItem, 0), { once: true });
+        return;
+      }
+      if (items.length) {
+        inboxShowing = ASSISTANT_BUSY;
+        assistantCtl.handleSiri(items).then(outcome => {
+          inboxShowing = null;
+          outcome.fallback.forEach(id => inboxForSheet.add(id));
+          markInboxDone(outcome.done);
+          setTimeout(showNextInboxItem, 250);
+        }, () => {
+          inboxShowing = null;
+          items.forEach(item => inboxForSheet.add(item.id)); // errore imprevisto: il foglio di sempre
+          setTimeout(showNextInboxItem, 250);
+        });
+        return;
+      }
+    }
     const item = remote.inbox[0];
     const total = inboxShown + remote.inbox.length;
     inboxShowing = item.id;
     openAddSheet(item.text, total > 1 ? 'Da Siri · ' + (inboxShown + 1) + ' di ' + total : 'Da Siri');
+  }
+
+  /** Frasi gestite: escono dalla coda e restano tra quelle già viste, così il server non le ridà. */
+  function markInboxDone(ids) {
+    if (!ids.length) return;
+    const set = new Set(ids);
+    remote.inbox = remote.inbox.filter(item => !set.has(item.id));
+    remote.done = ids.concat(remote.done.filter(id => !set.has(id))).slice(0, 100);
+    saveRemote();
   }
 
   /**
@@ -1711,19 +1783,19 @@
    * Dopo una modifica, il focus torna sulla card (utile da tastiera e con il lettore di schermo).
    */
   function onSheetClosed(dialog) {
+    if (assistantCtl) assistantCtl.sheetClosed(dialog);
     if (dialog === els.addSheet && focusAfterEdit) {
       const card = cardOf(focusAfterEdit);
       const button = card && card.querySelector('.task__edit');
       focusAfterEdit = null;
       if (button) button.focus({ preventScroll: true });
     }
-    if (dialog === els.addSheet && inboxShowing) {
+    if (dialog === els.addSheet && inboxShowing && inboxShowing !== ASSISTANT_BUSY) {
       const id = inboxShowing;
       inboxShowing = null;
       inboxShown++;
-      remote.inbox = remote.inbox.filter(item => item.id !== id);
-      remote.done = [id].concat(remote.done.filter(other => other !== id)).slice(0, 100);
-      saveRemote();
+      inboxForSheet.delete(id);
+      markInboxDone([id]);
     }
     if (!remote.inbox.length) {
       inboxShown = 0;
@@ -1912,7 +1984,6 @@
   });
   els.miniRewards.addEventListener('click', () => showTab('motivation'));
   els.emptyAgendaLink.addEventListener('click', () => showTab('agenda'));
-  els.suggestButton.addEventListener('click', () => focusCtl.openSuggest());
 
   // «Completate» si apre e si chiude morbida: il suo contenuto entra (o esce) come un blocco unico e il fondo pagina scivola.
   els.completed.querySelector('summary').addEventListener('click', event => {
@@ -2037,7 +2108,7 @@
     toastTimer = setTimeout(hideToast, 2000);
   });
 
-  [els.addSheet, els.themeSheet, els.remoteSheet, els.backupSheet].forEach(sheet => setupSheet(sheet));
+  [els.addSheet, els.themeSheet, els.remoteSheet, els.backupSheet].forEach(sheet => setupSheet(sheet)); // gli altri in ui-focus.js e ui-assistant.js
 
   // Tornando nell'app (o dopo mezzanotte) "Oggi" e "In ritardo" devono essere giusti.
   // E si guarda se Siri ha lasciato frasi nella casella (solo con un dispositivo collegato).
@@ -2071,11 +2142,22 @@
 
   /* ---------- Avvio ---------- */
 
-  syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti
-  render();
-  syncThemeUI();
-  measureHero();
-  registerServiceWorker();
+  function setPrefs(change) {
+    prefs = storage.sanitizePrefs({ ...prefs, ...change });
+    storage.savePrefs(prefs);
+    if (change.assistant) syncRemoteBadges(); // testo in fondo alla pagina e pannello di Siri citano l'assistente
+  }
+
+  /** Dopo che l'assistente si è acceso o spento da fuori (Scollega e Annulla): striscia, foglio e testi. */
+  function syncAfterAssistantChange() {
+    syncRemoteBadges();
+    if (!assistantCtl) return;
+    assistantCtl.syncSheet();
+    render();
+  }
+
+  // I fogli «Cosa faccio adesso?»/«Aura», Focus e «Assistente» si preparano prima del primo disegno: la striscia la
+  // scrive js/ui-assistant.js. Nessuna richiesta di rete qui: la proposta dell'IA parte dopo il caricamento.
   focusCtl = FocusUI.init({
     getState: () => state,
     commit,
@@ -2087,11 +2169,35 @@
     showToast,
     vibrate,
     getPrefs: () => prefs,
-    setPrefs: change => {
-      prefs = storage.sanitizePrefs({ ...prefs, ...change });
-      storage.savePrefs(prefs);
-    }
+    setPrefs,
+    onSuggestOpening: () => { if (assistantCtl) assistantCtl.sheetOpening(); }
   });
+  assistantCtl = AssistantUI.init({
+    focusCtl,
+    getState: () => state,
+    commit,
+    completeTask,
+    onDelete,
+    openAddSheet,
+    showToast,
+    showTask,
+    openSheet,
+    closeSheet,
+    setupSheet,
+    setAutofocus,
+    getPrefs: () => prefs,
+    setPrefs,
+    getRemote: () => remote,
+    ensureDevice,
+    withDevice,
+    disconnect: disconnectDevice
+  });
+
+  syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti
+  render();
+  syncThemeUI();
+  measureHero();
+  registerServiceWorker();
   // All'apertura la fiamma accesa fa qualche guizzo, poi si ferma (niente animazioni infinite).
   const targets = rewardTargets();
   if (targets && targets.streak.classList.contains('is-lit')) M.flash(targets.streak, 'is-flickering');

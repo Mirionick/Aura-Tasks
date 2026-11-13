@@ -110,12 +110,23 @@
   }
 
   /**
+   * Tutte le candidate, senza caso: da fare adesso, che stanno nel tempo e nell'energia (stesse regole di suggest()).
+   * Serve anche a controllare una proposta dell'IA: va accettata solo se è qui dentro, qualunque sia il suo punteggio.
+   * `minutes` può essere anche un numero detto dall'utente (40) e non solo una delle scelte; null = senza limite.
+   */
+  function candidates(tasks, { minutes = SUGGEST.defaults.minutes, energy = SUGGEST.defaults.energy, today, now = Date.now() }) {
+    return tasks.filter(task => isNow(task, today, now) && fitsTime(task, minutes) && fitsEnergy(task, energy));
+  }
+
+  /**
    * La proposta per adesso. Opzioni:
-   * - minutes: una delle scelte di SUGGEST.minutes (null = «120+»);
+   * - minutes: una delle scelte di SUGGEST.minutes (null = «120+»), oppure i minuti detti all'assistente;
    * - energy: 'low' | 'medium' | 'high';
    * - today: 'YYYY-MM-DD';
    * - now: l'istante attuale in millisecondi (per gli orari di oggi; di solito Date.now());
    * - exclude: id già proposti in questa sessione;
+   * - first: id di un'attività da proporre per prima (quella già scritta nella striscia, o un'alternativa toccata),
+   *   se è tra le candidate e non è esclusa; le alternative sono le migliori delle altre;
    * - random: funzione come Math.random (nei test, () => 0.5 toglie il caso).
    * Restituisce { best, alternatives, fallback }: best e alternatives sono { task, score, reason }.
    * Se non c'è niente da proporre, best è null e fallback è uno di questi:
@@ -123,16 +134,18 @@
    * - { kind: 'more-time', task, minutes }: con più tempo ci sarebbe `task`; `minutes` è la scelta che basta;
    * - { kind: 'rest', task }: con questa energia non c'è niente; `task` è la più breve da fare adesso, oppure null.
    */
-  function suggest(tasks, { minutes = SUGGEST.defaults.minutes, energy = SUGGEST.defaults.energy, today, now = Date.now(), exclude = [], random = Math.random }) {
+  function suggest(tasks, { minutes = SUGGEST.defaults.minutes, energy = SUGGEST.defaults.energy, today, now = Date.now(), exclude = [], first = null, random = Math.random }) {
     const options = { minutes, energy, today, random };
     const excluded = new Set(exclude);
     const open = tasks.filter(task => isNow(task, today, now));
-    const fitting = open.filter(task => fitsTime(task, minutes) && fitsEnergy(task, energy));
-    const ranked = fitting
+    const fitting = candidates(tasks, { minutes, energy, today, now });
+    let ranked = fitting
       .filter(task => !excluded.has(task.id))
       .map(task => ({ task, score: score(task, options) }))
-      .sort(byScore)
-      .map(item => ({ ...item, reason: reasonFor(item.task, options) }));
+      .sort(byScore);
+    const fixed = first ? ranked.find(item => item.task.id === first) : null;
+    if (fixed) ranked = [fixed].concat(ranked.filter(item => item !== fixed));
+    ranked = ranked.map(item => ({ ...item, reason: reasonFor(item.task, options) }));
     if (ranked.length) return { best: ranked[0], alternatives: ranked.slice(1, 1 + SUGGEST.alternatives), fallback: null };
     return { best: null, alternatives: [], fallback: fallbackFor(open, fitting, energy) };
   }
@@ -142,5 +155,5 @@
     return tasks.filter(task => isNow(task, today, now)).length;
   }
 
-  Aura.suggest = { SUGGEST, suggest, score, reasonFor, minutesLabel, countNow };
+  Aura.suggest = { SUGGEST, suggest, candidates, score, reasonFor, minutesLabel, countNow };
 })(window.Aura = window.Aura || {});

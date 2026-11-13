@@ -8,15 +8,17 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, points: P, focus: F, suggest: S } = Aura;
+  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A } = Aura;
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
   // Dati di prima dell'ultima importazione di un backup, per poterli ripristinare: una sola copia, sovrascritta ogni volta.
   const BEFORE_IMPORT_KEY = 'aura-tasks:before-import';
-  // Preferenze (ultima scheda, scelte di «Cosa faccio adesso?») e focus in corso: senza versione e fuori dal backup.
+  // Preferenze (ultima scheda, scelte di «Cosa faccio adesso?», assistente) e focus in corso: senza versione e fuori dal backup.
   const PREFS_KEY = 'aura-tasks:prefs';
   const FOCUS_KEY = 'aura-tasks:focus';
+  // Assistente: elenco «Cosa ha fatto l'assistente», memoria breve, copia della proposta all'apertura. Fuori dal backup.
+  const ASSISTANT_KEY = 'aura-tasks:assistant';
   const BACKUP_FORMAT = 'aura-tasks-backup';
   const BACKUP_ERRORS = {
     unreadable: 'Questo file non si può leggere: scegli un backup di Aura (un file .json).',
@@ -254,7 +256,8 @@
   /* ---------- Preferenze e focus in corso ---------- */
 
   /**
-   * Preferenze ripulite: ultima scheda usata e quando (lastTab, lastTabAt), scelte di «Cosa faccio adesso?» (suggest).
+   * Preferenze ripulite: ultima scheda usata e quando (lastTab, lastTabAt), scelte di «Cosa faccio adesso?» (suggest),
+   * interruttori e permessi dell'assistente (assistant, vedi Aura.assistant.sanitizePrefs).
    * I valori non validi tornano a quelli di partenza; i campi sconosciuti vengono conservati.
    */
   function sanitizePrefs(raw) {
@@ -269,8 +272,28 @@
         ...suggest,
         minutes: S.SUGGEST.minutes.includes(suggest.minutes) ? suggest.minutes : defaults.minutes,
         energy: T.ENERGY_KEYS.includes(suggest.energy) ? suggest.energy : defaults.energy
-      }
+      },
+      assistant: A.sanitizePrefs(base.assistant)
     };
+  }
+
+  /** I dati dell'assistente (aura-tasks:assistant), ripuliti da Aura.assistant.sanitizeStore; vuoti se mancano. */
+  function loadAssistant(area) {
+    try {
+      return A.sanitizeStore(JSON.parse((area || window.localStorage).getItem(ASSISTANT_KEY)));
+    } catch (err) {
+      return A.sanitizeStore(null);
+    }
+  }
+
+  /** Salva i dati dell'assistente. Restituisce false se non riesce: si continua lo stesso (sono solo comodità). */
+  function saveAssistant(data, area) {
+    try {
+      (area || window.localStorage).setItem(ASSISTANT_KEY, JSON.stringify(A.sanitizeStore(data)));
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   /** Le preferenze salvate, ripulite; quelle di partenza se mancano o sono illeggibili. */
@@ -398,6 +421,9 @@
     sanitizePrefs,
     loadPrefs,
     savePrefs,
+    ASSISTANT_KEY,
+    loadAssistant,
+    saveAssistant,
     loadFocus,
     saveFocus,
     clearFocus

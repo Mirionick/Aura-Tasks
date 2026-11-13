@@ -9,7 +9,7 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
   - quanto è più affidabile che venga ricordato?
 - Tutti i dati restano nel `localStorage` del dispositivo.
 - L'unica eccezione a "niente server" è il **server di Aura** (cartella `server/` del repository, Cloudflare Workers, piano gratuito). È facoltativo: se l'utente attiva promemoria o Siri, riceve solo titolo e ora dei promemoria e le frasi dettate a Siri (vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md)).
-  - Con l'**assistente** (in costruzione, vedi [docs/assistente.md](docs/assistente.md)) il server riceverà anche messaggi, registrazioni della voce e l'elenco delle attività da fare, per passarli a Workers AI **senza salvarli**. Per ora lo fa solo la pagina di prova della voce.
+  - Con l'**assistente** acceso (facoltativo, dopo il consenso; vedi [docs/assistente.md](docs/assistente.md)) il server riceve anche i messaggi scritti ad Aura, le frasi di Siri e l'elenco delle attività da fare, per passarli a Workers AI **senza salvarli**. Le registrazioni della voce arrivano col passo 2: per ora le manda solo la pagina di prova.
 
 ## Cosa sa fare oggi
 - **Attività**: ognuna ha titolo, durata stimata in minuti, livello di energia (bassa/media/alta), data facoltativa e **orario** facoltativo.
@@ -17,7 +17,8 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
   - **Focus**, per fare: in ritardo, oggi, senza data e «Completate oggi»;
   - **Agenda**, per pianificare: per ora «Domani» e «Prossimi giorni»;
   - **Motivazione**, per i progressi: per ora serie e punti in grande, minuti di focus, storico delle completate e backup.
-- **«Cosa faccio adesso?»**: dici quanto tempo hai e come ti senti, e Aura propone un'attività, con il motivo.
+- **«Cosa faccio adesso?»**: dici quanto tempo hai e come ti senti, e Aura propone un'attività, con il motivo. La proposta è già scritta nella striscia in cima a Focus.
+- **Assistente «Aura»** (facoltativo, con l'IA del server di Aura): le scrivi una frase («domani devo chiamare il medico», «ho 40 minuti e sono cotto») e lei propone, aggiunge o sposta secondo i permessi che scegli. Completare ed eliminare restano sempre un tuo tocco. Spento, senza internet o a quota finita, tutto funziona come prima.
 - **Focus a tutto schermo**: un timer sull'attività scelta, con pausa, +5 min e un suono alla fine. I **minuti di focus** finiscono nel registro.
 - **Gestione**: aggiungere, **modificare** (tocco sulla card), completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
 - **Backup dei dati**: esportare e importare un file JSON con attività, punti, serie e minuti di focus (link "Backup dei dati" in fondo a Motivazione).
@@ -28,7 +29,7 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - **Tema** Automatico/Chiaro/Scuro e **uso offline**.
 - **Punti e serie**: ogni attività completata dà punti. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi [docs/punti-e-serie.md](docs/punti-e-serie.md)).
 - **Promemoria push** (facoltativi): un avviso prima delle attività con giorno e ora, anche ad app chiusa. L'anticipo si sceglie.
-- **Casella di Siri**: "Ehi Siri, Aura" e si detta l'impegno; aprendo Aura il foglio è già compilato. Le ultime due funzioni usano il server di Aura.
+- **Casella di Siri**: "Ehi Siri, Aura" e si detta l'impegno; aprendo Aura il foglio è già compilato (con l'assistente acceso, la frase passa da lui). Promemoria, casella e assistente usano il server di Aura.
 
 ---
 
@@ -100,33 +101,35 @@ Il telefono scarica la nuova versione alla prima apertura con internet, perché 
 
 | File | Ruolo |
 |---|---|
-| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, l'intestazione, le tre schede (`<section class="tab">`) con la barra (`<nav class="tabbar">`), i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; "Tema"; "Promemoria e Siri"; "Backup dei dati"; «Cosa faccio adesso?»; Focus a tutto schermo) e il `<template>` della card |
+| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, l'intestazione, le tre schede (`<section class="tab">`) con la barra (`<nav class="tabbar">`), i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; "Tema"; "Promemoria e Siri"; "Backup dei dati"; «Cosa faccio adesso?», che con l'assistente acceso si chiama «Aura»; «Assistente»; Focus a tutto schermo) e il `<template>` della card |
 | `css/style.css` | Design system: token (variabili) per i due temi, componenti, animazioni |
 | `js/theme.js` | Tema Automatico/Chiaro/Scuro. Caricato nel `<head>` **senza `defer`** per applicare il tema prima del primo disegno (niente lampi) |
 | `js/utils.js` | Date e orari locali, formattazione in italiano, saluto, id univoci |
 | `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, modifica, completamento, eliminazione e ripristino, sezioni, riepilogo. Schede: quali sezioni mostra ognuna (`TAB_SECTIONS`), in quale scheda si vede un'attività (`tabOf`, `isInTab`), completate di un giorno (`completedOn`), ora già passata (`isTimePassed`) |
-| `js/nlp.js` | Logica pura del linguaggio naturale: `parseTaskText(testo, adesso)` riconosce giorno, orario, durata ed energia in una frase |
+| `js/nlp.js` | Logica pura del linguaggio naturale: `parseTaskText(testo, adesso)` riconosce giorno, orario, durata ed energia in una frase. `parseDetails()` dà gli stessi campi più `dateSaid` (la frase nomina un giorno?), per l'assistente |
 | `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione |
 | `js/focus.js` | Logica pura della modalità focus: sessione (`start`, `pause`, `resume`, `extend`), tempo che manca calcolato dagli istanti, esito di una sessione (`sessionResult`), minuti di focus nel registro (`recordMinutes`), pulizia di sessione e minuti |
-| `js/suggest.js` | Logica pura di «Cosa faccio adesso?»: `suggest(tasks, { minutes, energy, today, now, exclude, random })` sceglie la proposta e ne dice il motivo (un'attività di oggi con l'orario solo da 15 minuti prima); pesi e scelte in `SUGGEST` |
-| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione. Preferenze (`aura-tasks:prefs`) e focus in corso (`aura-tasks:focus`) |
+| `js/suggest.js` | Logica pura di «Cosa faccio adesso?»: `suggest(tasks, { minutes, energy, today, now, exclude, random })` sceglie la proposta e ne dice il motivo (un'attività di oggi con l'orario solo da 15 minuti prima); pesi e scelte in `SUGGEST`. Con `first` la proposta è un'attività già scelta (quella scritta nella striscia). `candidates()` dà tutte le candidate, senza caso: una proposta dell'IA vale solo se è lì dentro |
+| `js/assistant.js` | Logica pura dell'assistente: ciò che si manda al server (`buildRequest`: attività con sigle al posto degli id, memoria breve), controllo della risposta con le regole del modulo e con i freni (`planReply`), permessi (`isAutomatic`), applicare e annullare (`applyAuto`, `undoEntries`), frasi scritte dall'app, copia della proposta all'apertura, pulizia dei dati salvati. Limiti e valori di partenza in `ASSISTANT` |
+| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione. Preferenze (`aura-tasks:prefs`), focus in corso (`aura-tasks:focus`) e dati dell'assistente (`aura-tasks:assistant`) |
 | `js/reminders.js` | Logica pura dei promemoria: dalle attività con giorno e ora all'elenco per il server (`at`, `fireAt`), anticipi, impronta dell'elenco |
 | `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste (anche quelle dell'assistente: `api.transcribe`, `api.chat`), codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
 | `js/motion.js` | Movimento: durate e curve lette dai token di `style.css`, tecnica FLIP (`snapshot()` prima di `render()`, `play()` dopo), fantasmi degli elementi tolti, entrata di una scheda (`slideIn()`), `flash()`. Tocca la pagina solo per le animazioni; `planFlip()` è pura e testata |
-| `js/ui-focus.js` | Interfaccia dei fogli «Cosa faccio adesso?» e Focus a tutto schermo: proposta, timer, suono di fine (Web Audio), schermo acceso (wake lock), sfondo che respira. Tocca la pagina come `app.js`, che gli passa ciò che serve con `Aura.focusUI.init()` |
-| `js/app.js` | Interfaccia: schede e barra, disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Tocca la pagina insieme a `ui-focus.js` e, per le animazioni, a `motion.js` |
+| `js/ui-focus.js` | Interfaccia dei fogli «Cosa faccio adesso?» e Focus a tutto schermo: proposta, timer, suono di fine (Web Audio), schermo acceso (wake lock), sfondo che respira. Tocca la pagina come `app.js`, che gli passa ciò che serve con `Aura.focusUI.init()`. `openSuggest({ taskId, reason })` apre il foglio sull'attività scritta nella striscia |
+| `js/ui-assistant.js` | Interfaccia dell'assistente: la striscia in cima a Focus (proposta delle regole o dell'IA), il campo «Scrivi ad Aura…» con le righe delle azioni nel foglio «Aura», il consenso, il foglio «Assistente» (interruttori, elenco «Cosa ha fatto l'assistente», privacy, «Scollega»), la proposta all'apertura e le frasi di Siri. Avviato da `app.js` con `Aura.assistantUI.init()`, dopo `ui-focus.js` |
+| `js/app.js` | Interfaccia: schede e barra, disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Tocca la pagina insieme a `ui-focus.js`, a `ui-assistant.js` e, per le animazioni, a `motion.js` |
 | `sw.js` | Service worker: uso offline, notifiche dei promemoria (`push`) e tocco sulla notifica (`notificationclick`) |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
 | `images/` | Illustrazioni in WebP, ottimizzate dagli originali che restano fuori dal repository (vedi [docs/illustrazioni.md](docs/illustrazioni.md)). Per ora `suggest-none.webp` ed `empty-focus.webp` |
 | `prove/` | Pagine **provvisorie** di prova, fuori da `APP_FILES`. Per ora `voce.html` (con `voce.css` e `voce.js`): prova tecnica di microfono, trascrizione e voce del telefono per l'assistente. Si apre dal link in fondo a Motivazione e sparisce con il passo 2 di [docs/assistente.md](docs/assistente.md) |
-| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`): si aprono con `tests/index.html` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`, `assistant.test.js`): si aprono con `tests/index.html` |
 | `docs/` | Le specifiche delle funzioni, una per file (vedi "Indice delle specifiche") |
 | `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](docs/promemoria-e-siri.md) e `server/README.md` |
 
-**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `focus.js` → `suggest.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `ui-focus.js` → `app.js`.
-- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.focus`, `Aura.suggest`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`, `Aura.focusUI`).
-- `points.js`, `focus.js` e `suggest.js` vanno prima di `storage.js`, che li usa per la migrazione e per pulire registro, sessione e preferenze. `reminders.js` va prima di `remote.js`, che ne usa gli anticipi. `ui-focus.js` va prima di `app.js`, che lo avvia.
+**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `focus.js` → `suggest.js` → `assistant.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `ui-focus.js` → `ui-assistant.js` → `app.js`.
+- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.focus`, `Aura.suggest`, `Aura.assistant`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`, `Aura.focusUI`, `Aura.assistantUI`).
+- `points.js`, `focus.js`, `suggest.js` e `assistant.js` vanno prima di `storage.js`, che li usa per la migrazione e per pulire registro, sessione, preferenze e dati dell'assistente. `assistant.js` va dopo `nlp.js` e `suggest.js`, che usa. `reminders.js` va prima di `remote.js`, che ne usa gli anticipi. `ui-focus.js` e `ui-assistant.js` vanno prima di `app.js`, che li avvia in quest'ordine.
 
 Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 1. in `index.html`, con `defer`, prima di `app.js`;
@@ -180,6 +183,12 @@ La chiave `aura-tasks:data` contiene:
   - `aura-tasks:prefs`: preferenze, **senza versione** e fuori dal backup. La scrive e la legge solo `js/storage.js` (`loadPrefs()`, `savePrefs()`), che pulisce i valori e conserva i campi sconosciuti. Contiene:
     - `lastTab` e `lastTabAt`: l'ultima scheda e quando è stata usata. Riaprendo Aura entro 30 minuti si riparte da lì, altrimenti da Focus;
     - `suggest`: `{ minutes, energy }`, l'ultima scelta di «Cosa faccio adesso?» (`minutes: null` vuol dire «120+»);
+    - `assistant`: `{ enabled, voice, autoAdd, autoEdit, consentAt }`, interruttori e permessi dell'assistente. All'inizio è spento, con «aggiungere da solo» acceso e «cambiare da solo» spento; `enabled` vale solo con `consentAt`, il momento del consenso;
+  - `aura-tasks:assistant`: i dati dell'assistente, **senza versione** e fuori dal backup. La scrive e la legge solo `js/storage.js` (`loadAssistant()`, `saveAssistant()`), che li pulisce con `Aura.assistant.sanitizeStore()`. Contiene:
+    - `log`: l'elenco «Cosa ha fatto l'assistente» (ultime 50 azioni automatiche, per 30 giorni), con i campi di prima e di dopo per «Annulla»;
+    - `memory`: la memoria breve (ultimi 3 scambi, per 10 minuti);
+    - `open` e `opens`: la copia dell'ultima proposta all'apertura (vale 3 ore) e quante ne sono partite oggi (al massimo 8);
+    - `left`: i messaggi rimasti oggi, come li ha detti il server;
   - `aura-tasks:focus`: il focus in corso, `{ taskId, startedAt, durationMs, pausedAt, pausedTotalMs }`. Fuori dal backup. La scrive e la legge solo `js/storage.js` (`loadFocus()`, `saveFocus()`, `clearFocus()`). Ricaricando la pagina il focus riprende da qui;
   - `aura-tasks:backup-<timestamp>`: copia di dati illeggibili trovati all'avvio; l'app la crea e riparte da una lista vuota;
   - `aura-tasks:remote`: collegamento al server, scritto solo da `js/remote.js` e separato dai dati, quindi **senza versione dello schema**. Contiene:
@@ -197,7 +206,7 @@ La chiave `aura-tasks:data` contiene:
 { "format": "aura-tasks-backup", "exportedAt": 1793…, "data": { "version": 4, "tasks": […], "stats": {…} } }
 ```
 - `data` è tutto `aura-tasks:data` così com'è, compresi i campi sconosciuti e i minuti di focus.
-- Non contiene mai `aura-tasks:remote` (codice segreto del dispositivo, promemoria, casella di Siri), il tema, le preferenze o il focus in corso: il backup legge solo lo stato.
+- Non contiene mai `aura-tasks:remote` (codice segreto del dispositivo, promemoria, casella di Siri), il tema, le preferenze, il focus in corso o i dati dell'assistente: il backup legge solo lo stato.
 - Leggendo un file si usa solo `data`, che passa da `fromData()`, cioè dagli stessi controlli e dalle stesse migrazioni dei dati salvati.
 
 **Dalla v1 alla v2**:
@@ -223,12 +232,20 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
 
 ## Convenzioni
 
-- **Logica pura e pagina sono separate.** `utils.js`, `tasks.js`, `focus.js`, `suggest.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. La pagina la toccano solo `app.js` e `ui-focus.js`, insieme a `motion.js` per le animazioni.
+- **Logica pura e pagina sono separate.** `utils.js`, `tasks.js`, `focus.js`, `suggest.js`, `assistant.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. La pagina la toccano solo `app.js`, `ui-focus.js` e `ui-assistant.js`, insieme a `motion.js` per le animazioni.
 - **Schede**: sono tre `<section class="tab">` dentro `#main`; quelle non attive hanno `hidden`. Si cambiano solo con `showTab()`.
   - `render()` ridisegna tutte e tre: una stessa attività può avere una card in due schede (completata oggi: «Completate oggi» in Focus e lo storico in Motivazione). Per cercare una card si usa `cardOf(id)`, che guarda solo la scheda attiva.
   - Le animazioni FLIP lavorano su `#main` e saltano da sole ciò che sta sotto `[hidden]`.
   - Serie e punti hanno due copie, i chip di Focus e i riquadri grandi di Motivazione: gli effetti vanno su quella che si vede (`rewardTargets()`).
   - **Intestazione di Focus compatta**: su iPhone 13 in Safari (390×664) resta sotto i 220 px e lascia vedere 4 card. Prima di aggiungerle qualcosa, misura.
+  - **Striscia della proposta** (in cima a Focus, la scrive `ui-assistant.js`): ha altezza fissa (48 px) e il testo cambia solo con una dissolvenza (`opacity`), così nessuna card si sposta quando arriva la risposta dell'IA. Toccandola, il foglio si apre sulla **stessa attività e lo stesso motivo** scritti nella striscia: il caso torna solo con «Un'altra proposta».
+- **Assistente** (vedi [docs/assistente.md](docs/assistente.md)):
+  - **l'IA propone, l'app decide**: ogni azione del modello passa da `Aura.assistant.planReply()`, che la ricontrolla con `validateInput`, con i freni e con i permessi. Completare ed eliminare non sono mai automatici, con nessun permesso (lo fissa un test);
+  - **le frasi delle azioni le scrive l'app, dai dati veri** («Aggiunta: … · Domani»): il modello può dire di aver fatto una cosa che l'app non ha fatto;
+  - **a quale attività va una correzione senza nome** («no, facciamo alle 5», «anzi domani») lo decide l'app (`correctionTarget()`), non il modello, che nelle misure indicava spesso un'altra attività: va a quella dell'ultimo scambio, se era una sola e il messaggio non ne indica un'altra con il titolo, l'ora o il giorno;
+  - **se il modello e le regole di `nlp.js` leggono un'ora diversa**, l'app chiede sempre, e nella domanda propone l'ora delle regole («alle 6» sono le 18:00), come nel foglio "Nuova attività" (`agreedTime()`);
+  - **nessuna richiesta prima del primo disegno**, né con l'assistente spento, senza consenso o da `file://`: lì vale la proposta delle regole;
+  - gli id delle attività non partono mai: al server vanno le sigle `t1`, `t2`… di `buildRequest()`.
 - **Ogni modifica passa da `commit()`** in `app.js`, che salva e ridisegna. `render()` ridisegna tutto partendo da `state`: i dati sono pochi, quindi è veloce e non ci sono stati "sfasati". `commit()` fa anche scivolare le card al loro posto (vedi "Movimento").
   - Unica eccezione: importare un backup e ripristinare la copia sostituiscono **tutto** lo stato. Salvano `storage.replaceData()` e `storage.restoreBeforeImport()`, poi `applyState()` ridisegna.
 - **Date**: usa sempre `Aura.utils` (`todayISO`, `addDays`, `daysBetween`, `parseISODate`, `isISODate`…).
@@ -263,7 +280,7 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - animazioni brevi, disattivate con `prefers-reduced-motion`, e **mai infinite** perché consumano batteria (vedi "Movimento"). Unica eccezione: lo sfondo del focus a tutto schermo.
 - **Movimento** (`js/motion.js`, token in `:root`):
   - durate e curve solo dai token `--dur-*` e `--ease-*`, anche come multipli con `calc()`. Il JavaScript li legge con `Aura.motion.ms('move')` e `Aura.motion.ease('out')`, timer di riserva compresi: nessuna durata scritta a mano;
-  - movimenti, keyframes ed elementi grandi (card, fogli, intestazione, pagina) si animano **solo con `transform` e `opacity`**. I piccoli controlli (pulsanti, chip, campi, spunta, titolo barrato, opzioni del tema, fiamma) possono sfumare i colori, con `--dur-color` (al massimo 200 ms);
+  - movimenti, keyframes ed elementi grandi (card, fogli, intestazione, pagina) si animano **solo con `transform` e `opacity`**. I piccoli controlli (pulsanti, chip, campi, spunta, interruttori, titolo barrato, opzioni del tema, fiamma) possono sfumare i colori, con `--dur-color` (al massimo 200 ms);
   - un'ombra o un bagliore che cambia è un livello (`::before`/`::after`) con l'ombra già disegnata, che sfuma con `opacity`. Su un contenitore flex o griglia il livello è `position: absolute` (con il genitore `relative`) e `pointer-events: none`, altrimenti diventa un elemento della riga o della griglia e ruba i tocchi;
   - niente `backdrop-filter`: su iPhone pesa;
   - **FLIP**: gli elementi con `data-flip` (sezioni `section:<chiave>`, card `task:<id>`, blocco `completed-body` e gli altri elementi fissi della lista) scivolano al loro posto. `commit()` chiama `Aura.motion.snapshot()` prima di `render()` e `play()` dopo; i disegni che non nascono da un gesto (avvio, ritorno nell'app, mezzanotte, importazione) non si animano;
@@ -278,7 +295,7 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - con `prefers-reduced-motion` il CSS azzera le durate e `Aura.motion` non anima nulla.
 - **Fogli `<dialog>`**: aprili e chiudili con `openSheet()` e `closeSheet()` di `app.js`, che gestiscono animazione, blocco dello scorrimento e chiusura con Esc, "indietro" o tocco sullo sfondo. Non contare sull'evento `close` per pulizie indispensabili.
   - `setupSheet(dialog, { onCancel, backdropClose })`: il focus a tutto schermo non si chiude toccando fuori, e per lui Esc e "indietro" valgono «Esci».
-  - Dentro un foglio aperto gli avvisi in basso non si vedono. Un'azione che ne ha bisogno, come «Fatto» o «Completa», prima chiude il foglio.
+  - Dentro un foglio aperto gli avvisi in basso non si vedono, e il loro «Annulla» non si può toccare: un `<dialog>` modale sta sopra tutta la pagina. Un'azione che ne ha bisogno, come «Fatto» o «Completa», prima chiude il foglio. Un'azione che lascia il foglio aperto mostra l'esito **dentro** il foglio: le azioni automatiche dell'assistente sono righe con il loro «Annulla».
 - **Service worker**: quando aggiungi o rinomini un file dell'app, aggiungilo ad `APP_FILES` in `sw.js` e aumenta `CACHE_VERSION`.
   - Con la rete lenta o assente `index.html` fa da riserva **solo per la pagina dell'app** (`isAppPage()` in `sw.js`). Le altre pagine, come `prove/voce.html`, stanno fuori da `APP_FILES`: si salvano in cache alla prima apertura, e prima di allora senza rete il browser mostra il suo errore.
 - **Test**: ogni nuova logica pura ha i suoi test in `tests/`.
@@ -399,7 +416,7 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 | [docs/backup.md](docs/backup.md) | Esportare, importare e ripristinare i dati | realizzata |
 | [docs/tre-modalita.md](docs/tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fasi 1 e 2a fatte, da provare sull'iPhone |
 | [docs/illustrazioni.md](docs/illustrazioni.md) | Illustrazioni: flusso, revisione, elenco e prompt per Nano Banana | in corso: 2 nell'app (una da sostituire), 5 da rifare |
-| [docs/assistente.md](docs/assistente.md) | Assistente con l'IA: scrivere o parlare ad Aura, permessi, memoria breve, frasi di Siri, server e limiti | in corso: passo 0 (prova tecnica) pubblicato, da provare sull'iPhone |
+| [docs/assistente.md](docs/assistente.md) | Assistente con l'IA: scrivere o parlare ad Aura, permessi, memoria breve, frasi di Siri, server e limiti | in corso: passi 0 (prova tecnica) e 1 (assistente scritto) pubblicati, da provare sull'iPhone |
 | [docs/funzioni-future.md](docs/funzioni-future.md) | Web Share Target e scorciatoie (Android), promemoria `.ics`, altre idee | da fare |
 | [docs/premium.md](docs/premium.md) | Licenza premium: verifica offline, interfaccia e dati | da fare |
 
@@ -467,7 +484,7 @@ Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?a
 2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
 3. ~~**Promemoria con notifiche Web Push**~~: fatto. Resta, facoltativa, l'esportazione `.ics`.
 4. **«Tre modalità»**: Focus (con «Cosa faccio adesso?» e la modalità focus), Agenda e Motivazione, in quattro fasi (vedi [docs/tre-modalita.md](docs/tre-modalita.md)).
-5. **Assistente con l'IA**: scrivere o parlare ad Aura, che propone, aggiunge e sposta secondo i permessi dell'utente. Quattro passi, a partire da una prova tecnica (vedi [docs/assistente.md](docs/assistente.md)).
+5. **Assistente con l'IA**: scrivere o parlare ad Aura, che propone, aggiunge e sposta secondo i permessi dell'utente. Quattro passi, a partire da una prova tecnica (vedi [docs/assistente.md](docs/assistente.md)). Fatti i passi 0 (prova tecnica) e 1 (assistente scritto); restano la voce (passo 2) e l'organizzazione della giornata (passo 3).
 
 La licenza premium va fatta quando serve.
 

@@ -4,7 +4,7 @@ Un piccolo server su **Cloudflare Workers**, piano gratuito, per tre funzioni de
 
 - **Promemoria**: una notifica push prima delle attività con giorno e ora, anche ad app chiusa. Il Cron controlla ogni minuto.
 - **Casella del Comando Rapido di Siri**: il comando scrive la frase dettata; quando apri Aura, l'app la ritira e mostra il foglio "Nuova attività" già compilato.
-- **Assistente** (in costruzione, vedi `app-attivita/docs/assistente.md`): trascrive la voce e risponde ai messaggi con **Workers AI**. Per ora lo usa solo la pagina di prova della voce.
+- **Assistente** (vedi `app-attivita/docs/assistente.md`): risponde ai messaggi e trascrive la voce con **Workers AI**. Le risposte le usa l'app quando l'utente accende l'assistente; la trascrizione, per ora, solo la pagina di prova della voce.
 
 Ogni dispositivo ha un **codice segreto casuale**, generato dall'app. Senza un codice valido il server rifiuta.
 
@@ -18,7 +18,17 @@ Il server conserva solo:
 
 Tutto il resto resta sul telefono.
 
-**L'assistente non conserva nessun contenuto**: messaggi, registrazioni, trascrizioni, attività e risposte passano dal server a Workers AI e tornano al telefono, senza essere salvati né scritti nel registro. Il codice del dispositivo serve solo a contare le richieste e non arriva mai al modello. Cloudflare dichiara di non usare i contenuti per addestrare modelli e di trattarli solo per il tempo della risposta ([Data usage](https://developers.cloudflare.com/workers-ai/platform/data-usage/)).
+**L'assistente non conserva nessun contenuto**: messaggi, registrazioni, trascrizioni, attività e risposte passano dal server a Workers AI e tornano al telefono, senza essere salvati né scritti nel registro. Il codice del dispositivo serve solo a contare le richieste e non arriva mai al modello.
+
+**Che cosa riceve con l'assistente acceso** (solo dopo il consenso dell'utente, mai prima):
+- ciò che l'utente scrive ad Aura e, con il passo 2, la registrazione della sua voce;
+- le frasi dettate a «Ehi Siri, Aura», quando l'utente apre Aura;
+- giorno e ora locali del telefono;
+- le attività **da fare** (in ritardo, di oggi, senza data e dei prossimi 7 giorni, al massimo 40): titolo, durata, energia, giorno e ora, con una sigla al posto dell'id;
+- gli ultimi scambi con l'assistente, fino a 3 e solo degli ultimi 10 minuti;
+- all'apertura di Aura, una richiesta senza messaggio per la proposta «da cui cominciare» (al massimo 8 al giorno).
+
+Non riceve mai le attività completate, punti e serie, né i backup. L'assistente si spegne dal suo interruttore nell'app; «Scollega questo dispositivo» cancella anche i conteggi. Cloudflare dichiara di non usare i contenuti per addestrare modelli e di trattarli solo per il tempo della risposta ([Data usage](https://developers.cloudflare.com/workers-ai/platform/data-usage/)).
 
 **Il repository è pubblico.** Le chiavi VAPID stanno solo nei *secrets* di Cloudflare e non vanno mai scritte nei file. Git ignora `.dev.vars` (chiavi delle prove in locale), `.wrangler/` e `node_modules/`.
 

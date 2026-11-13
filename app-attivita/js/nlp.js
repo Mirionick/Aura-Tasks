@@ -225,11 +225,10 @@
   }
 
   /**
-   * Capisce una frase come "domani alle 10 dentista 30 min".
-   * Restituisce { title, duration, energy, date, time }: un campo non riconosciuto vale null
-   * (il titolo vale '' se non resta niente). Prima l'orario, che non va confuso con una durata.
+   * Come parseTaskText(), più `dateSaid`: true se la frase nomina un giorno. Con solo l'ora («alle 3 dentista»)
+   * il giorno si calcola (oggi, o domani se l'ora è passata) e `dateSaid` è false. Serve all'assistente (js/assistant.js).
    */
-  function parseTaskText(text, now) {
+  function parseDetails(text, now) {
     const source = String(text == null ? '' : text).slice(0, 300);
     const today = utils.todayISO(now);
     const scan = scanner(source);
@@ -238,6 +237,7 @@
     const time = findTime(scan, evening);
     const duration = findDuration(scan);
     let date = findDate(scan, today);
+    const dateSaid = Boolean(date);
     const energy = findEnergy(scan);
 
     if (time && !date) {
@@ -245,8 +245,18 @@
       const current = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
       date = time > current ? today : utils.addDays(today, 1);
     }
-    return { title: cleanTitle(scan.rest()), duration, energy, date, time };
+    return { title: cleanTitle(scan.rest()), duration, energy, date, time, dateSaid };
   }
 
-  Aura.nlp = { parseTaskText };
+  /**
+   * Capisce una frase come "domani alle 10 dentista 30 min".
+   * Restituisce { title, duration, energy, date, time }: un campo non riconosciuto vale null
+   * (il titolo vale '' se non resta niente). Prima l'orario, che non va confuso con una durata.
+   */
+  function parseTaskText(text, now) {
+    const { title, duration, energy, date, time } = parseDetails(text, now);
+    return { title, duration, energy, date, time };
+  }
+
+  Aura.nlp = { parseTaskText, parseDetails };
 })(window.Aura = window.Aura || {});

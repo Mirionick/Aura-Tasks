@@ -463,24 +463,65 @@
     };
   }
 
+  // Assistente spento, senza consenso, con i permessi di partenza (vedi docs/assistente.md)
+  const ASSISTANT_OFF = { enabled: false, voice: true, autoAdd: true, autoEdit: false, consentAt: null };
+
   test('storage.sanitizePrefs: valori non validi tornano a quelli di partenza, i campi sconosciuti restano', () => {
-    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' } };
+    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' }, assistant: ASSISTANT_OFF };
     [null, undefined, 'testo', [], 5].forEach(raw => assertEqual(storage.sanitizePrefs(raw), defaults, 'prefs: ' + JSON.stringify(raw)));
     const messy = storage.sanitizePrefs({ lastTab: 'boh', lastTabAt: -5, suggest: { minutes: 25, energy: 'tanta', extra: 1 }, weeklyGoal: 10 });
-    assertEqual(messy, { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium', extra: 1 }, weeklyGoal: 10 });
-    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' } };
+    assertEqual(messy, { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium', extra: 1 }, weeklyGoal: 10, assistant: ASSISTANT_OFF });
+    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' }, assistant: ASSISTANT_OFF };
     assertEqual(storage.sanitizePrefs(good), good, '«120+» (null) è una scelta valida');
+  });
+
+  test('storage.sanitizePrefs: assistente acceso solo con il consenso; permessi non validi → quelli di partenza', () => {
+    const on = { enabled: true, voice: false, autoAdd: false, autoEdit: true, consentAt: 1793258400000 };
+    assertEqual(storage.sanitizePrefs({ assistant: on }).assistant, on);
+    assertEqual(storage.sanitizePrefs({ assistant: { ...on, consentAt: null } }).assistant, { ...on, enabled: false, consentAt: null }, 'senza consenso resta spento');
+    assertEqual(storage.sanitizePrefs({ assistant: { enabled: 'sì', autoAdd: 1, autoEdit: 'no', consentAt: -3 } }).assistant, ASSISTANT_OFF);
   });
 
   test('storage.loadPrefs e savePrefs: andata e ritorno; archivio rotto o vuoto → preferenze di partenza', () => {
     const area = fakeArea();
     assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'niente salvato');
     assert(storage.savePrefs({ lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' } }, area));
-    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' } });
+    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' }, assistant: ASSISTANT_OFF });
     area.items.set(storage.PREFS_KEY, '{rotto');
     assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'testo illeggibile');
     const broken = fakeArea({}, true);
     assertEqual([storage.loadPrefs(broken).lastTab, storage.savePrefs({ lastTab: 'agenda' }, broken)], ['focus', false]);
+  });
+
+  test('storage.loadAssistant e saveAssistant: andata e ritorno, dati sporchi ripuliti, archivio rotto', () => {
+    const empty = { log: [], memory: [], open: null, opens: null, left: null };
+    const area = fakeArea();
+    assertEqual(storage.loadAssistant(area), empty, 'niente salvato');
+    const fields = { title: 'Dentista', duration: 30, energy: 'medium', date: '2026-11-13', time: '15:00' };
+    const data = {
+      log: [{ id: 'a1', at: 1000, origin: 'siri', said: 'alle 3 dentista', type: 'add', taskId: 'x', title: 'Dentista', before: null, after: fields, undone: false }],
+      memory: [{ at: 1000, said: 'alle 3 dentista', reply: 'Aggiunta', did: [{ type: 'add', taskId: 'x', after: fields }] }],
+      open: { key: 'k', at: 1000, taskId: 'x', say: 'Per cominciare ti propongo:', reason: null },
+      opens: { day: '2026-11-12', count: 2 },
+      left: { at: 1000, count: 57 }
+    };
+    assert(storage.saveAssistant(data, area));
+    assertEqual(storage.loadAssistant(area), data);
+    area.items.set(storage.ASSISTANT_KEY, JSON.stringify({
+      log: [data.log[0], { id: 'b', at: 1, origin: 'posta', type: 'add' }, { ...data.log[0], type: 'complete' }],
+      memory: 'tanta', open: { key: 5 }, opens: { day: 'ieri', count: 1 }, extra: true
+    }));
+    assertEqual(storage.loadAssistant(area), { ...empty, log: data.log }, 'origine o tipo sconosciuti (anche «complete») si scartano');
+    area.items.set(storage.ASSISTANT_KEY, '{rotto');
+    assertEqual(storage.loadAssistant(area), empty, 'testo illeggibile');
+    const broken = fakeArea({}, true);
+    assertEqual([storage.loadAssistant(broken), storage.saveAssistant(data, broken)], [empty, false]);
+  });
+
+  test('backup: non contiene mai i dati dell\'assistente né i suoi permessi', () => {
+    const file = storage.backupData(storage.emptyState(), 1000);
+    const text = JSON.stringify(file);
+    assert(!/assistant|memory|consentAt/.test(text), text);
   });
 
   test('tabOf: in ritardo, oggi e senza data → Focus; domani e oltre → Agenda; completate → Motivazione', () => {

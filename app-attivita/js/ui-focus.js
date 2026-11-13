@@ -26,38 +26,53 @@
   /* ---------- «Cosa faccio adesso?» ---------- */
 
   let excluded = []; // id già proposti mentre il foglio è aperto («Un'altra proposta»)
-  let pinned = null; // alternativa toccata: diventa la proposta principale
+  let first = null;  // attività da proporre per prima: quella scritta nella striscia, un'alternativa toccata, quella dell'IA
+  let firstReason = null; // il suo motivo, se viene dalla striscia o dall'IA (altrimenti quello delle regole)
   let forced = null; // la più breve, proposta a mano quando non c'è niente di adatto
+  let saidChoice = null; // tempo ed energia detti all'assistente ({ minutes, energy }): valgono finché il foglio è aperto
   let shownProposal = null; // attività della proposta principale mostrata adesso
   let noneAction = null;    // cosa fa il pulsante del messaggio «niente da proporre»
 
-  const currentChoice = () => ctx.getPrefs().suggest;
+  /** La scelta che vale adesso: quella detta all'assistente in questo foglio, altrimenti l'ultima salvata. */
+  const currentChoice = () => saidChoice || ctx.getPrefs().suggest;
 
-  function openSuggest() {
+  /**
+   * Apre il foglio. Opzioni (dalla striscia): taskId e reason fissano la proposta su quella già scritta nella striscia,
+   * così il foglio mostra la stessa attività con lo stesso motivo; `focus` è l'elemento che riceve il focus.
+   */
+  function openSuggest({ taskId = null, reason = null, focus = null } = {}) {
     excluded = [];
-    pinned = null;
+    first = taskId;
+    firstReason = reason;
     forced = null;
+    saidChoice = null;
     syncChoice();
     updateSuggestion();
-    ctx.setAutofocus(els.suggestSheet, els.suggestHeading);
+    if (ctx.onSuggestOpening) ctx.onSuggestOpening(); // l'assistente azzera la sua parte del foglio (js/ui-assistant.js)
+    ctx.setAutofocus(els.suggestSheet, focus || els.suggestHeading);
     ctx.openSheet(els.suggestSheet);
   }
 
-  /** Chip del tempo e livello di energia secondo l'ultima scelta. */
+  /** Chip del tempo e livello di energia secondo la scelta che vale adesso. Minuti detti senza chip: nessun chip premuto. */
   function syncChoice() {
     const { minutes, energy } = currentChoice();
     const pressed = minutes === null ? 'open' : String(minutes);
     els.suggestMinutes.querySelectorAll('[data-minutes]').forEach(chip => {
       chip.setAttribute('aria-pressed', String(chip.dataset.minutes === pressed));
     });
+    const said = saidChoice && minutes !== null && !SG.SUGGEST.minutes.includes(minutes);
+    els.suggestSaid.hidden = !said;
+    els.suggestSaid.textContent = said ? '· hai detto ' + SG.minutesLabel(minutes) : '';
     const radio = els.suggestSheet.querySelector('input[name="suggest-energy"][value="' + energy + '"]');
     if (radio) radio.checked = true;
   }
 
   function saveChoice(change) {
     ctx.setPrefs({ suggest: { ...currentChoice(), ...change } });
+    saidChoice = null; // un chip toccato vale più di ciò che era stato detto
     syncChoice();
-    pinned = null;
+    first = null;
+    firstReason = null;
     forced = null;
     updateSuggestion();
   }
@@ -68,15 +83,13 @@
     const now = Date.now();
     const today = utils.todayISO(now);
     const { minutes, energy } = currentChoice();
-    let result = SG.suggest(state.tasks, { minutes, energy, today, now, exclude: excluded });
+    let result = SG.suggest(state.tasks, { minutes, energy, today, now, exclude: excluded, first });
 
     const forcedTask = forced && state.tasks.find(task => task.id === forced && !task.done);
     if (forcedTask) {
       result = { best: { task: forcedTask, reason: 'È la più breve da fare adesso' }, alternatives: [], fallback: null };
-    } else if (pinned && result.best) {
-      const all = [result.best].concat(result.alternatives);
-      const chosen = all.find(item => item.task.id === pinned);
-      if (chosen) result = { ...result, best: chosen, alternatives: all.filter(item => item !== chosen) };
+    } else if (first && firstReason && result.best && result.best.task.id === first) {
+      result = { ...result, best: { ...result.best, reason: firstReason } }; // il motivo scritto nella striscia o detto dall'IA
     }
 
     els.suggestResult.hidden = !result.best;
@@ -168,10 +181,48 @@
 
   function onNextSuggestion() {
     if (shownProposal) excluded.push(shownProposal.id);
-    pinned = null;
+    first = null;
+    firstReason = null;
     forced = null;
     updateSuggestion();
   }
+
+  /* ---------- Per l'assistente (js/ui-assistant.js) ---------- */
+
+  /** La proposta dell'IA (già controllata: è tra le candidate) diventa quella del foglio, con il suo motivo. */
+  function showSuggested({ taskId, reason = null }) {
+    first = taskId;
+    firstReason = reason;
+    forced = null;
+    updateSuggestion();
+  }
+
+  /** Tempo ed energia detti all'assistente: `use` vale per la proposta di adesso, `save` va nelle preferenze. */
+  function setSessionChoice(use, save) {
+    ctx.setPrefs({ suggest: { ...ctx.getPrefs().suggest, ...save } });
+    saidChoice = { minutes: use.minutes, energy: use.energy };
+    first = null;
+    firstReason = null;
+    forced = null;
+    syncChoice();
+    updateSuggestion();
+  }
+
+  /** La proposta delle regole per la striscia: con l'ultima scelta salvata e senza caso, così è sempre la stessa. */
+  function ruleProposal() {
+    const now = Date.now();
+    const { minutes, energy } = ctx.getPrefs().suggest;
+    const best = SG.suggest(ctx.getState().tasks, { minutes, energy, today: utils.todayISO(now), now, random: () => 0.5 }).best;
+    return best ? { task: best.task, reason: best.reason } : null;
+  }
+
+  /** Dopo una modifica fatta dall'assistente con il foglio aperto: la proposta si ricalcola. */
+  function refreshSuggestion() {
+    if (els.suggestSheet.open) updateSuggestion();
+  }
+
+  const isSuggestOpen = () => els.suggestSheet.open;
+  const setSuggestTitle = text => { els.suggestHeading.textContent = text; };
 
   /* ---------- Focus a tutto schermo ---------- */
 
@@ -520,7 +571,7 @@
   function init(context) {
     ctx = context;
     [
-      'suggestSheet:suggest-sheet', 'suggestHeading:suggest-sheet-title', 'suggestMinutes:suggest-minutes',
+      'suggestSheet:suggest-sheet', 'suggestHeading:suggest-sheet-title', 'suggestMinutes:suggest-minutes', 'suggestSaid:suggest-said',
       'suggestResult:suggest-result', 'suggestReason:suggest-reason', 'suggestTitle:suggest-title',
       'suggestWhen:suggest-when', 'suggestWhenText:suggest-when-text', 'suggestDuration:suggest-duration',
       'suggestEnergy:suggest-energy', 'suggestEnergyText:suggest-energy-text', 'suggestStart:suggest-start',
@@ -554,7 +605,8 @@
     els.suggestAlts.addEventListener('click', event => {
       const button = event.target.closest('.alt');
       if (!button) return;
-      pinned = button.dataset.id;
+      first = button.dataset.id;
+      firstReason = null;
       updateSuggestion();
       els.suggestStart.focus({ preventScroll: true });
     });
@@ -580,7 +632,11 @@
       syncRunning();
     });
 
-    return { openSuggest, startFocus, prepareAudio, sync, resume };
+    return {
+      openSuggest, startFocus, prepareAudio, sync, resume,
+      // per l'assistente
+      showSuggested, setSessionChoice, ruleProposal, refreshSuggestion, isSuggestOpen, setSuggestTitle, currentChoice
+    };
   }
 
   Aura.focusUI = { init };

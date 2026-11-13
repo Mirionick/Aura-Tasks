@@ -1,4 +1,4 @@
-# Assistente con l'IA: scrivere o parlare ad Aura (in corso: passo 0 pubblicato, da provare sull'iPhone)
+# Assistente con l'IA: scrivere o parlare ad Aura (in corso: passi 0 e 1 pubblicati, da provare sull'iPhone)
 
 Nuovo capitolo: Aura diventa un assistente. Appena si apre propone cosa fare; le si può scrivere o parlare; aggiunge e sposta attività secondo i permessi scelti dall'utente. Tutto gratis, con Workers AI di Cloudflare sul server di Aura.
 
@@ -17,13 +17,13 @@ Ognuno si pubblica da solo e si prova sull'iPhone prima del successivo.
 | Passo | Contenuto | Stato |
 |---|---|---|
 | 0 | Prova tecnica: server con trascrizione, risposte, limiti e conteggi; pagina di prova; scelta del modello; tempo di CPU con 30 secondi di audio | pubblicato l'11 novembre 2026: server, database e app v10 (vedi "Risultati del passo 0"); da provare sull'iPhone |
-| 1 | Assistente scritto: striscia con la proposta, foglio «Aura» con il campo, consenso, permessi, elenco, memoria breve, frasi di Siri, proposta dell'IA all'apertura | da fare |
+| 1 | Assistente scritto: striscia con la proposta, foglio «Aura» con il campo, consenso, permessi, elenco, memoria breve, frasi di Siri, proposta dell'IA all'apertura | pubblicato il 13 novembre 2026 con l'app v12 (vedi "Risultati del passo 1"); da provare sull'iPhone, insieme alle fasi 1 e 2a di [tre-modalita.md](tre-modalita.md) |
 | 2 | Voce: microfono nella striscia e nel foglio, risposta a voce | da fare |
 | 3 | Organizzare la giornata intorno agli impegni; spezzare un'attività grande in passi | da fare, da specificare prima |
 
 - **Il passo 0 risponde con i fatti** alle domande aperte: il formato registrato dall'iPhone è accettato da Whisper? Ogni quanto iOS chiede il permesso del microfono? La voce si sblocca nell'app installata? Quanta CPU e quanto tempo servono? Come capisce l'italiano ogni modello?
 - **Il passo 0 non tocca l'interfaccia dell'app**: aggiunge solo una pagina di prova (`prove/voce.html`), aperta da un link provvisorio in fondo a Motivazione, che sparisce con il passo 2.
-- **Il passo 1 cambia l'intestazione di Focus**: viene dopo le correzioni della v9 (una riguarda `suggest()`) e dopo la prova della fase 2a sull'iPhone.
+- **Il passo 1 cambia l'intestazione di Focus**: viene dopo le correzioni della v9 (una riguarda `suggest()`). Doveva aspettare anche la prova della fase 2a sull'iPhone; il 13 novembre 2026 l'utente ha scelto di pubblicarlo subito e di provare le fasi 1 e 2a insieme al passo 1, in un solo giro.
 - **Il passo 3** sta meglio dopo l'Agenda (fase 3 di [tre-modalita.md](tre-modalita.md)), che ha la linea del tempo.
 
 ## Come funziona
@@ -42,23 +42,38 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
 - **Obiettivo misurato**, come nella fase 2a: intestazione sotto i 220 px (oggi 188) e 4 card visibili su iPhone 13 in Safari (390×664), prima e dopo.
 - **Riga piccola**: la frase dell'assistente. **Riga grande**: il titolo dell'attività proposta, su una riga.
 - **Il saluto resta nella riga sopra**, com'è oggi: nella striscia non si ripete. All'IA si chiede una frase breve senza saluto («Hai un'ora prima del dentista:»).
-- **Un tocco sul testo** apre il foglio «Aura» con la proposta e i pulsanti di sempre. **Tenendo premuto il microfono** si parla.
-- **Con l'assistente acceso** la striscia c'è sempre, anche a lista vuota: il microfono serve per aggiungere.
-- **Con l'assistente spento, o prima del consenso**: la striscia mostra la proposta delle regole, senza microfono e senza richieste di rete.
+- **Un tocco sul testo** apre il foglio «Aura» con la proposta e i pulsanti di sempre. **Tenendo premuto il microfono** si parla (dal passo 2: nel passo 1 il microfono non c'è).
+- **Stessa attività nella striscia e nel foglio** (scelta dell'utente, 12 novembre 2026): il foglio si apre con l'attività scritta nella striscia e con lo stesso motivo, che venga dalle regole o dall'IA.
+  - Le alternative si calcolano senza di lei. Il pizzico di caso torna solo con «Un'altra proposta».
+  - Se nel frattempo l'attività è stata completata o eliminata, il foglio ricalcola.
+- **Con l'assistente acceso** la striscia c'è sempre, anche a lista vuota. Allora dice «Dimmi cosa devi fare», e un tocco apre il foglio «Aura» con il campo pronto per scrivere (scelta dell'utente, 12 novembre 2026).
+- **Con l'assistente spento, o prima del consenso** (scelta dell'utente, 12 novembre 2026): la riga piccola dice «Cosa faccio adesso?» e la riga grande il titolo della proposta delle regole; senza proposta, «Una pausa ☕?». Nessun microfono e nessuna richiesta di rete. A lista vuota la striscia è nascosta, come il pulsante di prima.
 
 ### Apertura veloce
 - **Primo disegno**: nessuna richiesta di rete. La proposta delle regole (`Aura.suggest.suggest()`, con l'ultima scelta di tempo ed energia e senza il pizzico di caso) compare subito.
 - **Richiesta all'IA**: parte dopo il caricamento, a pagina visibile. Se la risposta arriva entro 4 secondi e l'utente non ha toccato la striscia, il testo cambia con una dissolvenza (solo `opacity`). La striscia ha altezza fissa: nessuna card si sposta.
-- **Se arriva tardi**, o la striscia è già stata toccata: sotto il dito non cambia niente.
+- **Che cosa conta come apertura** (scelta dell'utente, 12 novembre 2026): il caricamento della pagina e il ritorno in Aura dopo almeno 30 minuti, la stessa soglia dell'ultima scheda (`LAST_TAB_MS`).
+- **Se arriva tardi**, o la striscia è già stata toccata: sotto il dito non cambia niente. La risposta resta come copia per la prossima apertura.
 - **Risparmio**: con la stessa lista e la stessa parte della giornata si riusa la risposta salvata, per 3 ore. Al massimo 8 richieste automatiche al giorno per dispositivo.
+  - «Stessa parte della giornata» sono le fasce del saluto: mattina (5–12), pomeriggio (12–18), sera.
+  - «Stessa lista» è un'impronta delle attività mandate e della scelta di tempo ed energia (`openKey()`): la lista non si salva una seconda volta.
+  - A lista vuota, o senza candidate, non parte nessuna richiesta.
 - **La proposta dell'IA deve essere tra le candidate delle regole** (da fare adesso, che ci sta nel tempo e nell'energia). Altrimenti resta quella delle regole.
+  - Si controlla contro **tutte** le candidate (`Aura.suggest.candidates()`, senza caso), non contro le prime tre di `suggest()`: quelle cambiano col pizzico di caso, e la stessa risposta verrebbe accettata o scartata a caso (scelta dell'utente, 12 novembre 2026).
+  - In un messaggio valgono i minuti e l'energia detti, se ci sono.
+  - Il motivo mostrato è quello dell'IA, se c'è; altrimenti quello delle regole.
 
 ### Foglio «Aura» (oggi «Cosa faccio adesso?»)
-- **In alto**: la frase dell'assistente e, dopo un messaggio a voce, «Hai detto: …».
+- **Titolo**: «Aura» con l'assistente acceso, «Cosa faccio adesso?» da spento.
+- **In alto**: la frase dell'assistente e, dopo un messaggio a voce, «Hai detto: …». Sotto, una riga per ogni azione (vedi "Conferme").
 - **Proposta**: titolo, durata, energia, motivo e i pulsanti di sempre («Inizia focus», «Fatto», «Un'altra proposta»). «Un'altra proposta» usa le regole: è immediata e non consuma quota.
 - **«Quanto tempo hai?» e «Come ti senti?»** restano: sono anche la riserva senza internet. «Ho 40 minuti e sono cotto» li imposta da solo (40 minuti, energia bassa). Il tempo detto vale così com'è; nelle preferenze si salva la scelta più vicina per difetto.
-- **In fondo**: campo «Scrivi ad Aura…» (testo a 16 px), invio e microfono.
+- **In fondo**: campo «Scrivi ad Aura…» (testo a 16 px), invio e microfono (il microfono dal passo 2). Da `file://` il campo non c'è.
 - **Conferme**: le azioni che aspettano un tocco compaiono come riquadri («Sposto "Palestra" a domani alle 18?» con «Sposta» e «No»).
+  - «Aggiungi», «Sposta» e «Cambia» agiscono e lasciano nel riquadro l'esito, con «Annulla».
+  - «Fatto» ed «Elimina» chiudono prima il foglio, come il «Fatto» della proposta: così si vede l'avviso di sempre, con i punti e «Annulla».
+- **Azioni automatiche a foglio aperto**: ognuna è una riga nel foglio, con il suo «Annulla» («Aggiunta: Chiamare il medico · Domani»). Non un avviso in basso: un `<dialog>` aperto sta sopra tutta la pagina, quindi l'avviso resterebbe sotto e il suo «Annulla» non si potrebbe toccare (visto nelle prove del passo 1).
+  - Sopra le righe non c'è una frase in più: dicono già tutto. I lettori di schermo le leggono quando compaiono (`aria-live`).
 - **Ingranaggio**: apre il foglio «Assistente».
 
 ### Scrivere o parlare
@@ -78,6 +93,9 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
 
 ### Memoria breve
 - **Cosa parte insieme al messaggio**: gli ultimi 3 scambi, solo se sono degli ultimi 10 minuti. Di ognuno: cosa ha detto l'utente, cosa ha risposto Aura e, in breve, cosa ha fatto («aggiunta t7»). Così «no, facciamo alle 5» funziona.
+  - **«Cosa ha risposto Aura» è una frase intera**, scritta dall'app dai dati veri nello stile del modello: «Ho aggiunto «Chiamare il medico» per domani.», «Ho spostato «Palestra» a domani alle 18:00.» (`recallDone()` e `recallReply()` in `js/assistant.js`). Poi vengono le domande rimaste in attesa.
+  - Non è la frase corta che si vede nel foglio («Aggiunta: Chiamare il medico · Domani»). La frase intera è la forma che usa il modello stesso, e nelle misure lo aiuta a riconoscere l'attività da correggere; da sola però non basta (vedi "Risultati del passo 1").
+  - Di un'attività che non c'è più resta la frase, ma non la sigla.
 - **Dove stanno**: sul telefono, in `aura-tasks:assistant`, così reggono anche se iOS ricarica la pagina. Sul server non si salvano: li riceve, li passa al modello e basta.
 - **Quando spariscono**: dopo 10 minuti, spegnendo l'assistente e con «Scollega questo dispositivo».
 - **Cosa conta come scambio**: i messaggi scritti, quelli a voce e le frasi di Siri. Le proposte all'apertura no.
@@ -86,6 +104,18 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
   - Vale cioè per un'aggiunta che sta negli scambi della memoria breve, se l'utente non ha toccato l'attività nel frattempo e «Aggiungere da solo» è acceso.
   - L'avviso dice cosa è cambiato e ha «Annulla» («Corretta: Chiamare il medico · Domani alle 17:00»). La correzione resta nell'elenco «Cosa ha fatto l'assistente».
   - Ogni altra modifica segue «Cambiare da solo».
+  - **Chi decide che è «quella appena aggiunta»**: l'app, non il modello. Nella memoria breve ogni aggiunta porta i campi che l'assistente ha lasciato; la correzione è automatica solo se l'attività è una di quelle, ed è ancora così. Dopo un «Annulla» dell'utente non lo è più: la stessa frase chiede.
+- **Correzioni senza nome** (scelta dell'utente, 12 novembre 2026): a quale attività va «no, facciamo alle 5» lo decide **l'app**. Il modello dovrebbe correggere l'attività dell'ultimo scambio, ma spesso ne indica un'altra (vedi "Risultati del passo 1").
+  - **La regola** (`correctionTarget()` in `js/assistant.js`): se la risposta contiene una sola modifica e nient'altro che cambi qualcosa, e il messaggio non indica l'attività scelta dal modello, la modifica va all'attività dell'ultimo scambio. Dal modello si prendono solo i campi nuovi (ora, giorno, durata, energia).
+  - **Un'attività è «indicata»** dal messaggio con una parola del suo titolo («la riunione», anche al plurale), con la sua ora («quella delle 9») o con il suo giorno («quella di domani»). L'ora e il giorno **nuovi** («alle 5», «domani») non contano: sono il valore che la modifica mette. Allora resta la scelta del modello.
+  - **Vale solo se l'ultimo scambio ha toccato una sola attività**: aggiunta, cambiata, proposta o in attesa di conferma. Con due attività, con nessuna, con un ultimo scambio più vecchio di 10 minuti o con un'attività che non è più da fare, resta la scelta del modello.
+  - **Due prudenze in più**, nello stesso spirito: resta la scelta del modello anche quando il messaggio nomina un'ora o un giorno che non sono quelli dell'attività dell'ultimo scambio («quella delle 7», e nessuna delle due è alle 7), e quando contiene una parola del titolo di una terza attività («la palestra»). Per una terza attività non conta una parola che sta anche nel titolo dell'attività dell'ultimo scambio: dopo «Chiamare il medico», «chiamalo» non indica «Chiamare la nonna». A parità, cioè quando l'indizio vale sia per l'attività del modello sia per quella dell'ultimo scambio, resta la scelta del modello.
+  - **Come si leggono ore e giorni nel messaggio** (`hintsOf()`):
+    - le ore dopo «alle», «delle», «dalle», «ore», «per le», «verso le», «entro le» e «all'», «dell'», in cifre o in lettere («delle nove»), anche con «e mezza», «e un quarto», «e tre quarti», «meno un quarto»; poi `9:30` scritto da solo, «mezzogiorno» e «mezzanotte»;
+    - le ore da 1 a 12 valgono per la mattina e per il pomeriggio: «delle 6» sono le 6:00 e le 18:00;
+    - i giorni: oggi, stamattina, stasera, stanotte, domani, dopodomani, ieri e i giorni della settimana (quello passato e il prossimo);
+    - una data scritta («quella del 15») non viene letta.
+  - **Dopo la regola valgono i permessi di sempre**: sull'attività appena aggiunta e non toccata la correzione è automatica, con la sua riga e «Annulla»; altrimenti segue «Cambiare da solo», cioè di base chiede, ma sull'attività giusta.
 
 ### Cosa può fare l'assistente (elenco chiuso)
 
@@ -104,7 +134,13 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
   - sono più di 3 nello stesso messaggio;
   - c'è già un'attività con lo stesso titolo nello stesso giorno;
   - la data è nel passato;
-  - le regole di `js/nlp.js` leggono nella frase un giorno o un'ora diversi da quelli dell'IA.
+  - le regole di `js/nlp.js` leggono nella frase un giorno o un'ora diversi da quelli dell'IA. Questo freno vale solo quando il messaggio produce **una sola** aggiunta o modifica: la frase intera non dice a quale azione appartiene un'ora.
+- **Quale ora propone la domanda, quando modello e regole ne leggono una diversa** (scelta dell'utente, 13 novembre 2026): quella letta dall'app, come nel foglio «Nuova attività» (`agreedTime()` in `js/assistant.js`).
+  - Per «alle 6» il modello a volte scrive 6:00; le regole leggono 18:00, e la domanda dice 18:00. Vale per le aggiunte e per le modifiche, e resta sempre una domanda.
+  - I minuti che le regole non sanno leggere restano quelli del modello, nella metà del giorno delle regole: per «alle 5 e mezza» la domanda dice 17:30, per «alle 5 meno un quarto» 16:45, anche se il modello ha scritto 5:30 o 4:45. In pratica: se l'ora del modello, portata nella stessa metà del giorno, sta a meno di un'ora da quella delle regole, vale la sua; altrimenti è un'altra ora, e vale quella delle regole.
+  - Se il modello non ha letto nessuna ora e le regole sì, un'aggiunta propone quella delle regole. Togliere l'ora («time: none») non è un'ora letta in un altro modo: lì la domanda resta «Tolgo l'ora a …?».
+  - Per il **giorno** la domanda mostra ancora quello del modello.
+- **Una modifica che non cambia niente** non fa niente, e Aura lo dice con una frase dell'app: ««Palestra» è già così.». La frase del modello («Ho spostato…») lì non vale: direbbe una cosa non fatta.
 - **Dati non validi per il modulo** (`Aura.tasks.validateInput`): l'azione si scarta. Durata ed energia mancanti prendono i valori predefiniti del modulo.
 - **Un'ora senza giorno** («alle 3 dentista»; scelta dell'utente, 11 novembre 2026): giorno e ora li decide **l'app**, con la stessa regola dell'aggiunta rapida (`parseTaskText` in `js/nlp.js`).
   - Con solo l'ora è oggi, oppure domani se quell'ora è già passata.
@@ -113,8 +149,9 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
   - Il modello non è affidabile su questo: nel passo 0 Gemma ha lasciato vuoto il giorno in 2 passate su 4, e nelle altre ha messo oggi.
   - Quindi, se `parseTaskText` non trova un giorno nella frase e il modello ha lasciato vuoto il giorno o ha messo oggi, vale il giorno di `parseTaskText`. Se il modello ha messo un altro giorno, o un'ora diversa da quella di `parseTaskText`, scatta il freno qui sopra e l'app chiede.
 - **Ogni azione automatica**:
-  - dice cosa ha fatto: avviso «Aggiunta: Chiamare il medico · Domani» con «Annulla», e a voce se l'utente ha parlato;
-  - resta nell'elenco «Cosa ha fatto l'assistente».
+  - dice cosa ha fatto: «Aggiunta: Chiamare il medico · Domani» con «Annulla», e a voce se l'utente ha parlato. A foglio «Aura» aperto è una riga nel foglio; a foglio chiuso (le frasi di Siri) è l'avviso in basso;
+  - resta nell'elenco «Cosa ha fatto l'assistente»;
+  - «Annulla» vale finché l'attività è ancora come l'ha lasciata l'assistente. Se nel frattempo è cambiata o è stata completata, dice «Non si può più annullare: l'attività è cambiata».
 - **Chi scrive la frase**:
   - per le azioni (aggiungere, cambiare, completare, eliminare) la frase la scrive **l'app, dai dati veri**: «Aggiunta: …», «Sposto "Palestra" a domani alle 18?», «Segno "Fare la spesa" come fatta?». Vale anche per la risposta a voce;
   - la frase del modello (`say`) vale per le proposte e quando non c'è nessuna azione;
@@ -125,23 +162,32 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
 - **Con l'assistente acceso**: quando si apre Aura, le frasi ritirate dalla casella passano dall'assistente invece di aprire il foglio, con gli stessi permessi e gli stessi freni.
   - Avviso: «Da Siri: aggiunta "Dentista" · Domani alle 10:00», con «Annulla».
   - Più frasi insieme: un avviso solo («Da Siri: aggiunte 3 attività»), e «Annulla» le toglie tutte. Nell'elenco c'è una riga per ognuna, con l'origine «Siri».
-  - Ciò che aspetta un tocco apre un foglio: per un'aggiunta, «Nuova attività» già compilata come oggi; per il resto, il foglio «Aura» con la conferma.
+  - Ciò che aspetta un tocco apre un foglio: per un'aggiunta, «Nuova attività» già compilata come oggi; per il resto, il foglio «Aura» con la conferma («Da Siri: serve un tuo tocco.»). Lì le azioni già fatte sono righe con «Annulla», non un avviso.
   - **«Domani» si conta da quando la frase è stata dettata** (`createdAt` della frase), non da quando si apre Aura. Se il giorno risulta già passato, l'assistente chiede.
   - La risposta è solo scritta.
   - Le frasi contano nei messaggi del giorno.
-- **Senza internet, a quota finita o con un errore**: come oggi, foglio già compilato dalle regole. Nessuna frase si perde: resta in coda finché non è gestita.
+  - Le richieste partono dopo il caricamento della pagina, mai prima del primo disegno.
+- **Se l'IA non risponde** (senza internet, a quota finita, con un errore, con una risposta non valida o non capita): come oggi, si apre «Nuova attività» già compilata dalle regole (scelta dell'utente, 12 novembre 2026).
+  - La frase **non resta in coda a riprovare** a ogni apertura: esce dalla coda quando il foglio si chiude, come con l'assistente spento. Nessuna frase si perde.
+  - Senza rete o a quota finita è inutile provare le frasi dopo: vanno tutte nel foglio, una alla volta.
 - **Con l'assistente spento**: tutto come oggi (vedi [promemoria-e-siri.md](promemoria-e-siri.md)).
 - **Server**: la casella non cambia.
 
 ### Foglio «Assistente»
 - **Interruttori**: «Assistente», «Risposte a voce», «Aggiungere attività da solo», «Cambiare giorno, ora, durata o energia da solo».
+  - «Risposte a voce» e lo stato del microfono compaiono dal passo 2.
+  - Accendere «Assistente» da qui vale come consenso. Per questo subito sotto l'interruttore c'è la frase del consenso, la stessa del primo uso: «Per capirti, Aura manda al suo server quello che scrivi o dici, l'ora e le attività da fare. Non viene salvato niente.» (scelta dell'utente, 12 novembre 2026). L'interruttore la dichiara anche ai lettori di schermo (`aria-describedby`). Più sotto il foglio dice per intero che cosa viene inviato.
+  - Spegnerlo cancella la memoria breve e la copia della proposta. L'elenco resta, per i suoi 30 giorni.
 - **Riga fissa**, senza interruttore: «Completare ed eliminare: sempre con il tuo tocco».
 - **«Cosa ha fatto l'assistente»**: le ultime 50 azioni automatiche, per 30 giorni. Ognuna dice quando, da dove (scritto, voce, Siri), cosa ha detto l'utente e cosa ha fatto l'assistente, con «Mostra» e, finché l'attività non è cambiata, «Annulla».
 - **In fondo**: quanti messaggi restano oggi, che cosa viene inviato, lo stato del microfono.
+- **«Scollega questo dispositivo»**: la stessa azione del foglio «Promemoria e Siri». Sotto il pulsante una riga lo dice: «Spegne anche i promemoria e il Comando Rapido di Siri, e cancella i conteggi sul server.» (scelta dell'utente, 12 novembre 2026). Chiude i fogli, così l'avviso «Dispositivo scollegato» con «Annulla» si vede; «Annulla» riaccende anche l'assistente com'era.
 
 ### Primo uso
 - Al primo tocco sul microfono o sul campo compaiono due righe: «Per capirti, Aura manda al suo server quello che scrivi o dici, l'ora e le attività da fare. Non viene salvato niente.»
 - Sotto ci sono i due permessi, con i valori di partenza, e «Attiva» / «Non ora».
+  - «Attiva» accende l'assistente; una frase già scritta nel campo parte subito.
+  - «Non ora» lascia il campo dov'è: al tocco successivo il consenso ricompare.
 - Prima del consenso l'app non manda niente, neanche le frasi di Siri all'assistente.
 
 ### Quando l'IA non c'è
@@ -150,7 +196,8 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
 |---|---|
 | Senza internet, errore, risposta non valida | proposta delle regole; una riga dice perché |
 | Quota finita, del dispositivo o di tutti | come sopra, con «Per oggi le risposte sono finite: riprova domani» |
-| L'utente ha scritto una frase | si apre «Nuova attività» già compilata dalle regole (`openAddSheet(testo)`), da confermare |
+| L'utente ha scritto una frase | si apre «Nuova attività» già compilata dalle regole (`openAddSheet(testo)`), da confermare; una riga dice perché («Serve internet per scrivere ad Aura: ho compilato il foglio con le regole») |
+| Una frase di Siri | si apre «Nuova attività» già compilata, come con l'assistente spento; la frase esce dalla coda quando il foglio si chiude |
 | L'utente vuole dettare | il microfono della tastiera dell'iPhone, nel campo di testo |
 | Pagina aperta da `file://` | l'assistente non compare; nessun errore |
 
@@ -249,19 +296,25 @@ Codice in `server/`, sullo stesso Worker di promemoria e Siri.
 - Valgono anche i freni di sempre: 20 nuovi dispositivi al giorno, 1000 in tutto.
 
 ## App
-- **`js/assistant.js`**, logica pura con i suoi test:
-  - prepara ciò che si manda (attività scelte, sigle, memoria breve degli ultimi 10 minuti);
-  - ricontrolla la risposta con le regole del modulo (`validateInput`);
-  - decide che cosa è automatico e che cosa chiede, secondo i permessi. «Completare» ed «eliminare» non sono automatici con nessuna combinazione: lo fissa un test;
-  - applica, registra nell'elenco e annulla.
-- **`js/voice.js`**: registrazione (formato, durata massima, base64) e voce (sblocco, scelta della voce italiana, stop). Le scelte pure sono testate.
-- **`js/ui-assistant.js`**: striscia, campo e microfono nel foglio, primo uso, foglio «Assistente», conferme, elenco. Riceve da `app.js` ciò che serve, come `Aura.focusUI.init()`.
+- **`js/assistant.js`** (passo 1), logica pura con i suoi test. L'ora è sempre un parametro:
+  - prepara ciò che si manda (`buildRequest`: attività scelte, sigle, memoria breve degli ultimi 10 minuti);
+  - ricontrolla la risposta con le regole del modulo e con i freni (`planReply`, che usa `validateInput` e `Aura.nlp.parseDetails`);
+  - decide che cosa è automatico e che cosa chiede, secondo i permessi (`isAutomatic`). «Completare» ed «eliminare» non sono automatici con nessuna combinazione: lo fissa un test;
+  - applica, registra nell'elenco e annulla (`applyAuto`, `undoEntries`, `addToLog`);
+  - scrive le frasi: quelle che si vedono (`describeDone`, `summarizeDone`, `askText`) e quelle della memoria breve (`recallDone`, `recallReply`);
+  - copia della proposta all'apertura (`openKey`, `canReuseOpen`, `openAllowed`) e pulizia dei dati salvati (`sanitizeStore`, `sanitizePrefs`).
+- **`js/voice.js`** (passo 2): registrazione (formato, durata massima, base64) e voce (sblocco, scelta della voce italiana, stop). Le scelte pure sono testate.
+- **`js/ui-assistant.js`** (passo 1): striscia, campo nel foglio (dal passo 2 anche il microfono), primo uso, foglio «Assistente», conferme, elenco, proposta all'apertura, frasi di Siri. Riceve da `app.js` ciò che serve con `Aura.assistantUI.init()`, come `Aura.focusUI.init()`.
+- **`js/ui-focus.js`**: il foglio resta suo. `openSuggest({ taskId, reason })` lo apre sull'attività della striscia; `showSuggested()` mostra una proposta dell'IA e i minuti detti («· hai detto 40 minuti»); `ruleProposal()` dà alla striscia la proposta delle regole, senza caso.
+- **`js/suggest.js`**: `candidates()` e l'opzione `first` di `suggest()` (vedi [tre-modalita.md](tre-modalita.md)).
+- **`js/nlp.js`**: `parseDetails()`, cioè `parseTaskText()` più `dateSaid` (la frase nomina un giorno?), per la regola dell'ora senza giorno.
 - **`js/remote.js`**: le due richieste nuove.
-- **Frasi di Siri**: `showNextInboxItem()` in `app.js` passa la frase all'assistente quando è acceso; altrimenti fa come oggi.
+- **Frasi di Siri**: `showNextInboxItem()` in `app.js` passa le frasi all'assistente quando è acceso; quelle che lui non gestisce, e tutte quando è spento, si aprono come oggi.
 - **Dati**: nessun cambio di schema.
   - `aura-tasks:prefs.assistant`: `{ enabled, voice, autoAdd, autoEdit, consentAt }`;
-  - `aura-tasks:assistant`: l'elenco delle azioni, la memoria breve e la copia dell'ultima proposta. È fuori dal backup; la legge e la scrive solo `storage.js`.
+  - `aura-tasks:assistant`: l'elenco delle azioni (`log`), la memoria breve (`memory`), la copia dell'ultima proposta (`open`), quante proposte automatiche sono partite oggi (`opens`) e i messaggi rimasti (`left`). È fuori dal backup; la legge e la scrive solo `storage.js` (`loadAssistant()`, `saveAssistant()`).
 - **CSP**: non cambia. Il server è già in `connect-src`.
+- **Cache**: `aura-tasks-v12`, con i due file nuovi in `APP_FILES`.
 - **Da riusare**: `Aura.suggest.suggest`, `Aura.nlp.parseTaskText`, `validateInput` / `createTask` / `updateTask`, `commit`, `showToast`, `completeTask`, `onDelete`, `openAddSheet`, `openSheet` / `closeSheet` / `setupSheet`, `ensureDevice` / `withDevice`, `checkInbox` e la coda della casella, `troubleMessage`, `availability`, lo sblocco dell'audio di `ui-focus.js`.
 
 ## Nota sulla privacy: che cosa deve dire
@@ -435,6 +488,112 @@ Deciso dall'utente il 12 novembre 2026, da fare quando ci sarà la misura di 30 
 
 **Perché**: oggi il limite è 1,2 milioni di caratteri, e il corpo più lungo ammesso ha usato 12 ms di CPU, sopra i 10 del piano gratuito. Col nuovo limite anche il caso peggiore resta sotto i 10 ms, e una sola richiesta non può contenere minuti di audio: al bitrate dell'iPhone, il doppio di 30 secondi è circa un minuto. Togliere i formati inutili riduce ciò che il server accetta. Aggiorna anche i test del server che usano `ASSISTANT_LIMITS.audioChars`.
 
+## Risultati del passo 1 (12 e 13 novembre 2026)
+Costruito e provato sul PC il 12 novembre; **pubblicato il 13 novembre 2026** con la cache `aura-tasks-v12`, dopo la rifinitura sull'ora proposta nelle domande. **Sull'iPhone non è stato provato niente**: l'utente lo prova insieme alle fasi 1 e 2a.
+
+### Cosa c'è
+- **App**: `js/assistant.js` e `js/ui-assistant.js` (nuovi); striscia a due righe; foglio «Aura» con il campo, le righe delle azioni e il consenso; foglio «Assistente»; proposta dell'IA all'apertura; frasi di Siri attraverso l'assistente; cache `aura-tasks-v12`.
+- **Server**: nessuna modifica al codice e nessuna pubblicazione. In `server/README.md` è cambiata solo la nota su ciò che il server riceve.
+- **Schema dei dati**: invariato (v4). Le novità stanno in `aura-tasks:prefs.assistant` e in `aura-tasks:assistant`, fuori dal backup.
+
+### Prove automatiche
+| Prova | Edge | WebKit «iPhone 13» |
+|---|---|---|
+| Test della logica (`tests/index.html`), 23 dei quali nuovi per l'assistente | 183 su 183 | 183 su 183 |
+| Assistente, con tocchi veri e il server simulato | 107 su 107 | 107 su 107 |
+| Regressione della fase 2a | 194 su 194 | 190 su 190 |
+| Regressione della fase 1 | 144 su 144 | 144 su 144 |
+| Percorso completo dell'app (e2e) | 330 su 330 | 224 su 224 |
+| Service worker con la cache v12 (26 file), anche offline | 9 su 9 | — |
+| Service worker e pagina di prova della voce | 7 su 7 | — |
+
+- **Striscia e foglio**: 20 aperture di fila col caso vero mostrano nel foglio lo stesso titolo e lo stesso motivo della striscia, con la proposta delle regole e con quella dell'IA.
+- **Senza IA**: senza internet, a quota finita (429 e 503), con un errore e con una risposta non valida, una frase scritta apre «Nuova attività» già compilata; una frase di Siri fa lo stesso ed esce dalla coda.
+- **Da `file://`**: la striscia mostra la proposta delle regole, il campo non compare, nessuna richiesta e nessun errore in console.
+- I due temi; a 320 px di larghezza la striscia resta di 48 px, senza scorrimento orizzontale, con il campo a 16 px e l'invio di 48×48 px.
+
+### Apertura e intestazione
+Emulazione iPhone 13 in Safari (390×664), con gli stessi dati delle misure della fase 2a.
+
+| Misura | v11 pubblicata | Passo 1, assistente spento | Passo 1, assistente acceso |
+|---|---|---|---|
+| Altezza dell'intestazione di Focus | 188 px | 188 px | 188 px |
+| Altezza della striscia | 50 px | 48 px | 48 px |
+| Card intere visibili all'apertura | 3 | 3 | 3 |
+| Fotogrammi persi nei primi 3 secondi dopo il primo disegno (Edge, CPU 4×, mediana di 15 aperture) | 15 | 15 | 16 |
+| Primo disegno (Edge, CPU 4×, mediana di 15) | 208 ms | 196 ms | 200 ms |
+| Tempo di script all'avvio (Edge, CPU 4×, mediana di 7) | 38 ms | 46 ms | 59 ms |
+
+- Le tre righe dei tempi sono misurate sul codice definitivo, con la regola delle correzioni. Un giro fatto qualche ora prima, senza la regola e con il PC più libero, aveva dato 12, 12 e 14 fotogrammi, 172, 188 e 188 ms di primo disegno, 33, 38 e 53 ms di script: conta il confronto dentro lo stesso giro.
+- **Con l'assistente spento l'apertura è come nella v11**: stessi fotogrammi persi nei due giri, e 5–8 ms di script in più.
+- **Con l'assistente acceso** costa 1–2 fotogrammi e circa 20 ms di script in più, a CPU rallentata 4 volte. Lì la risposta dell'IA arriva 600 ms dopo il caricamento e la striscia cambia con la dissolvenza.
+- **La misura è rumorosa**: due giri da 5 aperture avevano dato 10, 9 e 9 e poi 10, 14 e 11. Per questo valgono i giri da 15.
+- **Nessuna richiesta prima del primo disegno**: la proposta dell'IA parte dopo il caricamento.
+- **La striscia non sposta le card** quando arriva la risposta dell'IA: la prima card resta a 249 px dall'alto, in Edge e in WebKit.
+- Le card intere sono 3 e non 4 perché in questi dati le prime sono quelle in ritardo, più alte: era così anche nella fase 2a.
+
+### Con l'IA vera
+Sul server pubblicato, da Edge, con un dispositivo di prova poi scollegato. 11 richieste, risposte in 0,8–2,2 secondi, nessun errore in console.
+
+| Frase | Esito |
+|---|---|
+| (apertura) | la striscia passa da «Cosa faccio adesso?» a «Per cominciare ti propongo:», sulla stessa attività |
+| «domani devo chiamare il medico» | aggiunta da sola: «Aggiunta: Chiamare il medico · Domani» |
+| «alle 3 dentista» | aggiunta da sola per oggi alle 15:00 |
+| «ho 40 minuti e sono cotto» | proposta «Chiamare la nonna», con «· hai detto 40 minuti» |
+| «sposta la palestra a domani» | domanda: «Sposto «Palestra» a domani alle 18:00?» |
+| «ho già chiamato la nonna» | domanda: «Segno «Chiamare la nonna» come fatta?» |
+| «togli scrivere il diario» | domanda: «Elimino «Scrivere il diario»?» |
+| «che tempo fa domani?» | nessuna azione; Aura dice che può aiutare solo con le attività |
+| frase di Siri «venerdì alle 10 portare la bici dal meccanico» (di giovedì) | «Da Siri: aggiunta «Portare la bici dal meccanico» · Domani alle 10:00», senza aprire fogli |
+| «no, facciamo alle 5» | il modello ha indicato un'altra attività: vedi sotto, con la regola che l'ha sistemato |
+
+### Correzioni: sul modello «no, facciamo alle 5» non è affidabile
+Dopo «domani devo chiamare il medico», la frase «no, facciamo alle 5» deve mettere le 17:00 all'attività appena aggiunta. Il modello spesso sposta invece «Riunione di lavoro», che è di oggi alle 9:00. Nelle prime tre righe le richieste sono identiche (9 attività nell'elenco, quella nuova è `t9`): cambiano solo la frase di Aura nella memoria breve e l'ora.
+
+| Frase di Aura nella memoria breve | Quando | Attività giusta |
+|---|---|---|
+| «Aggiunta: Chiamare il medico · Domani» (la forma corta del foglio) | ore 10:36 | 0 su 10 |
+| «Ho aggiunto «Chiamare il medico» per domani.» (frase intera) | ore 10:36, alternata alla precedente | 8 su 10 |
+| «Ho aggiunto «Chiamare il medico» per domani.» | ore 12:51 | 2 su 10 |
+| forma corta, in 6 richieste sparse della mattina (durata dell'attività nuova 10 o 20 minuti) | ore 10:30 circa | 3 su 6 |
+
+- **«anzi domani»** dopo «alle 3 dentista» (un'attività che ha già un'ora): 10 su 10.
+- **Primo rimedio**: nella memoria breve le azioni sono ora frasi intere, la forma che il modello stesso usa. Aiuta, ma non basta: tra le due misure con la frase intera cambia solo l'ora mandata, e il risultato va da 8 a 2 su 10.
+- **In queste misure il modello sbagliava solo l'attività**, mai l'ora o il giorno: in tutte le 46 risposte c'era una sola modifica, con il valore giusto.
+- **Senza la regola qui sotto**, con «Cambiare da solo» spento l'errore diventava una domanda sull'attività sbagliata («Sposto «Riunione di lavoro» a oggi alle 17:00?»); con «Cambiare da solo» acceso la modifica sbagliata veniva fatta.
+- **Rimedio scelto dall'utente** (12 novembre 2026): una regola nell'app, che non tocca il server e non dipende dal modello (vedi "Correzioni senza nome"). Le altre strade erano ritoccare le istruzioni del modello, da riprovare con `eval-assistant.mjs` e da pubblicare, oppure lasciare com'era.
+  - Applicata alle 46 risposte misurate, la regola porta sempre all'attività giusta.
+  - I quattro messaggi fissati dall'utente sono nei test: «no, facciamo alle 5» e «anzi domani» vanno all'attività dell'ultimo scambio; «sposta quella delle 9 alle 5» e «sposta la riunione alle 5» restano sulla riunione.
+  - **Limite che resta**: se l'utente intende un'altra attività senza indicarla in nessun modo («spostala alle 5», pensando alla palestra), la modifica va a quella dell'ultimo scambio. La riga dice quale attività è cambiata e ha «Annulla».
+
+**La regola con l'IA vera** (sera del 12 novembre, dall'app in Edge, server pubblicato, due dispositivi di prova poi scollegati; 14 richieste):
+
+| Dopo l'aggiunta di… | Messaggio | Attività indicata dal modello | Che cosa ha fatto l'app |
+|---|---|---|---|
+| «Chiamare il medico» | «no, facciamo alle 5» | quella giusta (due volte su due) | «Corretta: Chiamare il medico · Domani alle 17:00» |
+| «Comprare il pane» | «no, facciamo alle 5» | «Chiamare il medico» | «Corretta: Comprare il pane · Domani alle 17:00» |
+| «Pagare l'affitto» | «anzi dopodomani» | «Comprare il pane» | «Corretta: Pagare l'affitto · sab 14 nov» |
+| «Scrivere a Luca» | «no, facciamo alle 6» | «Pagare l'affitto», con le 6:00 invece delle 18:00 | domanda sull'attività giusta: «Sposto «Scrivere a Luca» a sab 14 nov alle 06:00?» |
+| — | «sposta quella delle 9 alle 6» | «Riunione di lavoro» (delle 9:00) | resta la scelta del modello: «Sposto «Riunione di lavoro» a oggi alle 18:00?» |
+| — | «sposta la riunione alle 4» | «Riunione di lavoro» | resta la scelta del modello: «Sposto «Riunione di lavoro» a oggi alle 16:00?» |
+
+- In 3 correzioni senza nome su 5 il modello ha indicato un'altra attività: ogni volta l'app ha scelto quella dell'ultimo scambio.
+- Nell'ultima il modello ha sbagliato anche l'ora (6:00): l'ha fermata il freno di sempre, perché le regole di `js/nlp.js` leggono «alle 6» come 18:00. L'app ha chiesto invece di fare.
+  - Quella sera la domanda proponeva ancora le 6:00 del modello. Dal 13 novembre propone le 18:00 lette dall'app (vedi "Quale ora propone la domanda"): lo fissano i test, con la stessa risposta del modello.
+- Nessun errore in console; risposte in 0,8–2,7 secondi, una in 11 secondi.
+
+### Consumo delle prove
+Circa 100 richieste di risposta all'IA vera nella giornata (circa 1.400 neuroni sugli 8.500 del tetto) e 9 dispositivi di prova registrati, tutti scollegati (il limite è 20 nuovi dispositivi al giorno).
+
+### Cosa resta aperto
+Si chiude con l'iPhone:
+1. la striscia a due righe nell'intestazione vera, in Safari e nell'app installata, nei due temi;
+2. il foglio «Aura» con la tastiera aperta: il campo in fondo deve restare visibile sopra la tastiera;
+3. il primo tocco sul campo prima del consenso: la tastiera non deve aprirsi;
+4. i tempi veri delle risposte dal telefono, e la dissolvenza della striscia all'apertura;
+5. una frase di Siri con l'assistente acceso.
+
 ## Scelte dell'utente (11 novembre 2026)
 
 | Scelta | Decisione |
@@ -450,15 +609,51 @@ Deciso dall'utente il 12 novembre 2026, da fare quando ci sarà la misura di 30 
 | Correzioni («no, facciamo alle 5») | da solo, ma solo sull'attività appena aggiunta dall'assistente in questa conversazione; l'avviso ha «Annulla» |
 | Fine della registrazione (passo 2) | avviso e stop pulito prima del limite; Whisper con `language: "it"`, `vad_filter: true` e `condition_on_previous_text: false`; da misurare come nel passo 0 |
 
+## Scelte dell'utente (12 novembre 2026), per il passo 1
+
+| Scelta | Decisione |
+|---|---|
+| Striscia con l'assistente spento o prima del consenso | riga piccola «Cosa faccio adesso?», riga grande il titolo della proposta delle regole; senza proposta «Una pausa ☕?» |
+| Lista vuota con l'assistente acceso | la striscia c'è e dice «Dimmi cosa devi fare»; un tocco apre il foglio «Aura» con il campo pronto |
+| Che cosa conta come apertura | il caricamento e il ritorno in Aura dopo almeno 30 minuti, sempre con la copia di 3 ore e il tetto di 8 al giorno |
+| Dalla striscia al foglio | il foglio si apre con la stessa attività e lo stesso motivo della striscia; il caso torna solo con «Un'altra proposta» |
+| Proposta dell'IA | vale solo se è tra **tutte** le candidate delle regole (`candidates()`, senza caso); in un messaggio con i minuti e l'energia detti |
+| «Scollega questo dispositivo» nel foglio «Assistente» | sotto il pulsante una riga dice che spegne anche i promemoria e il comando di Siri |
+| Frasi di Siri quando l'IA non risponde | «Nuova attività» già compilata, come oggi; non restano in coda a riprovare |
+| Server | nessuna modifica al codice per il passo 1 |
+| Correzioni senza nome («no, facciamo alle 5») | una regola nell'app: la modifica va all'attività dell'ultimo scambio. Non vale se il messaggio indica l'attività scelta dal modello, anche con la sua ora o il suo giorno («quella delle 9», «quella di domani»; l'ora e il giorno nuovi non contano), né se l'ultimo scambio non ha toccato una sola attività |
+| Consenso dal foglio «Assistente» | accendere l'interruttore vale come consenso, e accanto all'interruttore c'è la frase del consenso: cosa parte e che non si salva niente |
+
+**13 novembre 2026**:
+- quando modello e regole leggono un'ora diversa, la domanda propone quella letta dall'app, come nel foglio «Nuova attività»;
+- il passo 1 si pubblica subito: le fasi 1 e 2a si provano sull'iPhone insieme al passo 1, in un solo giro.
+
+**Scelte minori fatte costruendo**, approvate dall'utente il 12 novembre 2026:
+- il foglio si chiama «Aura» solo con l'assistente acceso;
+- «Risposte a voce» e lo stato del microfono non compaiono fino al passo 2;
+- «Non ora» al consenso lascia il campo: al tocco successivo il consenso ricompare;
+- accendere l'interruttore nel foglio «Assistente» vale come consenso;
+- a foglio aperto le azioni automatiche sono righe con «Annulla», non un avviso in basso; «Fatto» ed «Elimina» chiudono il foglio;
+- un'aggiunta di Siri che aspetta un tocco apre «Nuova attività» già compilata;
+- minuti detti che non sono una delle scelte (per esempio 40): la proposta usa 40, nelle preferenze va la scelta più vicina per difetto (30); sotto i 10 va 10;
+- nella memoria breve le azioni sono frasi intere (vedi "Memoria breve");
+- premium: resta «da decidere». `js/license.js` non esiste, quindi nel codice non c'è nessun controllo.
+
 ## Test e prove
-- **Logica dell'app**: `tests/assistant.test.js` e `tests/voice.test.js`. Tra i casi:
-  - la memoria breve (3 scambi, 10 minuti);
+- **Logica dell'app**: `tests/assistant.test.js` (passo 1) e `tests/voice.test.js` (passo 2). Tra i casi:
+  - la memoria breve (3 scambi, 10 minuti), le sigle al posto degli id e le frasi intere delle azioni;
   - le correzioni: automatiche solo sull'attività appena aggiunta dall'assistente, altrimenti una domanda;
+  - le correzioni senza nome: «no, facciamo alle 5» e «anzi domani» vanno all'attività dell'ultimo scambio anche se il modello ne indica un'altra; «sposta quella delle 9 alle 5» e «sposta la riunione alle 5» restano sulla scelta del modello; i casi in cui la regola non vale (due attività nell'ultimo scambio, un'ora o un titolo che indicano altro);
   - l'ora senza giorno decisa come `parseTaskText`, anche quando il modello mette oggi o un altro giorno;
   - «domani» contato dal momento della dettatura;
-  - completare ed eliminare mai automatici.
+  - i quattro freni, e i permessi in tutte le combinazioni;
+  - completare ed eliminare mai automatici;
+  - la proposta dell'IA accettata solo tra tutte le candidate, senza caso;
+  - «Annulla» dall'elenco solo se l'attività non è cambiata;
+  - la copia di 3 ore, la fascia della giornata e il tetto di 8;
+  - `dropped` con la frase di riserva, e la pulizia dei dati salvati.
 - **Server**: `npm test` con un'IA finta (`env.AI`), che non consuma quota. Copre limiti, conteggi, tetto, risposta non valida, pulizia, il corpo dell'audio passato senza analisi, e che cosa va al modello.
-- **Interfaccia**, con Playwright in Edge e in WebKit «iPhone 13» e il server simulato: consenso; aggiunta automatica con avviso, elenco e «Annulla»; modifica che chiede; frasi di Siri con l'assistente acceso e spento; senza internet e a quota finita; i due temi; `file://` senza errori.
+- **Interfaccia**, con Playwright in Edge e in WebKit «iPhone 13» e il server simulato: striscia e foglio con la stessa attività (20 aperture col caso vero); consenso; aggiunta automatica con la sua riga, elenco e «Annulla»; modifica che chiede; correzione sull'attività appena aggiunta e su un'altra; completare ed eliminare con la domanda; frasi di Siri con l'assistente acceso e spento, una e tre insieme, e con l'IA che non risponde; senza internet, a quota finita e con una risposta non valida; i due temi; `file://` senza errori.
 - **Apertura**: nessuna richiesta prima del primo disegno; intestazione e card visibili misurate prima e dopo; fotogrammi persi all'apertura confrontati con la v9; la striscia non sposta le card quando arriva la risposta.
 - **Voce sul PC**: Edge con microfono finto e un audio italiano, fino a Whisper vero.
 - **Fine della registrazione, nel passo 2**: come nel passo 0, la registrazione di 30 secondi tagliata a metà frase e le frasi brevi, prima e dopo l'avviso, lo stop pulito e `condition_on_previous_text: false`.

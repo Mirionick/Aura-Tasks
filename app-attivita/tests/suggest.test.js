@@ -119,6 +119,37 @@
     assertEqual(run([dentista], { minutes: 60, now: at(16, 20) }).best.reason, 'È per oggi alle 16:30 e occupa giusto la tua ora');
   });
 
+  test('suggest.candidates: tutte le adatte, senza caso, con la regola dell\'orario', () => {
+    const list = [
+      make({ id: 'a', duration: 10 }), make({ id: 'b', duration: 20 }), make({ id: 'c', duration: 25 }), make({ id: 'd', duration: 30 }),
+      make({ id: 'lunga', duration: 45 }), make({ id: 'alta', energy: 'high' }), make({ id: 'domani', date: '2026-11-11' }),
+      make({ id: 'fatta', done: true, completedAt: 1 }), make({ id: 'pomeriggio', date: TODAY, time: '16:30' })
+    ];
+    const ids4 = opts => S.candidates(list, { today: TODAY, now: MORNING, ...opts }).map(task => task.id).sort();
+    assertEqual(ids4({ minutes: 30, energy: 'medium' }), ['a', 'b', 'c', 'd'], 'quattro adatte: più delle prime tre di suggest()');
+    assertEqual(ids4({ minutes: 40, energy: 'medium' }), ['a', 'b', 'c', 'd'], 'minuti detti (40), non solo le scelte');
+    assertEqual(ids4({ minutes: null, energy: 'high' }), ['a', 'alta', 'b', 'c', 'd', 'lunga'], '«120+» ed energia alta');
+    assertEqual(ids4({ minutes: 90, energy: 'medium', now: at(16, 20) }), ['a', 'b', 'c', 'd', 'lunga', 'pomeriggio'], 'con l\'orario solo da 15 minuti prima');
+    // Stesso risultato a ogni chiamata, qualunque sia il caso: una proposta dell'IA è accettata o scartata sempre allo stesso modo.
+    const again = Array.from({ length: 20 }, () => ids4({ minutes: 30, energy: 'medium' }).join());
+    assert(again.every(value => value === 'a,b,c,d'), 'nessun caso');
+    const shown = ids(run(list, { minutes: 30, energy: 'medium' }));
+    assertEqual(shown.length, 3, 'suggest() ne mostra solo tre…');
+    assert(['a', 'b', 'c', 'd'].some(id => !shown.includes(id)), '…quindi una candidata resta fuori');
+  });
+
+  test('suggest: «first» propone per prima l\'attività della striscia, se è adatta', () => {
+    const list = [make({ id: 'ritardo', date: '2026-11-08' }), make({ id: 'oggi', date: TODAY }), make({ id: 'b' }), make({ id: 'c' })];
+    const wild = () => Math.random(); // con il caso vero: la prima resta quella chiesta
+    for (let i = 0; i < 20; i++) assertEqual(run(list, { first: 'c', random: wild }).best.task.id, 'c');
+    const fixed = run(list, { first: 'c' });
+    assertEqual([fixed.best.reason, fixed.alternatives.map(item => item.task.id)], ['Non ha una data e occupa giusto i tuoi 30 minuti', ['ritardo', 'oggi']],
+      'motivo delle regole e alternative senza di lei');
+    assertEqual(run(list, { first: 'sparita' }).best.task.id, 'ritardo', 'non c\'è più: si ricalcola');
+    assertEqual(run(list, { first: 'c', exclude: ['c'] }).best.task.id, 'ritardo', 'esclusa con «Un\'altra proposta»');
+    assertEqual(run([make({ id: 'lunga', duration: 60 })].concat(list), { first: 'lunga' }).best.task.id, 'ritardo', 'non sta nel tempo: si ricalcola');
+  });
+
   test('suggest.countNow conta le attività da fare adesso', () => {
     const list = [make({}), make({ date: TODAY }), make({ date: '2026-11-11' }), make({ done: true, completedAt: 1 }), make({ date: TODAY, time: '16:30' })];
     assertEqual(S.countNow(list, TODAY, MORNING), 2);

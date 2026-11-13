@@ -59,7 +59,7 @@ Le specifiche stanno nelle sezioni qui sotto ("Navigazione", "Focus: per fare").
 - **Intestazione di Focus compatta** (da una prova in emulazione iPhone 13: era alta 331 px su 664 e si vedevano 2 attività):
   - nella riga del saluto ci sono serie e punti, in due chip, con gli effetti di sempre;
   - «Da fare», «Tempo» e «Fatte oggi» stanno in una riga sola, con etichetta e valore affiancati. «Tempo stimato» è scritto «Tempo» sotto i 430 px di larghezza, perché in una riga non ci sta; il lettore di schermo legge sempre «Tempo stimato»;
-  - «Cosa faccio adesso?» è su una riga, a cavallo del bordo dell'intestazione (`.hero--cta`);
+  - «Cosa faccio adesso?» è su una riga, a cavallo del bordo dell'intestazione (`.hero--cta`). Con il passo 1 dell'assistente diventa una striscia di due righe, alta 48 px invece di 50: l'intestazione resta di 188 px (vedi [assistente.md](assistente.md));
   - le card sono 4 px più basse (84 → 80 px).
 - **Niente ▶ sulle card**: toglierebbe 48 px al titolo (il corpo della card ha 248 px a 390 di larghezza). «Inizia focus» sta nel foglio «Modifica attività», per le attività da fare, e nella proposta di «Cosa faccio adesso?». Dal foglio di modifica salva prima le modifiche: il timer parte con la durata appena scritta.
 - **Ora già passata in rosso** nelle card di oggi, come «Ieri» (`Aura.tasks.isTimePassed`). La lista si ridisegna da sola quando un'ora passa.
@@ -160,7 +160,11 @@ Ognuno si pubblica da solo, con le sue misure.
 - Ricorda l'ultima scelta (`aura-tasks:prefs`); la prima volta propone 30 minuti ed energia media.
 - La proposta compare subito sotto le domande e si aggiorna a ogni scelta. Sotto ci sono due alternative: un tocco ne fa la proposta principale.
 - Il pulsante è nascosto quando non c'è niente da fare adesso.
-- **Algoritmo**: funzione pura `suggest(tasks, { minutes, energy, today, now, exclude, random })` in `js/suggest.js`. `now` è l'istante attuale in millisecondi.
+- **Striscia** (passo 1 dell'assistente, vedi [assistente.md](assistente.md)): il pulsante ha due righe, «Cosa faccio adesso?» e sotto il titolo dell'attività proposta, calcolata senza il pizzico di caso; senza proposta dice «Una pausa ☕?».
+  - Toccandola, il foglio si apre sulla **stessa attività**, con lo stesso motivo: `openSuggest({ taskId, reason })` la passa a `suggest()` come `first`. Le due alternative sono le migliori delle altre.
+  - Il caso torna solo con «Un'altra proposta». Se nel frattempo l'attività è stata completata o eliminata, il foglio ricalcola.
+- **Algoritmo**: funzione pura `suggest(tasks, { minutes, energy, today, now, exclude, first, random })` in `js/suggest.js`. `now` è l'istante attuale in millisecondi.
+  - `candidates(tasks, { minutes, energy, today, now })` restituisce tutte le candidate, senza caso. La usa `suggest()`, e l'assistente per controllare una proposta dell'IA.
   - **Candidate**: attività non completate, con `duration ≤ minutes`, con `ENERGY[t.energy].order ≤ ENERGY[energy].order` e con data nulla oppure `≤ oggi`.
   - **Orario** (correzione del 12 novembre 2026): un'attività di oggi con l'orario è candidata solo quando l'ora è passata o mancano al massimo 15 minuti (`SUGGEST.soonMinutes`). Di mattina «Dentista» delle 16:30 non si propone. Quelle in ritardo si propongono a qualsiasi ora.
   - **Punteggio** (i pesi stanno in costanti):

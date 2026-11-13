@@ -114,4 +114,16 @@
     assertEqual(pick('comprare caffè e però domani', ['title', 'date']), ['Comprare caffè e però', '2026-10-30']);
     assertEqual(pick('Città: prenotare hôtel venerdì', ['title']), ['Città: prenotare hôtel']);
   });
+
+  test('nlp.parseDetails: dice se la frase nomina un giorno (per l\'assistente)', () => {
+    const said = text => { const r = nlp.parseDetails(text, NOW); return [r.date, r.time, r.dateSaid]; };
+    assertEqual(said('alle 3 dentista'), ['2026-10-29', '15:00', false], 'solo l\'ora: giorno calcolato, non detto');
+    assertEqual(said('alle 8 colazione'), ['2026-10-30', '08:00', false], 'ora già passata: domani, non detto');
+    assertEqual(said('domani alle 3 dentista'), ['2026-10-30', '15:00', true]);
+    assertEqual(said('stasera alle 9 cena'), ['2026-10-29', '21:00', true], '«stasera» nomina oggi');
+    assertEqual(said('venerdì palestra'), ['2026-10-30', null, true]);
+    assertEqual(said('comprare il pane'), [null, null, false]);
+    const { dateSaid, ...rest } = nlp.parseDetails('domani alle 10 dentista 30 min', NOW);
+    assertEqual(rest, parse('domani alle 10 dentista 30 min'), 'gli altri campi sono quelli di parseTaskText');
+  });
 })();

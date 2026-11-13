@@ -27,11 +27,13 @@
   <script src="js/points.js" defer></script>
   <script src="js/focus.js" defer></script>
   <script src="js/suggest.js" defer></script>
+  <script src="js/assistant.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/reminders.js" defer></script>
   <script src="js/remote.js" defer></script>
   <script src="js/motion.js" defer></script>
   <script src="js/ui-focus.js" defer></script>
+  <script src="js/ui-assistant.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -67,6 +69,9 @@
     <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3.5 7h3.3c2 0 3.1.9 4.2 2.6l2.4 3.9c1.1 1.7 2.2 2.5 4.2 2.5h2.9M3.5 17h3.3c1.3 0 2.2-.4 3-1.2M13.6 8.2c.8-.8 1.7-1.2 3-1.2h2.9M17.5 4.5L20 7l-2.5 2.5M17.5 14.5L20 17l-2.5 2.5"/></symbol>
     <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5c0 4.2 4 5.4 4 8.5s-4 4.3-4 8.5M16 3.5c0 4.2-4 5.4-4 8.5s4 4.3 4 8.5"/></symbol>
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M9 5.5l6.5 6.5L9 18.5"/></symbol>
+    <!-- Assistente: invio del messaggio (freccia in su), impostazioni (ingranaggio) -->
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19.5v-15M5.5 11L12 4.5 18.5 11"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/><circle cx="12" cy="12" r="6.6"/></symbol>
   </svg>
 
   <!-- Su iPhone, con l'app installata, la barra di stato è sopra la pagina: questa fascia la tiene leggibile quando si scorre. -->
@@ -174,15 +179,17 @@
   <!-- data-flip: elementi che scivolano al loro posto quando la lista cambia (js/motion.js).
        Le sezioni e le card lo ricevono da app.js. -->
   <main class="content" id="main" tabindex="-1">
-    <!-- Scheda Focus, per fare: «Cosa faccio adesso?», In ritardo, Oggi, Senza data e «Completate oggi» -->
+    <!-- Scheda Focus, per fare: la striscia della proposta, In ritardo, Oggi, Senza data e «Completate oggi» -->
     <section class="tab" id="tab-focus" aria-label="Focus">
+      <!-- Striscia: riga piccola (la frase) e riga grande (il titolo proposto), altezza fissa. La scrive js/ui-assistant.js:
+           proposta delle regole, oppure quella dell'IA con l'assistente acceso (docs/assistente.md). -->
       <button class="suggest-cta" id="suggest-button" type="button" aria-haspopup="dialog" data-flip="suggest-cta" hidden>
         <span class="suggest-cta__icon" aria-hidden="true">
           <svg class="icon" focusable="false"><use href="#i-compass"></use></svg>
         </span>
-        <span class="suggest-cta__text">
-          <span class="suggest-cta__title">Cosa faccio adesso?</span>
-          <span class="sr-only">Dimmi quanto tempo hai: ti propongo un'attività</span>
+        <span class="suggest-cta__text" id="strip-text">
+          <span class="suggest-cta__kicker" id="strip-kicker">Cosa faccio adesso?</span>
+          <span class="suggest-cta__title" id="strip-title"></span>
         </span>
         <svg class="icon suggest-cta__go" aria-hidden="true" focusable="false"><use href="#i-arrow-right"></use></svg>
       </button>
@@ -521,7 +528,7 @@
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>
             Comando Rapido di Siri
           </h3>
-          <p class="panel__text">Di' "Ehi Siri, Aura" e detta l'impegno: quando apri Aura lo trovi già compilato, da confermare.</p>
+          <p class="panel__text" id="siri-text">Di' "Ehi Siri, Aura" e detta l'impegno: quando apri Aura lo trovi già compilato, da confermare.</p>
           <p class="status" id="siri-status" data-tone="warn" role="status" hidden></p>
           <button class="btn btn--primary btn--block" id="siri-setup" type="button">
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"></use></svg>
@@ -558,6 +565,7 @@
             </details>
             <p class="panel__note">La frase resta sul server finché non apri Aura (al massimo 30 giorni). Il codice apre la tua casella: non condividerlo.</p>
           </div>
+          <p class="panel__note" id="siri-assistant-note" hidden>Con l'assistente acceso, la frase passa dall'assistente, che la capisce con l'IA del server di Aura e segue i permessi del foglio «Assistente». Se l'IA non risponde, trovi il foglio già compilato, come prima.</p>
         </section>
 
         <div class="remote-footer">
@@ -649,18 +657,33 @@
     </div>
   </dialog>
 
-  <!-- Foglio «Cosa faccio adesso?»: la proposta si aggiorna a ogni scelta (js/ui-focus.js; la logica sta in js/suggest.js) -->
-  <dialog class="sheet sheet--small" id="suggest-sheet" aria-labelledby="suggest-sheet-title">
+  <!-- Foglio «Cosa faccio adesso?», che con l'assistente acceso si chiama «Aura»: la proposta si aggiorna a ogni scelta
+       (js/ui-focus.js; la logica sta in js/suggest.js). In alto la frase di Aura e le conferme, in fondo il campo
+       per scriverle (js/ui-assistant.js; la logica sta in js/assistant.js). -->
+  <dialog class="sheet sheet--small sheet--assist" id="suggest-sheet" aria-labelledby="suggest-sheet-title">
     <div class="sheet__panel">
       <header class="sheet__header">
         <h2 class="sheet__title" id="suggest-sheet-title" tabindex="-1">Cosa faccio adesso?</h2>
-        <button class="icon-btn" type="button" data-close aria-label="Chiudi">
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
-        </button>
+        <div class="sheet__tools">
+          <button class="icon-btn" id="assist-settings" type="button" aria-haspopup="dialog" aria-label="Impostazioni dell'assistente" hidden>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-settings"></use></svg>
+          </button>
+          <button class="icon-btn" type="button" data-close aria-label="Chiudi">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+          </button>
+        </div>
       </header>
-      <div class="sheet__body">
+      <div class="sheet__body" id="suggest-body">
+        <!-- La frase di Aura, poi una riga per ogni azione: quelle già fatte («Aggiunta: … · Domani» con «Annulla») e
+             quelle che aspettano un tocco («Sposto "Palestra" a domani?» con «Sposta» e «No»). Le righe nuove vengono lette
+             dai lettori di schermo (aria-live), perché sopra non c'è una frase che le annuncia. -->
+        <div class="assist-top" id="assist-top" hidden>
+          <p class="assist-say" id="assist-say" role="status"></p>
+          <ul class="assist-asks" id="assist-asks" aria-live="polite"></ul>
+        </div>
+
         <fieldset class="field">
-          <legend class="field__label">Quanto tempo hai?</legend>
+          <legend class="field__label">Quanto tempo hai? <span class="field__optional" id="suggest-said" hidden></span></legend>
           <div class="chips" id="suggest-minutes">
             <button class="chip" type="button" data-minutes="10" aria-pressed="false" aria-label="10 minuti">10</button>
             <button class="chip" type="button" data-minutes="15" aria-pressed="false" aria-label="15 minuti">15</button>
@@ -757,6 +780,100 @@
           <p class="proposal-none__text" id="suggest-none-text"></p>
           <button class="btn btn--soft" id="suggest-none-action" type="button" hidden></button>
         </section>
+      </div>
+
+      <!-- In fondo, sempre in vista: il campo per scrivere ad Aura. Al primo tocco, il consenso con i due permessi.
+           Non compare aprendo l'app da file:// (niente server). -->
+      <div class="sheet__footer assist-footer" id="assist-footer" hidden>
+        <section class="consent" id="assist-consent" aria-labelledby="assist-consent-title" hidden>
+          <h3 class="consent__title" id="assist-consent-title">Scrivere ad Aura</h3>
+          <p class="consent__text">Per capirti, Aura manda al suo server quello che scrivi o dici, l'ora e le attività da fare. Non viene salvato niente.</p>
+          <label class="switch-row">
+            <span class="switch-row__text">Aggiungere attività da solo</span>
+            <input class="switch-row__input" id="consent-auto-add" type="checkbox" role="switch" checked><span class="switch" aria-hidden="true"></span>
+          </label>
+          <label class="switch-row">
+            <span class="switch-row__text">Cambiare giorno, ora, durata o energia da solo</span>
+            <input class="switch-row__input" id="consent-auto-edit" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span>
+          </label>
+          <div class="consent__actions">
+            <button class="btn btn--primary" id="assist-consent-on" type="button">Attiva</button>
+            <button class="btn btn--ghost" id="assist-consent-later" type="button">Non ora</button>
+          </div>
+        </section>
+        <p class="status assist-status" id="assist-status" data-tone="warn" role="status" hidden></p>
+        <form class="assist-form" id="assist-form" autocomplete="off">
+          <label class="sr-only" for="assist-input">Scrivi ad Aura</label>
+          <input class="input assist-form__input" id="assist-input" type="text" maxlength="500" placeholder="Scrivi ad Aura…" enterkeyhint="send" autocomplete="off" autocapitalize="sentences">
+          <button class="assist-form__send" id="assist-send" type="submit" aria-label="Invia ad Aura">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-send"></use></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Foglio «Assistente»: interruttori e permessi, «Cosa ha fatto l'assistente», che cosa viene inviato (js/ui-assistant.js) -->
+  <dialog class="sheet sheet--small" id="assistant-sheet" aria-labelledby="assistant-sheet-title">
+    <div class="sheet__panel">
+      <header class="sheet__header">
+        <h2 class="sheet__title" id="assistant-sheet-title" tabindex="-1">Assistente</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Chiudi">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+      <div class="sheet__body">
+        <p class="sheet__text">Scrivi ad Aura che cosa devi fare, quanto tempo hai o come ti senti: capisce la frase con l'IA del suo server, ti propone cosa fare e sistema le attività secondo i permessi qui sotto.</p>
+
+        <section class="panel" aria-label="Interruttori e permessi">
+          <label class="switch-row switch-row--main">
+            <span class="switch-row__text">
+              Assistente
+              <span class="switch-row__hint" id="assistant-state">Spento</span>
+            </span>
+            <input class="switch-row__input" id="assistant-enabled" type="checkbox" role="switch" aria-describedby="assistant-consent-note"><span class="switch" aria-hidden="true"></span>
+          </label>
+          <!-- Accendere l'interruttore vale come consenso: la frase del consenso (la stessa del primo uso) gli sta accanto -->
+          <p class="switch-row__note" id="assistant-consent-note">Per capirti, Aura manda al suo server quello che scrivi o dici, l'ora e le attività da fare. Non viene salvato niente.</p>
+          <label class="switch-row">
+            <span class="switch-row__text">Aggiungere attività da solo</span>
+            <input class="switch-row__input" id="assistant-auto-add" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span>
+          </label>
+          <label class="switch-row">
+            <span class="switch-row__text">Cambiare giorno, ora, durata o energia da solo</span>
+            <input class="switch-row__input" id="assistant-auto-edit" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span>
+          </label>
+          <p class="fixed-row">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"></use></svg>
+            Completare ed eliminare: sempre con il tuo tocco
+          </p>
+        </section>
+
+        <section class="panel" aria-labelledby="assistant-log-title">
+          <h3 class="panel__title" id="assistant-log-title">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sparkle"></use></svg>
+            Cosa ha fatto l'assistente
+          </h3>
+          <p class="panel__text" id="assistant-log-empty">Ancora niente. Qui trovi, per 30 giorni, le attività che l'assistente aggiunge o cambia da solo.</p>
+          <ul class="log" id="assistant-log"></ul>
+        </section>
+
+        <section class="panel" aria-labelledby="assistant-privacy-title">
+          <h3 class="panel__title" id="assistant-privacy-title">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"></use></svg>
+            Che cosa viene inviato
+          </h3>
+          <p class="panel__text">Quello che scrivi; l'ora; le attività da fare (titolo, durata, energia, giorno, ora); gli ultimi scambi con l'assistente, al massimo 3 e solo degli ultimi 10 minuti. Con l'assistente acceso anche le frasi dette a Siri, e all'apertura di Aura una richiesta per la proposta.</p>
+          <p class="panel__note">Non partono mai le attività completate, i punti, la serie e i backup. Tutto va al server di Aura, su Cloudflare, che lo passa ai modelli di Workers AI: non è detto che resti in Europa. Sul server non resta nessun contenuto, solo i conteggi del giorno; Cloudflare dichiara di non usarli per addestrare modelli. Non scrivere cose che non vuoi far uscire dal telefono.</p>
+          <p class="panel__note">Sul telefono restano gli ultimi scambi, per 10 minuti, e l'elenco qui sopra, per 30 giorni.</p>
+          <p class="status" id="assistant-left" data-tone="busy" hidden></p>
+        </section>
+
+        <div class="remote-footer">
+          <p class="status" id="assistant-status" data-tone="warn" role="status" hidden></p>
+          <button class="btn btn--ghost btn--small btn--danger" id="assistant-disconnect" type="button" hidden>Scollega questo dispositivo</button>
+          <p class="panel__note" id="assistant-disconnect-note" hidden>Spegne anche i promemoria e il Comando Rapido di Siri, e cancella i conteggi sul server.</p>
+        </div>
       </div>
     </div>
   </dialog>
