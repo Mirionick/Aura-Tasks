@@ -2,7 +2,7 @@
 
 Nuovo capitolo: Aura diventa un assistente. Appena si apre propone cosa fare; le si può scrivere o parlare; aggiunge e sposta attività secondo i permessi scelti dall'utente. Tutto gratis, con Workers AI di Cloudflare sul server di Aura.
 
-**Categoria**: da decidere (vedi la tabella premium in `CLAUDE.md`).
+**Categoria**: da decidere (vedi la tabella premium in `CLAUDE-GUIDE.md`).
 
 **Regole di fondo**
 - **Niente si toglie**: con l'assistente spento, senza internet o a quota finita, l'app funziona come oggi, con la proposta delle regole.
@@ -433,7 +433,7 @@ Registrazioni fatte da Edge con un microfono finto (una voce sintetica italiana)
 ### Pagina di prova e app
 - **Controlli automatici**: 24 in Edge e 24 in WebKit «iPhone 13», nei due temi, più 4 aprendo i file con un doppio clic. Tutti verdi, senza errori in console.
 - **Regressione**: 152 test della logica nei due motori, 9 controlli del service worker con la cache v10, 97 e 95 controlli della fase 2.
-- **Scoperta su WebKit**: ogni `<select>` fa comparire in console un avviso della CSP («Refused to apply a stylesheet…»). Nella pagina di prova le scelte sono chip; la regola è in `CLAUDE.md`.
+- **Scoperta su WebKit**: ogni `<select>` fa comparire in console un avviso della CSP («Refused to apply a stylesheet…»). Nella pagina di prova le scelte sono chip; la regola è in `CLAUDE-GUIDE.md`.
 - **Difetto corretto nel service worker**: con la rete lenta (più di 3 secondi) o assente, alla prima apertura della pagina di prova compariva l'app al suo posto, perché `index.html` faceva da riserva per qualunque pagina. Ora vale solo per la pagina dell'app (`isAppPage()` in `sw.js`). 7 controlli nuovi: 2 fallivano prima della correzione, dopo passano tutti.
 - **Voce del telefono**: in Edge parte circa 200 ms dopo la richiesta. Non dice niente sull'iPhone.
 

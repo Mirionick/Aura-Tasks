@@ -20,7 +20,7 @@
 
 **Interfaccia**
 - Serie e punti si vedono in due posti, con gli stessi effetti: in piccolo nell'intestazione di Focus (due chip: fiamma con i giorni, stella con i punti; un tocco porta a Motivazione) e in grande nell'intestazione di Motivazione, con i due riquadri qui sotto.
-- Riquadro "Serie" (vedi "Design" in `CLAUDE.md`):
+- Riquadro "Serie" (vedi "Design" in `CLAUDE-GUIDE.md`):
   - giorni e fiamma;
   - etichetta "🏆 record N", oppure "🏆 record!" quando la serie in corso è il record, da 3 giorni in su;
   - barra e scritta verso il prossimo traguardo, oppure "Accendila oggi" / "Tienila accesa oggi".

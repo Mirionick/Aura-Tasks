@@ -1,6 +1,6 @@
 # Licenza premium (in futuro)
 
-In futuro alcune funzioni saranno **premium**, sbloccate con un **codice di licenza**. La regola `isPremium()` e la tabella con la categoria di ogni funzione stanno in `CLAUDE.md` ("Funzioni premium").
+In futuro alcune funzioni saranno **premium**, sbloccate con un **codice di licenza**. La regola `isPremium()` e la tabella con la categoria di ogni funzione stanno in `CLAUDE-GUIDE.md` ("Funzioni premium").
 
 ## Funzionamento previsto
 - `isPremium()` è **sincrona**:

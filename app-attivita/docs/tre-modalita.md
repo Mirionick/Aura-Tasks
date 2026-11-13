@@ -343,7 +343,7 @@ Elenco, flusso e prompt stanno in [illustrazioni.md](illustrazioni.md).
 - Dove un'immagine non è ancora entrata, l'app usa le icone (distintivi) o uno stato vuoto di solo testo.
 
 ## Premium
-Le categorie stanno nella tabella di `CLAUDE.md`:
+Le categorie stanno nella tabella di `CLAUDE-GUIDE.md`:
 - **gratuite**: animazioni, barra delle schede, Focus, Agenda e la base di Motivazione, perché ci finiscono funzioni di oggi;
 - **da decidere**: «Cosa faccio adesso?», timer e minuti di focus, livelli, obiettivo settimanale, calendario, frase del giorno, illustrazioni.
 
