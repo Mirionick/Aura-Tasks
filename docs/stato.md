@@ -4,30 +4,31 @@ Fotografia breve di dove siamo, per chi comincia un intervento. La aggiorna chi 
 
 Non ripete gli altri documenti: decisioni, funzioni e verifiche sono in [decisioni.md](decisioni.md), le regole in [AGENTS.md](../AGENTS.md).
 
-**Aggiornato il** 16 novembre 2026, con la PR di P-002 v2 e del ciclo di lavoro.
+**Aggiornato il** 16 novembre 2026, con la PR del passo 0b di P-002 (focus a tutto schermo fermo).
 
 ## Pubblicato su `main`
-- **App**: fino al passo 1 dell'assistente («Scrivi ad Aura»), con la cache `aura-tasks-v12` (13 novembre 2026).
+- **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più il passo 0b di P-002: il focus a tutto schermo resta fermo. Cache `aura-tasks-v13` (16 novembre 2026).
 - **Server**: quello pubblicato con il passo 0 dell'assistente (11 novembre 2026); il passo 1 non lo ha cambiato.
-- **CI**: test del server e dell'app in Chrome headless su ogni PR (PR 2, unita il 16 novembre 2026 con `4351b18`), con un minimo di 183 test dell'app.
-- **Protezione di `main`** (16 novembre 2026): solo PR, con il controllo «Test backend e frontend» obbligatorio, niente force push né cancellazione, nessuna eccezione. Attivi secret scanning, push protection, avvisi di Dependabot e CodeQL. Codex rivede in automatico ogni PR.
+- **CI**: test del server e dell'app in Chrome headless su ogni PR (PR 2, unita il 16 novembre 2026 con `4351b18`), con un minimo di 184 test dell'app.
+- **Protezione di `main`** (16 novembre 2026): solo PR, con il controllo «Test backend e frontend» obbligatorio, niente force push né cancellazione, nessuna eccezione. Attivi secret scanning, push protection, avvisi di Dependabot e CodeQL. Codex rivede ogni PR: la revisione parte all'apertura oppure con il commento `@codex review` (così è partita sulla PR 3).
 
 L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2.
 
 ## Completato di recente
 - **PR 1 — P-001 v2**: documentazione e configurazione condivisa, unita il 16 novembre 2026 (`b318b6d`).
 - **PR 2 — CI automatica**: unita il 16 novembre 2026 (`4351b18`).
+- **PR 3 — P-002 v2 e ciclo di lavoro** (16 novembre 2026): la proposta in [proposte/P-002.md](proposte/P-002.md) e `AGENTS.md` con il nuovo ciclo. La PR del passo 0b parte dal suo branch e la contiene.
 
 ## In lavorazione
-- **P-002 v2 e ciclo di lavoro** (livello B, esecutore Claude Project): la proposta in [proposte/P-002.md](proposte/P-002.md), `AGENTS.md` con il nuovo ciclo, questo stato e il registro allineati alle prove sull'iPhone del 16 novembre.
+- **Passo 0b di P-002** (livello A, esecutore Claude Project, revisione di ChatGPT / Codex): nel focus a tutto schermo un dito che trascina non muove più niente. Specifica in [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Schermata ferma». Provato nel browser; **da provare sull'iPhone** dopo il merge.
 
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.
 
 ## Punti aperti
 - **Controlli automatici di conformità** (passo 0a di P-002, livello B, esecutore ChatGPT / Codex): (a) segreti e percorsi locali nei file e nei messaggi dei commit della PR; (b) divieto di `innerHTML` nel codice dell'app; (c) `CACHE_VERSION` aggiornata quando cambiano i file dell'app.
-- **Difetto nella schermata del focus** (passo 0b di P-002, livello A, esecutore Claude Project): nel focus a tutto schermo, trascinando verso il basso, sul bordo destro si vede muoversi la barra di scorrimento, mentre la schermata dovrebbe restare ferma.
+- **Pagina che scorre dietro gli altri fogli**: il difetto del passo 0b fa pensare che su iPhone il blocco dello scorrimento dei fogli non basti. Va controllato con la prova del passo 0b (con un foglio aperto, trascinare sullo sfondo scuro). Se la pagina si muove, serve una correzione a parte.
 - **Testo di P-001 v2**: non è nel repository. Qui ci sono la sua approvazione ([decisioni.md](decisioni.md), sezione 1) e ciò che stabilisce ([AGENTS.md](../AGENTS.md)).
 
 ## Prossimi passi
-L'ordine è in [proposte/P-002.md](proposte/P-002.md): 0a e 0b, poi passo 1 (impostazioni) e passo 2 (Aura con un volto). Le richieste nuove del 16 novembre (Agenda a calendario, Motivazione, animazioni) andranno in una P-003.
+L'ordine è in [proposte/P-002.md](proposte/P-002.md): 0a (ChatGPT / Codex), poi passo 1 (impostazioni) e passo 2 (Aura con un volto). Le richieste nuove del 16 novembre (Agenda a calendario, Motivazione, animazioni) andranno in una P-003.

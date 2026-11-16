@@ -259,8 +259,20 @@
     renderFocus();
     ctx.setAutofocus(els.focusSheet, els.focusTitle);
     ctx.openSheet(els.focusSheet);
+    syncStatic();
     syncRunning();
     if (F.isFinished(session, Date.now())) onTimeUp(); // finito mentre Aura era chiusa: si mostra la fine
+  }
+
+  /**
+   * Schermata ferma: se titolo, anello e comandi ci stanno tutti, nel foglio non c'è niente da scorrere. Su iPhone,
+   * però, il dito che trascinava faceva scorrere la pagina rimasta dietro, e sul bordo si vedeva muoversi la sua barra
+   * di scorrimento. Con .is-static il CSS toglie lo scorrimento con il dito (touch-action in style.css).
+   * Se il contenuto non ci sta (telefono in orizzontale) la classe non c'è, e i comandi si raggiungono scorrendo.
+   */
+  function syncStatic() {
+    const fits = els.focusSheet.open && F.fitsWithoutScroll(els.focusBox.scrollHeight, els.focusBox.clientHeight);
+    els.focusSheet.classList.toggle('is-static', fits);
   }
 
   /** Scrive un testo solo se è cambiato (il tempo si aggiorna 4 volte al secondo). */
@@ -586,6 +598,7 @@
       const [key, id] = pair.split(':');
       els[key] = byId(id);
     });
+    els.focusBox = els.focusSheet.querySelector('.focus'); // il contenitore che scorre quando lo schermo è troppo basso
 
     ctx.setupSheet(els.suggestSheet);
     // Il focus non si chiude toccando fuori (è a tutto schermo): Esc e «indietro» valgono «Esci».
@@ -621,6 +634,14 @@
     els.focusSheet.addEventListener('touchend', unlockAudio, { passive: true });
     els.focusSheet.addEventListener('click', unlockAudio);
     els.focusSheet.addEventListener('close', syncRunning);
+    // Le misure cambiano con lo schermo (rotazione, barre di Safari) e con il contenuto (titolo lungo, pulsanti a tempo
+    // finito), e tornano a zero quando il foglio si chiude: ogni volta si ricontrolla se la schermata è ferma.
+    if ('ResizeObserver' in window) {
+      const sizes = new ResizeObserver(syncStatic);
+      [els.focusBox, ...els.focusBox.children].forEach(el => sizes.observe(el));
+    } else {
+      window.addEventListener('resize', syncStatic);
+    }
 
     // Al ritorno nell'app (o a schermo sbloccato) il tempo si ricalcola dagli istanti: i timer di iPhone erano fermi.
     document.addEventListener('visibilitychange', () => {

@@ -1,4 +1,4 @@
-# Tre modalità: Focus, Agenda e Motivazione (in corso: fasi 1 e 2a fatte, da provare sull'iPhone)
+# Tre modalità: Focus, Agenda e Motivazione (in corso: fasi 1 e 2a fatte e provate sull'iPhone)
 
 Nuovo capitolo: animazioni più fluide e l'app divisa in **tre schede**, una per ogni modo di usarla. Assorbe il vecchio punto 4 di "Funzioni future" («Cosa faccio adesso?» e modalità focus): le specifiche sono qui, aggiornate.
 
@@ -9,8 +9,8 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 
 | Fase | Contenuto | Stato |
 |---|---|---|
-| 1 | Animazioni più fluide in tutta l'app | fatta, da provare sull'iPhone |
-| 2a | Barra delle schede e Focus, con «Cosa faccio adesso?», il timer e i minuti di focus | fatta e pubblicata con la v9, da provare sull'iPhone |
+| 1 | Animazioni più fluide in tutta l'app | fatta; provata sull'iPhone il 16 novembre 2026 |
+| 2a | Barra delle schede e Focus, con «Cosa faccio adesso?», il timer e i minuti di focus | fatta e pubblicata con la v9; provata sull'iPhone il 16 novembre 2026. Il difetto trovato (il focus a tutto schermo non restava fermo) è corretto con la v13, da riprovare sull'iPhone |
 | 2b | Notifica push alla fine del focus | approvata: passo a parte, dopo la prova della 2a sull'iPhone (vedi "Notifica push alla fine del focus") |
 | — | Passo a parte: apertura più leggera del foglio «Nuova attività» | da fare, dopo la 2a |
 | — | Passo a parte: rispettare «Dimensione testo» dell'iPhone | da fare, dopo la 2a |
@@ -194,6 +194,13 @@ Ognuno si pubblica da solo, con le sue misure.
   - I bagliori sono disegnati piccoli (30vmax) e ingranditi con `scale`: occupano un quarto della memoria.
   - **Si ferma da solo dove pesa troppo**: dopo l'apertura `ui-focus.js` guarda 24 fotogrammi (`watchBreath()`); se più della metà dura oltre 45 ms, lo sfondo resta fermo per il resto della sessione.
 - **Schermi bassi**: l'anello si adatta all'altezza (38vh). Sotto i 700 px di altezza (iPhone SE, Safari con le sue barre) tutto è più raccolto e il titolo sta su due righe: titolo, anello e comandi stanno in una schermata da 320×568 in su. In orizzontale i comandi si raggiungono scorrendo.
+- **Schermata ferma** (16 novembre 2026, cache v13; **da verificare sull'iPhone**): quando titolo, anello e comandi ci stanno tutti, un dito che trascina non muove niente.
+  - **Il difetto** (prova sull'iPhone del 16 novembre): trascinando verso il basso, sul bordo destro si vedeva muoversi la barra di scorrimento. Nel foglio non c'era niente da scorrere: nelle misure a 390×844 con i margini di iPhone 13 avanzano almeno 66 px, anche con il titolo su tre righe. Quindi scorreva la pagina rimasta dietro: è una deduzione, sull'iPhone non si è potuto misurare.
+  - **La correzione**: `ui-focus.js` confronta l'altezza del contenuto con quella che si vede (`syncStatic()`, con `Aura.focus.fitsWithoutScroll`) e mette `.is-static` sul foglio. Lì il CSS toglie lo scorrimento con il dito: `touch-action: pinch-zoom`, scritto anche su `.focus`, perché un contenitore che può scorrere non eredita il divieto da chi lo contiene. Lo zoom con due dita resta.
+  - Le misure si ricontrollano da sole quando cambia lo schermo (rotazione) o il contenuto (titolo lungo, pulsanti a tempo finito), con un `ResizeObserver`.
+  - Se il contenuto non ci sta (telefono in orizzontale), `.is-static` non c'è e i comandi si raggiungono scorrendo, come prima.
+  - **Perché non bastava il blocco dei fogli**: `html.is-locked` (`overflow: hidden`) ferma la pagina in Chromium, e lì la ferma anche `overscroll-behavior: contain` del foglio. Sull'iPhone, a giudicare dalla prova, la pagina scorreva lo stesso. `touch-action` agisce prima, sul gesto, qualunque cosa stia per scorrere.
+  - **Prove nel browser** (Chromium 153 «iPhone 13», tocchi veri): tolte a mano le due protezioni, prima della correzione la pagina dietro si muove (da 150 px a 0, poi a 555), dopo resta a 150 px, a 390×844, 390×664 e 320×568. I pulsanti rispondono, in orizzontale il foglio scorre, ruotando la classe segue lo schermo. In WebKit non è stato provato.
 - **Tempo affidabile**
   - Lo stato sta in `aura-tasks:focus`: `{ taskId, startedAt, durationMs, pausedAt, pausedTotalMs }`.
   - Tempo rimanente = `durationMs − (adesso − startedAt − pausedTotalMs)`.

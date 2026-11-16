@@ -136,6 +136,17 @@
     return (hours ? hours + ':' + pad(minutes) : pad(minutes)) + ':' + pad(seconds);
   }
 
+  const FIT_SLACK_PX = 1; // scrollHeight e clientHeight sono arrotondati: un pixel di differenza non è contenuto da scorrere
+
+  /**
+   * La schermata del focus sta ferma quando il contenuto ci sta tutto: allora non c'è niente da scorrere, e un dito che
+   * trascina non deve muovere niente (js/ui-focus.js). Misure in pixel: altezza del contenuto e altezza che si vede.
+   * A foglio chiuso le misure sono zero, e la risposta è no.
+   */
+  function fitsWithoutScroll(contentHeight, visibleHeight) {
+    return visibleHeight > 0 && contentHeight <= visibleHeight + FIT_SLACK_PX;
+  }
+
   Aura.focus = {
     FOCUS,
     MINUTE_MS,
@@ -154,6 +165,7 @@
     recordMinutes,
     sanitizeMinutes,
     sanitizeSession,
-    clockLabel
+    clockLabel,
+    fitsWithoutScroll
   };
 })(window.Aura = window.Aura || {});

@@ -94,6 +94,16 @@
     assertEqual(F.sanitizeSession({ ...good, pausedAt: T0 - 1, pausedTotalMs: -5 }), good, 'pausa prima dell\'inizio e totale negativo');
   });
 
+  test('focus.fitsWithoutScroll: la schermata è ferma solo se il contenuto ci sta', () => {
+    assertEqual(
+      [F.fitsWithoutScroll(613, 844), F.fitsWithoutScroll(844, 844), F.fitsWithoutScroll(845, 844)],
+      [true, true, true],
+      'ci sta, anche con un pixel di arrotondamento'
+    );
+    assertEqual([F.fitsWithoutScroll(846, 844), F.fitsWithoutScroll(461, 390)], [false, false], 'non ci sta: si scorre');
+    assertEqual([F.fitsWithoutScroll(0, 0), F.fitsWithoutScroll(1, 0)], [false, false], 'foglio chiuso: nessuna misura');
+  });
+
   test('storage: loadFocus, saveFocus e clearFocus con un archivio finto', () => {
     const items = new Map();
     const area = { getItem: k => (items.has(k) ? items.get(k) : null), setItem: (k, v) => items.set(k, String(v)), removeItem: k => items.delete(k) };
