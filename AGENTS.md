@@ -50,4 +50,4 @@ Ogni intervento ha un livello, che si dichiara nella Pull Request (modello in `.
 - **Livello B — Modifiche piccole:** testi, stile, test e documentazione, senza cambiare il comportamento dell'app. Processo: PR → CI → revisione dell'altro agente → merge del Product Owner.
 - **Livello C — Emergenze di sicurezza:** intervento immediato, con coinvolgimento del Product Owner e di un revisore; documentazione della modifica successivamente.
 
-**Eccezione temporanea sulla CI.** Finché la PR 2 non introduce la CI, i test si eseguono a mano e l'esito si scrive nella PR. Dalla PR 2 la CI è obbligatoria per A e B. Questo paragrafo vale solo fino ad allora: lo toglie la PR 2, quando introduce la CI.
+**CI obbligatoria.** Ogni Pull Request di livello A o B deve superare i controlli automatici della CI prima del merge. Le prove manuali richieste dal tipo di modifica si aggiungono alla CI e non la sostituiscono.
