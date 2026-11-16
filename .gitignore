@@ -1,3 +1,19 @@
 # Impostazioni dell'editor e file di sistema: non fanno parte dell'app
 .vscode/
 Thumbs.db
+.DS_Store
+desktop.ini
+
+# File locali e credenziali: non versionare mai
+.env
+.env.*
+!.env.example
+**/.dev.vars
+**/.dev.vars.*
+**/.wrangler/
+**/node_modules/
+
+# Claude Code: istruzioni e impostazioni personali di questa macchina
+CLAUDE.local.md
+**/CLAUDE.local.md
+.claude/settings.local.json

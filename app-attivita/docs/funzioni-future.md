@@ -1,6 +1,6 @@
 # Funzioni future
 
-Sono nell'ordine della visione. Per ciascuna sono indicati comportamento, dati e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo nella tabella di "Funzioni premium" in `CLAUDE.md`.
+Sono nell'ordine della visione. Per ciascuna sono indicati comportamento, dati e casi limite. Prima di implementarne una, decidi se è **gratuita o premium** e annotalo nella tabella di "Funzioni premium" in `CLAUDE-GUIDE.md`.
 
 ## 2. Web Share Target e scorciatoie (Android)
 **Obiettivo**: aggiungere un impegno senza aprire l'app, con la condivisione.

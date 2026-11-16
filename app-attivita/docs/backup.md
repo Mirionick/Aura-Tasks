@@ -8,8 +8,8 @@
 - **Ripristina**: visibile **finché esiste** `aura-tasks:before-import`, con "Copia salvata: Oggi alle 10:30".
 - Esiti ed errori vanno nella riga di stato del foglio.
 
-**Esportare**: file `aura-tasks-backup-AAAA-MM-GG.json` (vedi "Modello dati" in `CLAUDE.md`).
-- Su iPhone e iPad si condivide (`navigator.share`), prima come `application/json`, poi come `text/plain` se iOS rifiuta il tipo. Altrove si scarica (vedi "Convenzioni" in `CLAUDE.md`).
+**Esportare**: file `aura-tasks-backup-AAAA-MM-GG.json` (vedi "Modello dati" in `CLAUDE-GUIDE.md`).
+- Su iPhone e iPad si condivide (`navigator.share`), prima come `application/json`, poi come `text/plain` se iOS rifiuta il tipo. Altrove si scarica (vedi "Convenzioni" in `CLAUDE-GUIDE.md`).
 - Chiudere la condivisione senza scegliere non è un errore.
 
 **Importare**

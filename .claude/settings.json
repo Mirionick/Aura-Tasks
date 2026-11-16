@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./.dev.vars)",
+      "Read(./.dev.vars.*)",
+      "Read(./server/.dev.vars)",
+      "Read(./server/.dev.vars.*)",
+      "Read(./server/.env)",
+      "Read(./server/.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/.dev.vars)",
+      "Read(**/.dev.vars.*)",
+      "Bash(cat *.env*)",
+      "Bash(cat *.dev.vars*)",
+      "Bash(type *.env*)",
+      "Bash(type *.dev.vars*)",
+      "Bash(Get-Content *.env*)",
+      "Bash(Get-Content *.dev.vars*)",
+      "PowerShell(Get-Content *.env*)",
+      "PowerShell(Get-Content *.dev.vars*)",
+      "PowerShell(gc *.env*)",
+      "PowerShell(gc *.dev.vars*)",
+      "PowerShell(cat *.env*)",
+      "PowerShell(cat *.dev.vars*)",
+      "PowerShell(type *.env*)",
+      "PowerShell(type *.dev.vars*)"
+    ]
+  }
+}
