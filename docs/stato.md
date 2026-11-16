@@ -22,7 +22,7 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 - Le prove su iPhone segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2.
 
 ## Punti aperti
-- **CI**: il workflow automatico è introdotto nella PR 2; attendiamo l'esito dei controlli su GitHub Actions e la revisione prima del merge. Dopo il merge, la CI sarà obbligatoria per tutte le PR di livello A e B.
+- **CI**: workflow della PR 2 superato su GitHub Actions: 70 test backend e 183 test PWA in Chrome headless. Dopo il merge resta da rendere il check `Test backend e frontend` obbligatorio nelle protezioni di `main`.
 - **Testo di P-001 v2**: non è nel repository. Qui ci sono la sua approvazione ([decisioni.md](decisioni.md), sezione 1) e ciò che stabilisce ([AGENTS.md](../AGENTS.md)).
 - **Login con Google** e **nuovi promemoria**: decisi, ma senza proposta né specifica nel repository.
 
