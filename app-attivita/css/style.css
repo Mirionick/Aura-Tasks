@@ -1746,6 +1746,13 @@ button {
   text-align: center;
 }
 
+/* Schermata ferma: quando titolo, anello e comandi ci stanno tutti (js/ui-focus.js mette .is-static), il dito non fa
+   scorrere niente, nemmeno la pagina rimasta dietro il foglio: su iPhone scorreva, e sul bordo si vedeva la sua barra
+   di scorrimento. Va scritto anche su .focus: un contenitore che può scorrere non eredita il divieto da chi lo contiene.
+   Lo zoom con due dita resta. */
+.sheet--focus.is-static,
+.sheet--focus.is-static .focus { touch-action: pinch-zoom; }
+
 /* Bagliori ciano e rosa: livelli assoluti dietro il contenuto, senza tocchi. Si muovono solo con transform e opacity.
    Sono disegnati piccoli (30vmax) e ingranditi con scale: una sfumatura non perde qualità, e il livello occupa un quarto
    della memoria. will-change li tiene pronti così, senza ridisegnarli più grandi. */
