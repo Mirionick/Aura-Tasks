@@ -25,6 +25,7 @@ Ogni regola è scritta in un solo posto: gli altri documenti la richiamano, non 
 3. **Nell'app niente librerie né script esterni; CSP rigida e `textContent`.**
    - L'app è solo HTML, CSS e JavaScript vanilla: niente framework, bundler, dipendenze di runtime, CDN o font esterni.
    - La Content Security Policy resta rigida: nessuno script, stile o gestore inline. Com'è fatta e che cosa comporta è scritto nella guida tecnica, sezione «Convenzioni».
+     - Il divieto di script, stili e gestori inline vale per l'app: `app-attivita/index.html` e le risorse che essa carica. Le pagine autonome in `app-attivita/tests/` e `app-attivita/prove/` possono avere script e stili inline quando necessari, nel rispetto della loro eventuale CSP specifica. Queste cartelle non sono incluse nel precaricamento `APP_FILES` del Service Worker; le richieste GET riuscite possono comunque entrare nella cache dinamica secondo il comportamento attuale di `sw.js`.
    - I testi dell'utente si scrivono con `textContent`, mai con `innerHTML` o con HTML costruito a mano.
 4. **Ogni nuova logica ha i propri test**: quelli dell'app in `app-attivita/tests/`, quelli del server in `server/test/`.
 5. **Si lavora esclusivamente su branch, con Pull Request**: niente push su `main`, niente merge e niente deploy senza il Product Owner.
@@ -48,3 +49,5 @@ Ogni intervento ha un livello, che si dichiara nella Pull Request (modello in `.
 - **Livello A — Modifiche significative:** dati salvati, server, sicurezza e privacy, CSP e permessi, nuove funzionalità o cambiamenti di comportamento. Processo: proposta → revisione tecnica ChatGPT → specifica concordata → approvazione Product Owner → implementazione su branch → revisione dell'altro agente, verifica requisiti di Claude Project e CI → merge del Product Owner.
 - **Livello B — Modifiche piccole:** testi, stile, test e documentazione, senza cambiare il comportamento dell'app. Processo: PR → CI → revisione dell'altro agente → merge del Product Owner.
 - **Livello C — Emergenze di sicurezza:** intervento immediato, con coinvolgimento del Product Owner e di un revisore; documentazione della modifica successivamente.
+
+**Eccezione temporanea sulla CI.** Finché la PR 2 non introduce la CI, i test si eseguono a mano e l'esito si scrive nella PR. Dalla PR 2 la CI è obbligatoria per A e B. Questo paragrafo vale solo fino ad allora: lo toglie la PR 2, quando introduce la CI.
