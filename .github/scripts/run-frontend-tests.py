@@ -16,6 +16,9 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 APP_DIR = pathlib.Path(__file__).resolve().parents[2] / "app-attivita"
 TEST_PAGE = "/tests/index.html"
 TIMEOUT_SECONDS = 60
+# Minimo di test frontend atteso: alzarlo quando vengono aggiunti nuovi test.
+# Se scende, probabilmente un file di test non è stato caricato o è stato rimosso.
+MIN_EXPECTED_TESTS = 183
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
@@ -84,11 +87,22 @@ def main() -> int:
     title = html.unescape(title_match.group(1)).strip() if title_match else ""
     summary = html.unescape(re.sub(r"<[^>]+>", "", summary_match.group(1))).strip() if summary_match else ""
 
-    if not title.startswith("PASS") or not re.fullmatch(r"Tutti i [0-9]+ test superati", summary):
+    summary_match = re.fullmatch(r"Tutti i (?P<count>[0-9]+) test superati", summary)
+    if not title.startswith("PASS") or not summary_match:
         print(f"Esito browser inatteso: titolo={title!r}, riepilogo={summary!r}", file=sys.stderr)
         print(result.stdout)
         if result.stderr:
             print(result.stderr, file=sys.stderr)
+        return 1
+
+    test_count = int(summary_match.group("count"))
+    if test_count < MIN_EXPECTED_TESTS:
+        print(
+            f"Numero di test frontend insufficiente: {test_count} superati, "
+            f"minimo richiesto {MIN_EXPECTED_TESTS}. "
+            "Se sono stati aggiunti test, aggiorna MIN_EXPECTED_TESTS.",
+            file=sys.stderr,
+        )
         return 1
 
     print(f"{summary} — {chrome_version}")

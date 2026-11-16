@@ -23,6 +23,7 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 
 ## Punti aperti
 - **CI**: workflow della PR 2 superato su GitHub Actions: 70 test backend e 183 test PWA in Chrome headless. Dopo il merge resta da rendere il check `Test backend e frontend` obbligatorio nelle protezioni di `main`.
+- **Controlli automatici di conformità (PR 3, livello B)**: da aggiungere alla CI: (a) ricerca di segreti e percorsi locali nei file e nei messaggi dei commit della PR; (b) verifica del divieto di `innerHTML` nel codice applicativo; (c) verifica che `CACHE_VERSION` venga aggiornata quando cambiano i file dell'app. Questi controlli non sono ancora implementati dalla PR 2.
 - **Testo di P-001 v2**: non è nel repository. Qui ci sono la sua approvazione ([decisioni.md](decisioni.md), sezione 1) e ciò che stabilisce ([AGENTS.md](../AGENTS.md)).
 - **Login con Google** e **nuovi promemoria**: decisi, ma senza proposta né specifica nel repository.
 
