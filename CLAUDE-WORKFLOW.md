@@ -10,7 +10,7 @@ I ruoli di tutti gli agenti e i livelli di intervento sono in `AGENTS.md`. In qu
 ## Ciclo consigliato
 1. In Claude Project descrivi un solo problema o una sola funzionalità. Chiedi una diagnosi e un prompt autonomo ma breve per Claude Code.
 2. In Claude Code apri il repository e avvia una sessione nuova per un task distinto. Chiedi di leggere solo specifiche e file pertinenti.
-   - Per un lavoro grande chiedi prima il piano e fallo rivedere in Claude Project: Claude Code scrive codice solo dopo il tuo via.
+   - Per un lavoro grande chiedi prima il piano e fallo rivedere in Claude Project. È una revisione del piano tra agenti, non una seconda approvazione: la tua resta una sola, alla fine, con il merge (`AGENTS.md`, «Ciclo di lavoro»).
 3. Claude Code implementa il task, esegue i test pertinenti e restituisce file modificati, esito dei test e verifiche manuali.
    - Il lavoro si fa su un branch e arriva a `main` con una Pull Request, secondo il livello dell'intervento (`AGENTS.md`).
 4. Riporta in Claude Project solo il riepilogo e gli eventuali errori rilevanti, non tutta la cronologia di terminale.
