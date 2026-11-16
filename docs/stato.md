@@ -4,29 +4,30 @@ Fotografia breve di dove siamo, per chi comincia un intervento. La aggiorna chi 
 
 Non ripete gli altri documenti: decisioni, funzioni e verifiche sono in [decisioni.md](decisioni.md), le regole in [AGENTS.md](../AGENTS.md).
 
-**Aggiornato il** 16 novembre 2026, con la PR 2 (CI).
+**Aggiornato il** 16 novembre 2026, con la PR di P-002 v2 e del ciclo di lavoro.
 
 ## Pubblicato su `main`
 - **App**: fino al passo 1 dell'assistente («Scrivi ad Aura»), con la cache `aura-tasks-v12` (13 novembre 2026).
 - **Server**: quello pubblicato con il passo 0 dell'assistente (11 novembre 2026); il passo 1 non lo ha cambiato.
+- **CI**: test del server e dell'app in Chrome headless su ogni PR (PR 2, unita il 16 novembre 2026 con `4351b18`), con un minimo di 183 test dell'app.
+- **Protezione di `main`** (16 novembre 2026): solo PR, con il controllo «Test backend e frontend» obbligatorio, niente force push né cancellazione, nessuna eccezione. Attivi secret scanning, push protection, avvisi di Dependabot e CodeQL. Codex rivede in automatico ogni PR.
 
 L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2.
 
 ## Completato di recente
-- **PR 1 — P-001 v2: documentazione e configurazione condivisa** (branch `ottimizzazione-claude`, livello B). Unita a `main` il 16 novembre 2026 con merge commit `b318b6d`. Ha modificato solo documentazione e configurazione degli agenti; il codice dell'app e del server è rimasto invariato.
+- **PR 1 — P-001 v2**: documentazione e configurazione condivisa, unita il 16 novembre 2026 (`b318b6d`).
+- **PR 2 — CI automatica**: unita il 16 novembre 2026 (`4351b18`).
 
 ## In lavorazione
-- **PR 2 — CI automatica** (branch `ci/pr2-github-actions`, livello B). Introduce GitHub Actions per i test del server e della PWA in Chrome headless; non modifica il codice runtime dell'app né del server.
+- **P-002 v2 e ciclo di lavoro** (livello B, esecutore Claude Project): la proposta in [proposte/P-002.md](proposte/P-002.md), `AGENTS.md` con il nuovo ciclo, questo stato e il registro allineati alle prove sull'iPhone del 16 novembre.
 
 ## In attesa
-- Le prove su iPhone segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2.
+- Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.
 
 ## Punti aperti
-- **CI**: workflow della PR 2 superato su GitHub Actions: 70 test backend e 183 test PWA in Chrome headless. Dopo il merge resta da rendere il check `Test backend e frontend` obbligatorio nelle protezioni di `main`.
-- **Controlli automatici di conformità (PR 3, livello B)**: da aggiungere alla CI: (a) ricerca di segreti e percorsi locali nei file e nei messaggi dei commit della PR; (b) verifica del divieto di `innerHTML` nel codice applicativo; (c) verifica che `CACHE_VERSION` venga aggiornata quando cambiano i file dell'app. Questi controlli non sono ancora implementati dalla PR 2.
+- **Controlli automatici di conformità** (passo 0a di P-002, livello B, esecutore ChatGPT / Codex): (a) segreti e percorsi locali nei file e nei messaggi dei commit della PR; (b) divieto di `innerHTML` nel codice dell'app; (c) `CACHE_VERSION` aggiornata quando cambiano i file dell'app.
+- **Difetto della barra delle schede** (passo 0b di P-002, livello A, esecutore Claude Project): in Focus, trascinando verso il basso, la barra si muove con la pagina.
 - **Testo di P-001 v2**: non è nel repository. Qui ci sono la sua approvazione ([decisioni.md](decisioni.md), sezione 1) e ciò che stabilisce ([AGENTS.md](../AGENTS.md)).
-- **Login con Google** e **nuovi promemoria**: decisi, ma senza proposta né specifica nel repository.
 
 ## Prossimi passi
-1. Revisione e merge della PR 2.
-2. Le funzioni pianificate sono in [decisioni.md](decisioni.md), sezione 3: l'ordine lo decide il Product Owner.
+L'ordine è in [proposte/P-002.md](proposte/P-002.md): 0a e 0b, poi passo 1 (impostazioni) e passo 2 (Aura con un volto). Le richieste nuove del 16 novembre (Agenda a calendario, Motivazione, animazioni) andranno in una P-003.

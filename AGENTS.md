@@ -1,6 +1,6 @@
 # Aura Tasks — regole condivise da tutti gli agenti
 
-Queste regole valgono per chiunque lavori sul repository, persone e agenti, e si leggono prima di ogni intervento. Vengono dal protocollo **P-001 v2**, approvato da Claude Project, ChatGPT e Product Owner (vedi `docs/decisioni.md`).
+Queste regole valgono per chiunque lavori sul repository, persone e agenti, e si leggono prima di ogni intervento. Vengono dal protocollo **P-001 v2**, approvato da Claude Project, ChatGPT e Product Owner, aggiornato dal ciclo di lavoro del 16 novembre 2026 (vedi `docs/decisioni.md`).
 
 Ogni regola è scritta in un solo posto: gli altri documenti la richiamano, non la ripetono.
 
@@ -33,21 +33,34 @@ Ogni regola è scritta in un solo posto: gli altri documenti la richiamano, non 
 
 ## Ruoli
 
-| Ruolo | Chi |
-|---|---|
-| Product Owner | Mirionick |
-| Requisiti | Claude Project |
-| Technical Lead | ChatGPT |
-| Sviluppo | Claude Code |
+| Ruolo | Chi | Che cosa fa |
+|---|---|---|
+| Product Owner | Mirionick | Decide e approva: il merge di una PR è la sua approvazione |
+| Requisiti e sviluppo | Claude Project | Scrive proposte e criteri di accettazione; implementa su branch, apre le PR e le segue fino al merge |
+| Technical Lead e sviluppo | ChatGPT / Codex | Revisione tecnica delle proposte; revisione automatica delle PR (Codex); implementa su branch quando un passo gli è assegnato |
+| Sviluppo locale | Claude Code | Ciò che richiede il PC del Product Owner: Windows, Cloudflare (deploy, segreti), prove sull'iPhone |
 
-Che cosa fa ciascuno, intervento per intervento, è scritto nei livelli qui sotto.
+Come lavorano insieme è scritto nel ciclo di lavoro qui sotto.
 
 ## Livelli di intervento
 
 Ogni intervento ha un livello, che si dichiara nella Pull Request (modello in `.github/pull_request_template.md`).
 
-- **Livello A — Modifiche significative:** dati salvati, server, sicurezza e privacy, CSP e permessi, nuove funzionalità o cambiamenti di comportamento. Processo: proposta → revisione tecnica ChatGPT → specifica concordata → approvazione Product Owner → implementazione su branch → revisione dell'altro agente, verifica requisiti di Claude Project e CI → merge del Product Owner.
-- **Livello B — Modifiche piccole:** testi, stile, test e documentazione, senza cambiare il comportamento dell'app. Processo: PR → CI → revisione dell'altro agente → merge del Product Owner.
+- **Livello A — Modifiche significative:** dati salvati, server, sicurezza e privacy, CSP e permessi, nuove funzionalità o cambiamenti di comportamento. Richiede una proposta in `docs/proposte/` rivista da ChatGPT; poi si segue il ciclo qui sotto.
+- **Livello B — Modifiche piccole:** testi, stile, test e documentazione, senza cambiare il comportamento dell'app. Si segue il ciclo qui sotto, senza proposta.
 - **Livello C — Emergenze di sicurezza:** intervento immediato, con coinvolgimento del Product Owner e di un revisore; documentazione della modifica successivamente.
+
+## Ciclo di lavoro
+
+Deciso dal Product Owner il 16 novembre 2026: una sola approvazione, la sua, alla fine.
+
+1. L'esecutore del passo (scritto nella proposta) lavora su un branch e apre la PR.
+2. Partono la CI e la revisione dell'altro agente: Codex rivede in automatico le PR scritte da Claude; Claude Project rivede quelle scritte da ChatGPT o Codex.
+3. L'esecutore corregge finché la CI è verde e la revisione non ha obiezioni aperte.
+4. Il Product Owner riceve un riassunto breve: che cosa cambia, esito di test e revisione, che cosa provare sull'iPhone.
+5. Il Product Owner approva con il merge (o chiede a Claude Project di farlo); altrimenti dice che cosa non va.
+6. Dopo il merge si passa al passo successivo del piano.
+
+Le proposte nuove seguono lo stesso ciclo: la PR che aggiunge la proposta a `docs/proposte/` è approvata con il suo merge.
 
 **CI obbligatoria.** Ogni Pull Request di livello A o B deve superare i controlli automatici della CI prima del merge. Le prove manuali richieste dal tipo di modifica si aggiungono alla CI e non la sostituiscono.

@@ -1,5 +1,7 @@
 # Workflow Aura Tasks: Claude Project e Claude Code
 
+Dal 16 novembre 2026 il ciclo principale è quello di `AGENTS.md`, «Ciclo di lavoro»: Claude Project implementa e segue le PR direttamente su GitHub. Questo file vale quando un passo si fa con Claude Code sul PC (Windows, Cloudflare, prove sull'iPhone).
+
 ## Ruoli
 I ruoli di tutti gli agenti e i livelli di intervento sono in `AGENTS.md`. In questo flusso i due strumenti di Claude si dividono il lavoro così:
 - **Claude Project** (Claude, in un Progetto di claude.ai): analisi funzionale, discussione dei requisiti, revisione dei piani e dei risultati, piano di test, analisi di screenshot/errori e preparazione del prompt operativo.

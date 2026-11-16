@@ -17,6 +17,8 @@ Una voce sta in una sola sezione e, quando cambia stato, si sposta. Il resto non
 | **Login facoltativo con Google** | Il login con Google è deciso, e sarà facoltativo. La funzione è pianificata, non realizzata (sezione 3). | 13 novembre 2026 |
 | **Chiavi VAPID già ruotate** | Le chiavi VAPID del server (promemoria push) sono già state ruotate. Lo dichiara il Product Owner: le chiavi non stanno nel repository, quindi da qui non si può controllare. | 13 novembre 2026 |
 | **Nuovi promemoria senza migrazione D1** | I nuovi promemoria si realizzano senza migrazione del database D1. La funzione è pianificata, non realizzata (sezione 3). | 13 novembre 2026 |
+| **Ciclo di lavoro con una sola approvazione** | Il Product Owner approva una volta sola, con il merge, dopo un riassunto; implementazione e revisione tra agenti avvengono da sole. Ruoli e passi in [AGENTS.md](../AGENTS.md), «Ciclo di lavoro». | 16 novembre 2026 |
+| **P-002 v2: finire l'app del telefono** | Ordine, contenuti, condizioni tecniche e decisioni di prodotto 1–5 in [proposte/P-002.md](proposte/P-002.md). Approvata con il merge della PR che la introduce. | 16 novembre 2026 |
 | **Test dell'app nel browser** | I test dell'app si eseguono in un browser reale, aprendo `app-attivita/tests/index.html`. | 13 novembre 2026 |
 
 Le decisioni prese prima di questo registro restano scritte nelle specifiche delle funzioni.
@@ -35,8 +37,8 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 | Server di Aura: promemoria push e casella di Siri | [promemoria-e-siri.md](../app-attivita/docs/promemoria-e-siri.md) | Promemoria push: **da verificare** |
 | Modificare un'attività | [modifica.md](../app-attivita/docs/modifica.md) | — |
 | Backup: esportare, importare e ripristinare i dati | [backup.md](../app-attivita/docs/backup.md) | — |
-| Tre modalità, fase 1: animazioni più fluide | [tre-modalita.md](../app-attivita/docs/tre-modalita.md) | **Da verificare** |
-| Tre modalità, fase 2a: barra delle schede e Focus, con «Cosa faccio adesso?», il timer e i minuti di focus | [tre-modalita.md](../app-attivita/docs/tre-modalita.md) | **Da verificare** |
+| Tre modalità, fase 1: animazioni più fluide | [tre-modalita.md](../app-attivita/docs/tre-modalita.md) | Verificata il 16 novembre 2026 (sezione 4) |
+| Tre modalità, fase 2a: barra delle schede e Focus, con «Cosa faccio adesso?», il timer e i minuti di focus | [tre-modalita.md](../app-attivita/docs/tre-modalita.md) | Verificata il 16 novembre 2026 (sezione 4), con un difetto aperto: la barra delle schede si muove trascinando verso il basso |
 | Assistente, passo 0: prova tecnica (server e pagina di prova) | [assistente.md](../app-attivita/docs/assistente.md), «Risultati del passo 0» | **Da verificare** |
 | Assistente, passo 1: assistente scritto («Scrivi ad Aura») | [assistente.md](../app-attivita/docs/assistente.md), «Risultati del passo 1» | **Da verificare** |
 | Illustrazioni: due nell'app, una delle quali da sostituire | [illustrazioni.md](../app-attivita/docs/illustrazioni.md) | — |
@@ -59,8 +61,9 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 | Promemoria nel calendario (`.ics`) | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
 | Altre idee, non prioritarie | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
 | Licenza premium | [premium.md](../app-attivita/docs/premium.md) | |
-| Login facoltativo con Google | Nessuna proposta né specifica nel repository | Decisione nella sezione 1 |
-| Nuovi promemoria | Nessuna proposta né specifica nel repository | Decisione nella sezione 1: senza migrazione D1 |
+| Login facoltativo con Google e sincronizzazione | [proposte/P-002.md](proposte/P-002.md), passi 5a e 5b | 5b richiede prima una specifica testabile |
+| Impostazioni, Aura con un volto, voce, promemoria completi | [proposte/P-002.md](proposte/P-002.md), passi 1–4 | Promemoria senza migrazione D1 (sezione 1) |
+| Agenda a calendario, Motivazione ripensata, animazioni più curate | Richieste del Product Owner del 16 novembre 2026 | Da scrivere in una P-003 |
 
 ## 4. Verifiche effettivamente eseguite
 
@@ -72,3 +75,4 @@ Qui entra solo ciò che è stato eseguito davvero, con la data e l'esito. Una ve
 | 13 novembre 2026 | Test dell'app | `app-attivita/tests/index.html` aperto in Microsoft Edge 157, in una finestra e in modalità headless | PASS in entrambe le prove; 183 test superati su 183 (conteggio letto nella prova headless) | Claude Code |
 | 13 novembre 2026 | Controllo privacy | Ricerca di dati personali, percorsi locali, email e segreti nei file della PR 1 | Nessuna occorrenza | Claude Code |
 | 13 novembre 2026 | Riferimenti tra i documenti | Controllo che ogni file citato dai documenti esista nel branch della PR 1 | Tutti validi; fuori dal conto, per scelta, i file che le specifiche prevedono per il futuro e le cartelle ignorate da Git | Claude Code |
+| 16 novembre 2026 | Prove sull'iPhone delle fasi 1 e 2a | Il Product Owner, nell'app installata: intestazione con 4 card, schede fluide, foglio di aggiunta, «Cosa faccio adesso?» (prima le scadute, poi le vicine), timer e minuti di focus, ripresa dell'ultima scheda, i due temi | Superate; trovato un difetto: in Focus, trascinando verso il basso, la barra delle schede si muove | Product Owner |

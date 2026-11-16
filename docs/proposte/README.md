@@ -33,4 +33,6 @@ Lo scheletro di un file:
 
 ## Proposte presenti
 
-Per ora nessun file. **P-001 v2**, il protocollo di lavoro tra gli agenti, è stata approvata prima che esistesse questa cartella: la sua approvazione è in [decisioni.md](../decisioni.md) e ciò che stabilisce è in [AGENTS.md](../../AGENTS.md).
+- [P-002 v2 — Finire l'app del telefono](P-002.md)
+
+**P-001 v2**, il protocollo di lavoro tra gli agenti, è stata approvata prima che esistesse questa cartella: la sua approvazione è in [decisioni.md](../decisioni.md) e ciò che stabilisce è in [AGENTS.md](../../AGENTS.md).
