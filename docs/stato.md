@@ -26,7 +26,7 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 
 ## Punti aperti
 - **Controlli automatici di conformità** (passo 0a di P-002, livello B, esecutore ChatGPT / Codex): (a) segreti e percorsi locali nei file e nei messaggi dei commit della PR; (b) divieto di `innerHTML` nel codice dell'app; (c) `CACHE_VERSION` aggiornata quando cambiano i file dell'app.
-- **Difetto della barra delle schede** (passo 0b di P-002, livello A, esecutore Claude Project): in Focus, trascinando verso il basso, la barra si muove con la pagina.
+- **Difetto nella schermata del focus** (passo 0b di P-002, livello A, esecutore Claude Project): nella schermata del focus, trascinando verso il basso, si vede muoversi una barra laterale, mentre la schermata dovrebbe restare ferma. Da chiarire con il Product Owner se è l'indicatore di scorrimento o la barra delle schede.
 - **Testo di P-001 v2**: non è nel repository. Qui ci sono la sua approvazione ([decisioni.md](decisioni.md), sezione 1) e ciò che stabilisce ([AGENTS.md](../AGENTS.md)).
 
 ## Prossimi passi
