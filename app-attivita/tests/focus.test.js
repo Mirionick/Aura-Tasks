@@ -116,4 +116,20 @@
     storage.clearFocus(area);
     assertEqual(items.has(storage.FOCUS_KEY), false);
   });
+
+  test('focus: l\'aurora sale con il tempo, dal 16% a zero', () => {
+    const d = 25 * MIN;
+    assertEqual(F.auroraRise(d, d), F.AURORA_RISE_PERCENT, 'all\'inizio è in basso');
+    assertEqual(F.auroraRise(d / 2, d), 8, 'a metà');
+    assertEqual(F.auroraRise(d / 4, d), 4);
+    assertEqual(F.auroraRise(0, d), 0, 'alla fine è su');
+    assertEqual(F.auroraRise(d - 1000, d), 16, 'un decimale: un secondo dopo non cambia ancora');
+    assertEqual(F.auroraRise(d - MIN, d), 15.4, 'dopo un minuto');
+    assertEqual(F.auroraRise(2 * d, d), F.AURORA_RISE_PERCENT, 'mai più in basso dell\'inizio');
+    assertEqual(F.auroraRise(-5, d), 0, 'mai sopra la fine');
+    assertEqual(F.auroraRise(1000, 0), 0, 'durata non valida: già su');
+    // «+5 min»: la durata cresce e l'aurora scende un poco
+    const s = F.extend(F.start(task, T0), T0 + 10 * MIN, 5);
+    assert(F.auroraRise(F.remainingMs(s, T0 + 10 * MIN), s.durationMs) > F.auroraRise(task.duration * MIN - 10 * MIN, task.duration * MIN));
+  });
 })();

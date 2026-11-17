@@ -20,6 +20,7 @@
 
   const els = {
     hero: byId('hero'),
+    heroBg: byId('hero-bg'),
     scrim: byId('statusbar-scrim'),
     heroFocus: byId('hero-focus'),
     heroTab: byId('hero-tab'),
@@ -32,6 +33,7 @@
     miniPointsValue: byId('mini-points-value'),
     tabbar: byId('tabbar'),
     tabButtons: Array.from(document.querySelectorAll('.tabbar__tab')),
+    tabPill: document.querySelector('.tabbar__pill'),
     tabFocus: byId('tab-focus'),
     tabAgenda: byId('tab-agenda'),
     tabMotivation: byId('tab-motivation'),
@@ -210,6 +212,7 @@
       else button.removeAttribute('aria-current');
     });
     els.tabbar.dataset.active = activeTab; // la pillola scivola sulla scheda (CSS, con transform)
+    els.hero.dataset.tab = activeTab;      // il bagliore della scheda nell'intestazione (CSS, con opacity)
     const info = TABS[activeTab];
     els.heroFocus.hidden = activeTab !== 'focus';
     els.heroTab.hidden = activeTab === 'focus';
@@ -239,13 +242,17 @@
   }
 
   /**
-   * Apre una scheda. Quella nuova entra con una dissolvenza e un breve scorrimento nella direzione del cambio:
-   * un'animazione sola per tutta la scheda (il blocco più grande che si muove insieme). Ogni scheda ritrova il suo scorrimento.
+   * Apre una scheda, con un movimento d'insieme (P-003, passo 3.1):
+   * - lo sfondo dell'intestazione scivola dalla vecchia altezza alla nuova e il bagliore cambia colore (CSS);
+   * - il contenuto della scheda entra a blocchi, uno dopo l'altro, dalla parte del cambio; quello dell'intestazione sfuma;
+   * - la pillola della barra si allunga mentre scivola e si ferma con un rimbalzo; l'icona della scheda fa il suo gesto.
+   * Solo transform e opacity; con «Riduci movimento» niente di tutto questo. Ogni scheda ritrova il suo scorrimento.
    */
   function showTab(tab, { animate = true } = {}) {
     if (!TABS[tab]) tab = 'focus';
     const previous = activeTab;
     if (tab === previous) return;
+    const heroBefore = els.hero.offsetHeight;
     tabScroll[previous] = window.scrollY;
     activeTab = tab;
     syncTabs();
@@ -254,8 +261,13 @@
     rememberTab();
     if (!animate) return;
     const direction = T.TABS.indexOf(tab) > T.TABS.indexOf(previous) ? 1 : -1;
-    M.slideIn(TABS[tab].section, direction * 24);
+    M.shiftIn(els.heroBg, heroBefore - els.hero.offsetHeight);
+    M.staggerIn(Array.from(TABS[tab].section.children), direction * 24);
     M.slideIn(activeTab === 'focus' ? els.heroFocus : els.heroTab, 0);
+    if (activeTab === 'motivation') M.slideIn(els.rewards, 0);
+    M.flash(els.tabPill, 'is-moving');
+    const button = els.tabButtons.find(item => item.dataset.tab === tab);
+    if (button) M.flash(button.querySelector('.icon'), 'is-popping');
   }
 
   /* ---------- Disegno ---------- */

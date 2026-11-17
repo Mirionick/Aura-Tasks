@@ -12,7 +12,18 @@
   const VIEW_MARGIN = 80; // px fuori dallo schermo che contano ancora come "in vista"
   const MIN_SHIFT = 1;    // px: sotto questo spostamento non si anima nulla
 
+  const STAGGER = { max: 5, gap: 55 }; // cambio di scheda: al massimo 5 gradini, a 55 ms l'uno dall'altro
+
   /* ---------- Parte pura ---------- */
+
+  /**
+   * Ritardi dell'entrata a blocchi di una scheda: un gradino ogni `gap` ms, al massimo `max` gradini. I blocchi dopo
+   * il quinto (rari: una scheda ne mostra di solito al massimo cinque) entrano con il quinto.
+   */
+  function staggerDelays(count, max = STAGGER.max, gap = STAGGER.gap) {
+    const steps = Math.max(1, max);
+    return Array.from({ length: Math.max(0, count) }, (_, i) => Math.min(i, steps - 1) * gap);
+  }
 
   /** "320ms" → 320, "6s" → 6000; altrimenti null. */
   function parseDuration(text) {
@@ -77,8 +88,8 @@
 
   /* ---------- Token ---------- */
 
-  const DURATIONS = ['tap', 'quick', 'color', 'exit', 'move', 'reward', 'celebrate', 'glow', 'breath'];
-  const CURVES = ['out', 'in', 'in-out', 'spring'];
+  const DURATIONS = ['tap', 'quick', 'color', 'exit', 'move', 'tab', 'reward', 'celebrate', 'glow'];
+  const CURVES = ['out', 'in', 'in-out', 'spring', 'bounce'];
   let tokens = null;
 
   /** Legge una volta i token di style.css. Un token che manca vale 0 ms, cioè nessuna animazione. */
@@ -271,9 +282,20 @@
     return plan;
   }
 
+  /** Rete di sicurezza: se i fotogrammi si fermano (pagina nascosta, tempo virtuale), le animazioni arrivano comunque alla fine. */
+  function finishLater(animations) {
+    if (!animations.length) return;
+    const end = Math.max.apply(null, animations.map(animation => animation.effect.getComputedTiming().endTime || 0));
+    setTimeout(() => {
+      animations.forEach(animation => {
+        if (animation.playState === 'running' || animation.playState === 'paused') animation.finish();
+      });
+    }, end + 100);
+  }
+
   /**
-   * Entrata di un blocco intero (per esempio una scheda): dissolvenza e un breve scorrimento orizzontale di dx px
-   * (0 = solo dissolvenza). Un'animazione sola per tutto il blocco; con «Riduci movimento» non fa nulla.
+   * Entrata di un blocco intero: dissolvenza e un breve scorrimento orizzontale di dx px (0 = solo dissolvenza).
+   * Un'animazione sola per tutto il blocco; con «Riduci movimento» non fa nulla.
    */
   function slideIn(el, dx) {
     if (!el || !canAnimate()) return null;
@@ -281,10 +303,51 @@
       { opacity: 0, transform: dx ? 'translateX(' + dx + 'px)' : 'none' },
       { opacity: 1, transform: 'none' }
     ], { duration: ms('move'), easing: ease('out') });
-    // Rete di sicurezza: se i fotogrammi si fermano (pagina nascosta, tempo virtuale), il blocco arriva comunque alla fine.
-    setTimeout(() => {
-      if (animation.playState === 'running' || animation.playState === 'paused') animation.finish();
-    }, ms('move') + 100);
+    finishLater([animation]);
+    return animation;
+  }
+
+  /**
+   * Entrata a blocchi di una scheda (P-003, passo 3.1): i blocchi che si vedono entrano uno dopo l'altro (staggerDelays),
+   * con una dissolvenza e uno scorrimento di dx px dalla parte del cambio. Un blocco è un figlio della scheda (la
+   * striscia, una sezione, «Completate»…), mai una card: si anima il blocco più grande che si muove insieme.
+   * Quelli fuori dallo schermo non si animano. Con «Riduci movimento» non fa nulla.
+   */
+  function staggerIn(blocks, dx) {
+    if (!canAnimate()) return [];
+    const height = window.innerHeight;
+    const visible = blocks.filter(el => {
+      if (!el || el.hidden) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.height > 0 && rect.bottom > 0 && rect.top < height;
+    });
+    const delays = staggerDelays(visible.length);
+    const animations = visible.map((el, i) => animate(el, [
+      { opacity: 0, transform: 'translateX(' + dx + 'px)' },
+      { opacity: 1, transform: 'none' }
+    ], { duration: ms('move'), easing: ease('out'), delay: delays[i], fill: 'backwards' }));
+    finishLater(animations);
+    return animations;
+  }
+
+  /**
+   * Un elemento che ha appena cambiato posto (per esempio lo sfondo dell'intestazione, quando l'altezza cambia) parte
+   * da dove era, dy px più in basso (o più in alto, se negativo), e scivola al posto nuovo con transform. Durante il
+   * movimento ha la classe .is-moving (will-change), tolta alla fine. Con «Riduci movimento» non fa nulla.
+   */
+  function shiftIn(el, dy) {
+    if (!el || !canAnimate() || Math.abs(dy) < MIN_SHIFT) return null;
+    el.classList.add('is-moving');
+    const animation = animate(el, [
+      { transform: 'translateY(' + dy + 'px)' },
+      { transform: 'none' }
+    ], { duration: ms('tab'), easing: ease('out') });
+    const done = () => {
+      const running = flips.get(el);
+      if (!running || running === animation) el.classList.remove('is-moving');
+    };
+    animation.finished.then(done, done);
+    finishLater([animation]);
     return animation;
   }
 
@@ -319,5 +382,5 @@
     }, end + 50);
   }
 
-  Aura.motion = { parseDuration, planFlip, ms, ease, reduced, canAnimate, snapshot, play, slideIn, flash };
+  Aura.motion = { parseDuration, planFlip, staggerDelays, ms, ease, reduced, canAnimate, snapshot, play, slideIn, staggerIn, shiftIn, flash };
 })(window.Aura = window.Aura || {});

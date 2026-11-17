@@ -79,7 +79,14 @@
   <!-- Su iPhone, con l'app installata, la barra di stato è sopra la pagina: questa fascia la tiene leggibile quando si scorre. -->
   <div class="statusbar-scrim" id="statusbar-scrim" aria-hidden="true"></div>
 
-  <header class="hero" id="hero">
+  <header class="hero" id="hero" data-tab="focus">
+    <!-- Sfondo: un livello più alto dell'intestazione che ne segue il fondo e scivola quando l'altezza cambia (js/motion.js),
+         con un bagliore per scheda che sfuma con opacity (attributo data-tab, da app.js) -->
+    <div class="hero__bg" id="hero-bg" aria-hidden="true">
+      <span class="hero__tint hero__tint--focus"></span>
+      <span class="hero__tint hero__tint--agenda"></span>
+      <span class="hero__tint hero__tint--motivation"></span>
+    </div>
     <div class="hero__inner">
       <div class="hero__bar">
         <div class="brand">
@@ -261,10 +268,11 @@
     </section>
   </main>
 
-  <!-- Barra delle schede: la pillola dietro la scheda attiva scivola con transform (attributo data-active) -->
+  <!-- Barra delle schede: la pillola dietro la scheda attiva scivola con transform (attributo data-active) e si ferma
+       con un rimbalzo; l'icona della scheda aperta fa un gesto (js/app.js, showTab) -->
   <nav class="tabbar" id="tabbar" aria-label="Schede" data-active="focus">
     <div class="tabbar__inner">
-      <span class="tabbar__indicator" aria-hidden="true"></span>
+      <span class="tabbar__indicator" aria-hidden="true"><span class="tabbar__pill"></span></span>
       <button class="tabbar__tab" type="button" data-tab="focus" aria-current="page">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-tab-focus"></use></svg>
         <span>Focus</span>
@@ -1026,10 +1034,18 @@
   <!-- Focus a tutto schermo con il timer (js/ui-focus.js; la logica sta in js/focus.js) -->
   <dialog class="sheet sheet--focus" id="focus-sheet" aria-labelledby="focus-title">
     <div class="focus">
-      <!-- Sfondo che respira: due bagliori in livelli separati, solo transform e opacity -->
+      <!-- Aurora: quattro fasce di luce e due livelli di stelline, solo transform e opacity. Sale con il tempo e,
+           allo scadere, si apre in un bagliore (js/ui-focus.js) -->
       <div class="focus__aura" aria-hidden="true">
-        <span class="focus__glow focus__glow--a"></span>
-        <span class="focus__glow focus__glow--b"></span>
+        <span class="aurora__stars aurora__stars--a"></span>
+        <span class="aurora__stars aurora__stars--b"></span>
+        <div class="aurora__rise" id="aurora-rise">
+          <span class="aurora__band aurora__band--3"></span>
+          <span class="aurora__band aurora__band--1"></span>
+          <span class="aurora__band aurora__band--2"></span>
+          <span class="aurora__band aurora__band--4"></span>
+        </div>
+        <span class="aurora__bloom" id="aurora-bloom"></span>
       </div>
 
       <header class="focus__head">
