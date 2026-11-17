@@ -16,6 +16,7 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | — | Passo a parte: rispettare «Dimensione testo» dell'iPhone | da fare, dopo la 2a |
 | 3 | Agenda | sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario |
 | 4 | Motivazione, con le illustrazioni | sostituita da [P-003](../../docs/proposte/P-003.md), passi 3.3–3.5 |
+| — | [P-003](../../docs/proposte/P-003.md), passo 3.1: cambio di scheda animato e aurora nel focus | fatto con la v15; da provare sull'iPhone (vedi "P-003, passo 3.1") |
 
 ### Fase 1: animazioni più fluide
 - **Token**: durate (`--dur-*`) e curve (`--ease-*`) stanno solo in `:root`. Il JavaScript le legge con `Aura.motion` (`js/motion.js`): nessuna durata scritta a mano.
@@ -135,6 +136,23 @@ Ognuno si pubblica da solo, con le sue misure.
   - Si passa a `font: -apple-system-body` con il font dell'app, e a dimensioni in rem.
   - I campi restano sempre ad almeno 16 px.
   - Servono schermate con il testo grande, senza rompere i layout a 375 px.
+
+### P-003, passo 3.1: cambio di scheda e aurora
+Il cambio di scheda diventa un movimento d'insieme (vedi "Navigazione") e lo sfondo del focus diventa un'aurora che sale con il tempo (vedi "Focus a tutto schermo con timer").
+
+#### Risultati del passo 3.1 (17 novembre 2026)
+Fotogrammi persi, mediana di 10 prove (5 in tema chiaro e 5 in tema scuro): gli stessi gesti sulla versione pubblicata (v14, «prima») e su quella nuova (v15, «dopo»), a 390×844, in Chromium headless. WebKit non è stato eseguito: in questo ambiente non c'è. Le misure valgono come confronto tra prima e dopo; non si confrontano con quelle della fase 2a, fatte in Edge su un altro computer.
+
+| Gesto | Chromium, CPU 4 volte più lenta | Chromium a piena velocità |
+|---|---|---|
+| passare ad Agenda | 0 → 1 | 0 → 0 |
+| passare a Motivazione | 3 → 3 | 0 → 0 |
+| tornare a Focus | 0 → 0 | 0 → 0 |
+| 10 secondi di focus in corso (prima i bagliori che respirano, dopo l'aurora) | 0 → 0 | 0 → 0 |
+
+- Il cambio di scheda adesso muove molto di più (lo sfondo che scivola, il bagliore, i blocchi uno dopo l'altro, la pillola e l'icona) e costa al massimo un fotogramma in più, solo con la CPU rallentata.
+- L'aurora, come i bagliori di prima, non perde fotogrammi: gira sul compositore. La prova vera è quella sull'iPhone, dove la muove la scheda grafica: è la prima cosa da guardare, per qualche minuto di focus.
+- Prove di funzionamento, nei due temi: nessun errore nella console e nessuno scorrimento orizzontale a 320×568, 390×844 e 1280×800, e aprendo `index.html` da file. Con «Riduci movimento» nessuna animazione in corso e l'aurora ferma. A riposo l'intestazione è uguale a prima: stessa altezza (188 px in Focus a 390 px) e stessi colori.
 
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.
