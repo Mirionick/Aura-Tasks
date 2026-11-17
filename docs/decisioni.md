@@ -19,6 +19,7 @@ Una voce sta in una sola sezione e, quando cambia stato, si sposta. Il resto non
 | **Nuovi promemoria senza migrazione D1** | I nuovi promemoria si realizzano senza migrazione del database D1. La funzione è pianificata, non realizzata (sezione 3). | 13 novembre 2026 |
 | **Ciclo di lavoro con una sola approvazione** | Il Product Owner approva una volta sola, con il merge, dopo un riassunto; implementazione e revisione tra agenti avvengono da sole. Ruoli e passi in [AGENTS.md](../AGENTS.md), «Ciclo di lavoro». | 16 novembre 2026 |
 | **P-002 v2: finire l'app del telefono** | Ordine, contenuti, condizioni tecniche e decisioni di prodotto 1–5 in [proposte/P-002.md](proposte/P-002.md). Approvata con il merge della PR che la introduce. | 16 novembre 2026 |
+| **P-003 v1: Agenda a calendario, Motivazione, animazioni** | Ordine, contenuti e decisioni di prodotto 1–5 in [proposte/P-003.md](proposte/P-003.md); sostituisce le fasi 3 e 4 di [tre-modalita.md](../app-attivita/docs/tre-modalita.md). Approvata con il merge della PR che la introduce, con le idee di Motivazione scelte dal Product Owner. | 17 novembre 2026 |
 | **Test dell'app nel browser** | I test dell'app si eseguono in un browser reale, aprendo `app-attivita/tests/index.html`. | 13 novembre 2026 |
 
 Le decisioni prese prima di questo registro restano scritte nelle specifiche delle funzioni.
@@ -56,8 +57,11 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 |---|---|---|
 | Notifica push alla fine del focus (tre modalità, fase 2b) | [tre-modalita.md](../app-attivita/docs/tre-modalita.md) | Approvata il 10 novembre 2026 come passo a parte, dopo la prova della fase 2a sull'iPhone |
 | Apertura più leggera del foglio «Nuova attività»; rispetto di «Dimensione testo» dell'iPhone | [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Passi a parte, dopo la fase 2a» | |
-| Agenda completa (tre modalità, fase 3) | [tre-modalita.md](../app-attivita/docs/tre-modalita.md) | Oggi la scheda mostra solo «Domani» e «Prossimi giorni» |
-| Motivazione completa, con le illustrazioni (tre modalità, fase 4) | [tre-modalita.md](../app-attivita/docs/tre-modalita.md), [illustrazioni.md](../app-attivita/docs/illustrazioni.md) | Cinque illustrazioni sono da rifare |
+| Cambio di scheda con un movimento d'insieme; aurora nel focus a tutto schermo | [proposte/P-003.md](proposte/P-003.md), passo 3.1 | |
+| Agenda a calendario | [proposte/P-003.md](proposte/P-003.md), passo 3.2 | Sostituisce la fase 3 delle tre modalità. Oggi la scheda mostra solo «Domani» e «Prossimi giorni» |
+| Motivazione: livello, «La tua settimana», «I tuoi numeri» | [proposte/P-003.md](proposte/P-003.md), passo 3.3; [illustrazioni.md](../app-attivita/docs/illustrazioni.md) | Sostituisce la fase 4 delle tre modalità. Cinque illustrazioni sono da rifare |
+| «I tuoi premi» | [proposte/P-003.md](proposte/P-003.md), passo 3.4 | Schema v5 |
+| «Sfide di oggi» | [proposte/P-003.md](proposte/P-003.md), passo 3.5 | Prima del codice, la specifica dei punti in più |
 | Assistente, passo 2: voce | [assistente.md](../app-attivita/docs/assistente.md) | |
 | Assistente, passo 3: organizzare la giornata | [assistente.md](../app-attivita/docs/assistente.md) | Da specificare prima |
 | Web Share Target e scorciatoie (Android) | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
@@ -66,7 +70,6 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 | Licenza premium | [premium.md](../app-attivita/docs/premium.md) | |
 | Login facoltativo con Google e sincronizzazione | [proposte/P-002.md](proposte/P-002.md), passi 5a e 5b | 5b richiede prima una specifica testabile |
 | Aura con un volto, voce, promemoria completi | [proposte/P-002.md](proposte/P-002.md), passi 2–4 | Promemoria senza migrazione D1 (sezione 1) |
-| Agenda a calendario, Motivazione ripensata, animazioni più curate | Richieste del Product Owner del 16 novembre 2026 | Da scrivere in una P-003 |
 
 ## 4. Verifiche effettivamente eseguite
 
