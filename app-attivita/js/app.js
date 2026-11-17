@@ -5,12 +5,14 @@
  * (e il suo ripristino) sostituisce tutto lo stato, con applyState().
  * I fogli «Cosa faccio adesso?» e Focus stanno in js/ui-focus.js, che riceve da qui quello che gli serve.
  * L'assistente (striscia, campo nel foglio «Aura», foglio «Assistente») sta in js/ui-assistant.js, avviato allo stesso modo.
+ * La rotella con i fogli «Impostazioni» e «Privacy» sta in js/ui-settings.js, avviato allo stesso modo.
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, focus: F, storage, theme, reminders: RM, remote: R, motion: M, focusUI: FocusUI, assistantUI: AssistantUI } = Aura;
+  const { utils, tasks: T, nlp, points: P, focus: F, storage, theme, reminders: RM, remote: R, motion: M, settings: Settings,
+    focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -91,9 +93,6 @@
     timeLabel: byId('time-label'),
     timeClear: byId('time-clear'),
     timeHint: byId('time-hint'),
-    themeButton: byId('theme-button'),
-    themeSheet: byId('theme-sheet'),
-    themeHeading: byId('theme-sheet-title'),
     inboxNote: byId('inbox-note'),
     inboxNoteText: byId('inbox-note-text'),
     footnoteText: byId('footnote-text'),
@@ -106,6 +105,7 @@
     reminderOn: byId('reminder-on'),
     reminderTest: byId('reminder-test'),
     reminderOff: byId('reminder-off'),
+    siriTitle: byId('siri-title'),
     siriStatus: byId('siri-status'),
     siriText: byId('siri-text'),
     siriAssistantNote: byId('siri-assistant-note'),
@@ -142,7 +142,6 @@
     taskTemplate: byId('task-template')
   };
 
-  const THEME_LABELS = { auto: 'Automatico', light: 'Chiaro', dark: 'Scuro' };
   const DATED_SECTIONS = ['overdue', 'upcoming']; // nelle altre sezioni la data è già nel titolo
   const ERROR_FIELDS = ['title', 'duration', 'energy', 'date', 'time'];
   const FIELD_INPUTS = { title: els.title, duration: els.duration, date: els.dateInput, time: els.timeInput };
@@ -161,6 +160,7 @@
   const tabScroll = { focus: 0, agenda: 0, motivation: 0 }; // ogni scheda ricorda dov'era arrivato lo scorrimento
   let focusCtl = null; // fogli «Cosa faccio adesso?» e Focus (js/ui-focus.js), pronti all'avvio
   let assistantCtl = null; // striscia, foglio «Aura» e foglio «Assistente» (js/ui-assistant.js), pronti all'avvio
+  let settingsCtl = null; // rotella, foglio «Impostazioni» e foglio «Privacy» (js/ui-settings.js), pronti all'avvio
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -812,6 +812,25 @@
     target.setAttribute('autofocus', '');
   }
 
+  /**
+   * Appena aperto, un foglio riparte dall'inizio; con `heading` (il titolo di un riquadro) parte da quel riquadro.
+   * Serve alle righe di «Impostazioni», che aprono un foglio su una sua parte («Comando Rapido di Siri»).
+   */
+  function showPart(dialog, heading) {
+    const body = dialog.querySelector('.sheet__body');
+    if (!body) return;
+    const panel = heading ? heading.closest('.panel') || heading : null;
+    body.scrollTop = panel ? Math.max(0, panel.offsetTop - body.offsetTop) : 0;
+  }
+
+  /**
+   * Chiude tutti i fogli aperti, uno sopra l'altro (non il focus a tutto schermo). Serve quando l'esito è un avviso
+   * in basso, che sta sotto i fogli: «Dispositivo scollegato» con «Annulla», oppure un'attività da mostrare.
+   */
+  function closeAllSheets() {
+    document.querySelectorAll('dialog.sheet[open]:not(.sheet--focus)').forEach(dialog => closeSheet(dialog));
+  }
+
   /* ---------- Foglio "Nuova attività" (e "Modifica attività") ---------- */
 
   let editingId = null; // attività che si sta modificando; null = nuova attività. Si imposta a ogni apertura.
@@ -1111,24 +1130,6 @@
     const node = cardOf(id);
     if (!node) return;
     later(M.ms('move'), () => node.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' }));
-  }
-
-  /* ---------- Foglio "Tema" ---------- */
-
-  function syncThemeUI() {
-    const mode = theme.getMode();
-    els.themeSheet.querySelectorAll('input[name="theme"]').forEach(radio => {
-      radio.checked = radio.value === mode;
-    });
-    els.themeButton.setAttribute('aria-label', 'Tema: ' + THEME_LABELS[mode] + '. Cambia tema');
-    els.themeButton.querySelector('use').setAttribute('href', '#i-theme-' + mode);
-  }
-
-  function openThemeSheet() {
-    syncThemeUI();
-    const checked = els.themeSheet.querySelector('input[name="theme"]:checked');
-    setAutofocus(els.themeSheet, checked || els.themeHeading);
-    openSheet(els.themeSheet);
   }
 
   /* ---------- Foglio "Backup dei dati" ---------- */
@@ -1431,22 +1432,17 @@
     syncRemoteBadges();
   }
 
-  /** Puntino sulla campanella, frase in fondo alla pagina e testo di Siri: dicono se il server è in uso, e per cosa. */
+  /** Puntino sulla campanella, frase in fondo alla pagina, testo di Siri e righe di «Impostazioni»: dicono se il server è in uso, e per cosa. */
   function syncRemoteBadges() {
     const assistantOn = Boolean(assistantCtl && assistantCtl.isActive());
     els.remoteButton.classList.toggle('has-dot', remote.reminders.enabled);
     els.remoteButton.setAttribute('aria-label', remote.reminders.enabled ? 'Promemoria e Siri: promemoria attivi' : 'Promemoria e Siri');
-    if (assistantOn) {
-      els.footnoteText.textContent = 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria, frasi di Siri e messaggi all\'assistente.';
-    } else {
-      els.footnoteText.textContent = remote.code
-        ? 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri.'
-        : 'I dati restano solo su questo dispositivo.';
-    }
+    els.footnoteText.textContent = Settings.privacyLine({ connected: Boolean(remote.code), assistantOn });
     els.siriText.textContent = assistantOn
       ? 'Di\' "Ehi Siri, Aura" e detta l\'impegno: quando apri Aura, l\'assistente lo sistema secondo i suoi permessi.'
       : 'Di\' "Ehi Siri, Aura" e detta l\'impegno: quando apri Aura lo trovi già compilato, da confermare.';
     els.siriAssistantNote.hidden = !assistantOn;
+    if (settingsCtl) settingsCtl.sync(); // le righe di «Impostazioni» dicono lo stato di adesso
   }
 
   function setMessage(area, text, tone) {
@@ -1454,13 +1450,16 @@
     syncRemoteUI();
   }
 
-  function openRemoteSheet() {
+  /** Con `part` = 'siri' (dalla riga di «Impostazioni») il foglio parte dal riquadro del Comando Rapido. */
+  function openRemoteSheet(part) {
+    const heading = part === 'siri' ? els.siriTitle : null;
     messages.reminders = null;
     messages.siri = null;
     codeVisible = false;
     syncRemoteUI();
-    setAutofocus(els.remoteSheet, els.remoteHeading);
+    setAutofocus(els.remoteSheet, heading || els.remoteHeading);
     openSheet(els.remoteSheet);
+    showPart(els.remoteSheet, heading);
     preparePush();
   }
 
@@ -1687,7 +1686,7 @@
       setMessage('siri', result.message);
       return;
     }
-    closeSheet(els.remoteSheet);
+    closeAllSheets(); // anche «Impostazioni», se il foglio è stato aperto da lì: l'avviso con «Annulla» sta sotto i fogli
   }
 
   /** "Annulla" dopo "Scollega": torna lo stesso codice, così il Comando Rapido continua a funzionare; e l'assistente com'era. */
@@ -1784,6 +1783,7 @@
    */
   function onSheetClosed(dialog) {
     if (assistantCtl) assistantCtl.sheetClosed(dialog);
+    if (settingsCtl) settingsCtl.sync(); // tornando a «Impostazioni» da un altro foglio, le righe sono aggiornate
     if (dialog === els.addSheet && focusAfterEdit) {
       const card = cardOf(focusAfterEdit);
       const button = card && card.querySelector('.task__edit');
@@ -2046,13 +2046,7 @@
     if (event.target.closest('button')) phraseBase = null;
   });
 
-  els.themeButton.addEventListener('click', openThemeSheet);
-  els.themeSheet.addEventListener('change', event => {
-    if (event.target.name === 'theme') theme.setMode(event.target.value);
-  });
-  theme.onChange(syncThemeUI);
-
-  els.remoteButton.addEventListener('click', openRemoteSheet);
+  els.remoteButton.addEventListener('click', () => openRemoteSheet());
   els.reminderOn.addEventListener('click', onEnableReminders);
   els.reminderOff.addEventListener('click', onDisableReminders);
   els.reminderTest.addEventListener('click', onTestPush);
@@ -2108,7 +2102,7 @@
     toastTimer = setTimeout(hideToast, 2000);
   });
 
-  [els.addSheet, els.themeSheet, els.remoteSheet, els.backupSheet].forEach(sheet => setupSheet(sheet)); // gli altri in ui-focus.js e ui-assistant.js
+  [els.addSheet, els.remoteSheet, els.backupSheet].forEach(sheet => setupSheet(sheet)); // gli altri in ui-focus.js, ui-assistant.js e ui-settings.js
 
   // Tornando nell'app (o dopo mezzanotte) "Oggi" e "In ritardo" devono essere giusti.
   // E si guarda se Siri ha lasciato frasi nella casella (solo con un dispositivo collegato).
@@ -2156,6 +2150,21 @@
     render();
   }
 
+  /** Lo stato di adesso per le righe di «Impostazioni» (le frasi le scrive Aura.settings.describe). */
+  function settingsInfo() {
+    const support = R.pushSupport();
+    return {
+      availability: R.availability(),
+      theme: theme.getMode(),
+      assistant: prefs.assistant,
+      logCount: assistantCtl ? assistantCtl.logCount() : 0,
+      reminders: remote.reminders,
+      push: support.ok ? null : support.reason,
+      connected: Boolean(remote.code),
+      dataLabel: dataLabel(state)
+    };
+  }
+
   // I fogli «Cosa faccio adesso?»/«Aura», Focus e «Assistente» si preparano prima del primo disegno: la striscia la
   // scrive js/ui-assistant.js. Nessuna richiesta di rete qui: la proposta dell'IA parte dopo il caricamento.
   focusCtl = FocusUI.init({
@@ -2185,6 +2194,8 @@
     closeSheet,
     setupSheet,
     setAutofocus,
+    showPart,
+    closeAllSheets,
     getPrefs: () => prefs,
     setPrefs,
     getRemote: () => remote,
@@ -2192,10 +2203,23 @@
     withDevice,
     disconnect: disconnectDevice
   });
+  // La rotella e i fogli «Impostazioni» e «Privacy»: un indice che apre i fogli qui sopra.
+  settingsCtl = SettingsUI.init({
+    getInfo: settingsInfo,
+    openSheet,
+    closeSheet,
+    setupSheet,
+    setAutofocus,
+    showPart,
+    closeAllSheets,
+    openAssistant: part => assistantCtl.openSheet(part),
+    openRemote: openRemoteSheet,
+    openBackup: openBackupSheet,
+    disconnect: disconnectDevice
+  });
 
   syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti
   render();
-  syncThemeUI();
   measureHero();
   registerServiceWorker();
   // All'apertura la fiamma accesa fa qualche guizzo, poi si ferma (niente animazioni infinite).

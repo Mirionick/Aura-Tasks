@@ -574,12 +574,15 @@
 
   /* ---------- Foglio «Assistente» ---------- */
 
-  function openAssistantSheet() {
+  /** Con `part` = 'log' (dalla riga di «Impostazioni») il foglio parte da «Cosa ha fatto l'assistente». */
+  function openAssistantSheet(part) {
+    const heading = part === 'log' ? els.logTitle : null;
     els.sheetStatus.hidden = true;
     syncAssistantSheet();
     renderLog();
-    ctx.setAutofocus(els.assistantSheet, els.assistantHeading);
+    ctx.setAutofocus(els.assistantSheet, heading || els.assistantHeading);
     ctx.openSheet(els.assistantSheet);
+    ctx.showPart(els.assistantSheet, heading);
   }
 
   function syncAssistantSheet() {
@@ -628,8 +631,7 @@
           show.className = 'btn btn--soft btn--small';
           show.textContent = 'Mostra';
           show.addEventListener('click', () => {
-            ctx.closeSheet(els.assistantSheet);
-            ctx.closeSheet(els.sheet);
+            ctx.closeAllSheets(); // anche «Aura» o «Impostazioni», se questo foglio è stato aperto da lì
             ctx.showTask(entry.taskId);
           });
           actions.appendChild(show);
@@ -675,9 +677,9 @@
     const result = await ctx.disconnect();
     els.disconnect.disabled = false;
     if (result && result.ok) {
-      // Si chiudono tutti e due i fogli: l'avviso «Dispositivo scollegato» con «Annulla» sta sotto i fogli aperti.
-      ctx.closeSheet(els.assistantSheet);
-      ctx.closeSheet(els.sheet);
+      // Si chiudono tutti i fogli (anche «Aura» o «Impostazioni», da cui si arriva qui): l'avviso «Dispositivo
+      // scollegato» con «Annulla» sta sotto i fogli aperti.
+      ctx.closeAllSheets();
     }
     els.sheetStatus.hidden = !(result && !result.ok && result.message);
     els.sheetStatus.textContent = result && !result.ok && result.message ? result.message : '';
@@ -697,7 +699,7 @@
       'consentOn:assist-consent-on', 'consentLater:assist-consent-later', 'status:assist-status', 'form:assist-form',
       'input:assist-input', 'send:assist-send',
       'assistantSheet:assistant-sheet', 'assistantHeading:assistant-sheet-title', 'enabled:assistant-enabled',
-      'state:assistant-state', 'autoAdd:assistant-auto-add', 'autoEdit:assistant-auto-edit', 'log:assistant-log',
+      'state:assistant-state', 'autoAdd:assistant-auto-add', 'autoEdit:assistant-auto-edit', 'log:assistant-log', 'logTitle:assistant-log-title',
       'logEmpty:assistant-log-empty', 'left:assistant-left', 'disconnect:assistant-disconnect', 'disconnectNote:assistant-disconnect-note',
       'sheetStatus:assistant-status'
     ].forEach(pair => {
@@ -718,7 +720,7 @@
     els.input.addEventListener('focus', () => { if (!isActive()) showConsent(); });
     els.consentOn.addEventListener('click', onConsentOn);
     els.consentLater.addEventListener('click', onConsentLater);
-    els.settings.addEventListener('click', openAssistantSheet);
+    els.settings.addEventListener('click', () => openAssistantSheet());
     els.enabled.addEventListener('change', onEnabledChange);
     els.autoAdd.addEventListener('change', () => setAssistantPrefs({ autoAdd: els.autoAdd.checked }));
     els.autoEdit.addEventListener('change', () => setAssistantPrefs({ autoEdit: els.autoEdit.checked }));
@@ -751,6 +753,10 @@
       handleSiri,
       forget,
       isActive,
+      /** Il foglio «Assistente», anche da «Impostazioni»: dall'inizio, oppure da «Cosa ha fatto l'assistente» ('log'). */
+      openSheet: openAssistantSheet,
+      /** Quante righe ha adesso l'elenco «Cosa ha fatto l'assistente». */
+      logCount: () => A.pruneLog(store.log, Date.now()).length,
       /** Il foglio «Aura» si è chiuso: la striscia segue l'ultima scelta di tempo ed energia. */
       sheetClosed(dialog) {
         if (dialog === els.sheet) {
