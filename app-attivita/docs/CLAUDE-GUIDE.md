@@ -29,12 +29,13 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - **Assistente «Aura»** (facoltativo, con l'IA del server di Aura): le scrivi una frase («domani devo chiamare il medico», «ho 40 minuti e sono cotto») e lei propone, aggiunge o sposta secondo i permessi che scegli. Completare ed eliminare restano sempre un tuo tocco. Spento, senza internet o a quota finita, tutto funziona come prima.
 - **Focus a tutto schermo**: un timer sull'attività scelta, con pausa, +5 min e un suono alla fine. I **minuti di focus** finiscono nel registro.
 - **Gestione**: aggiungere, **modificare** (tocco sulla card), completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
-- **Backup dei dati**: esportare e importare un file JSON con attività, punti, serie e minuti di focus (link "Backup dei dati" in fondo a Motivazione).
+- **Backup dei dati**: esportare e importare un file JSON con attività, punti, serie e minuti di focus (link "Backup dei dati" in fondo a Motivazione, e riga nelle Impostazioni).
 - **Scrivere una frase**, che compila il modulo da sola ("domani alle 10 dentista 30 min").
 - **Aprire il link `…/?add=testo`**, che apre il modulo già compilato (vedi [docs/linguaggio-naturale.md](linguaggio-naturale.md)).
 - **Liste** divise per giorno, con le attività in ordine d'ora. In quelle di oggi l'ora già passata è in rosso.
 - **Riepilogo** nell'intestazione di Focus, compatta: "Da fare", "Tempo" e "Fatte oggi" in una riga, serie e punti in due chip.
-- **Tema** Automatico/Chiaro/Scuro e **uso offline**.
+- **Impostazioni**: la rotella nell'intestazione, in tutte le schede, apre un indice. Ogni riga dice lo stato di adesso e apre il foglio della sua funzione; il **tema** Automatico/Chiaro/Scuro si sceglie nella riga. Il foglio **Privacy** dice in un posto solo che cosa resta sul telefono e che cosa va al server, e «Scollega questo dispositivo» ha il suo «Annulla» (vedi [docs/impostazioni.md](impostazioni.md)).
+- **Uso offline**.
 - **Punti e serie**: ogni attività completata dà punti. I giorni di fila con almeno un completamento formano la **serie** 🔥, con record e traguardi festeggiati (vedi [docs/punti-e-serie.md](punti-e-serie.md)).
 - **Promemoria push** (facoltativi): un avviso prima delle attività con giorno e ora, anche ad app chiusa. L'anticipo si sceglie.
 - **Casella di Siri**: "Ehi Siri, Aura" e si detta l'impegno; aprendo Aura il foglio è già compilato (con l'assistente acceso, la frase passa da lui). Promemoria, casella e assistente usano il server di Aura.
@@ -98,7 +99,7 @@ Dopo il merge il telefono scarica la nuova versione alla prima apertura con inte
 
 | File | Ruolo |
 |---|---|
-| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, l'intestazione, le tre schede (`<section class="tab">`) con la barra (`<nav class="tabbar">`), i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; "Tema"; "Promemoria e Siri"; "Backup dei dati"; «Cosa faccio adesso?», che con l'assistente acceso si chiama «Aura»; «Assistente»; Focus a tutto schermo) e il `<template>` della card |
+| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, l'intestazione, le tre schede (`<section class="tab">`) con la barra (`<nav class="tabbar">`), i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; «Impostazioni»; «Privacy»; "Promemoria e Siri"; "Backup dei dati"; «Cosa faccio adesso?», che con l'assistente acceso si chiama «Aura»; «Assistente»; Focus a tutto schermo) e il `<template>` della card |
 | `css/style.css` | Design system: token (variabili) per i due temi, componenti, animazioni |
 | `js/theme.js` | Tema Automatico/Chiaro/Scuro. Caricato nel `<head>` **senza `defer`** per applicare il tema prima del primo disegno (niente lampi) |
 | `js/utils.js` | Date e orari locali, formattazione in italiano, saluto, id univoci |
@@ -111,24 +112,26 @@ Dopo il merge il telefono scarica la nuova versione alla prima apertura con inte
 | `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione. Preferenze (`aura-tasks:prefs`), focus in corso (`aura-tasks:focus`) e dati dell'assistente (`aura-tasks:assistant`) |
 | `js/reminders.js` | Logica pura dei promemoria: dalle attività con giorno e ora all'elenco per il server (`at`, `fireAt`), anticipi, impronta dell'elenco |
 | `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste (anche quelle dell'assistente: `api.transcribe`, `api.chat`), codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
+| `js/settings.js` | Logica pura delle Impostazioni: che cosa dice ogni riga del foglio con i dati di adesso (`describe`), la frase su dove stanno i dati, intera e breve (`privacyLine`, `privacyShort`), i tre temi con nome e descrizione (`THEMES`) |
 | `js/motion.js` | Movimento: durate e curve lette dai token di `style.css`, tecnica FLIP (`snapshot()` prima di `render()`, `play()` dopo), fantasmi degli elementi tolti, entrata di una scheda (`slideIn()`), `flash()`. Tocca la pagina solo per le animazioni; `planFlip()` è pura e testata |
 | `js/ui-focus.js` | Interfaccia dei fogli «Cosa faccio adesso?» e Focus a tutto schermo: proposta, timer, suono di fine (Web Audio), schermo acceso (wake lock), sfondo che respira. Tocca la pagina come `app.js`, che gli passa ciò che serve con `Aura.focusUI.init()`. `openSuggest({ taskId, reason })` apre il foglio sull'attività scritta nella striscia |
 | `js/ui-assistant.js` | Interfaccia dell'assistente: la striscia in cima a Focus (proposta delle regole o dell'IA), il campo «Scrivi ad Aura…» con le righe delle azioni nel foglio «Aura», il consenso, il foglio «Assistente» (interruttori, elenco «Cosa ha fatto l'assistente», privacy, «Scollega»), la proposta all'apertura e le frasi di Siri. Avviato da `app.js` con `Aura.assistantUI.init()`, dopo `ui-focus.js` |
-| `js/app.js` | Interfaccia: schede e barra, disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Tocca la pagina insieme a `ui-focus.js`, a `ui-assistant.js` e, per le animazioni, a `motion.js` |
+| `js/ui-settings.js` | Interfaccia della rotella e dei fogli «Impostazioni» e «Privacy»: le righe con lo stato di adesso (le frasi le scrive `settings.js`), il tema scelto nella riga, le copie dei testi sulla privacy, «Scollega questo dispositivo». Le righe aprono, sopra, i fogli che ci sono già. Avviato da `app.js` con `Aura.settingsUI.init()`, dopo `ui-assistant.js` |
+| `js/app.js` | Interfaccia: schede e barra, disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Tocca la pagina insieme a `ui-focus.js`, a `ui-assistant.js`, a `ui-settings.js` e, per le animazioni, a `motion.js` |
 | `sw.js` | Service worker: uso offline, notifiche dei promemoria (`push`) e tocco sulla notifica (`notificationclick`) |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
 | `images/` | Illustrazioni in WebP, ottimizzate dagli originali che restano fuori dal repository (vedi [docs/illustrazioni.md](illustrazioni.md)). Per ora `suggest-none.webp` ed `empty-focus.webp` |
 | `prove/` | Pagine **provvisorie** di prova, fuori da `APP_FILES`. Per ora `voce.html` (con `voce.css` e `voce.js`): prova tecnica di microfono, trascrizione e voce del telefono per l'assistente. Si apre dal link in fondo a Motivazione e sparisce con il passo 2 di [docs/assistente.md](assistente.md) |
-| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`, `assistant.test.js`): si aprono con `tests/index.html` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`, `assistant.test.js`, `settings.test.js`): si aprono con `tests/index.html` |
 | `docs/` | Le specifiche delle funzioni, una per file (vedi "Indice delle specifiche"), e questa guida (`docs/CLAUDE-GUIDE.md`) |
 | `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](promemoria-e-siri.md) e `server/README.md` |
 | `../AGENTS.md`, `../docs/`, `../.github/` | Per tutti gli agenti: regole condivise (`AGENTS.md`), stato del lavoro, decisioni e proposte (`docs/` alla radice), modello delle Pull Request (`.github/`) |
 | `CLAUDE.md`, `../CLAUDE.md`, `../server/CLAUDE.md`, `../.claude/`, `../CLAUDE-WORKFLOW.md` | Istruzioni per Claude Code: istruzioni di lavoro e vincoli sempre attivi (`CLAUDE.md`), richiami per area (`.claude/rules/`), procedure a richiesta (`.claude/skills/`), permessi (`.claude/settings.json`) e flusso di lavoro con Claude Project |
 
-**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `focus.js` → `suggest.js` → `assistant.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `ui-focus.js` → `ui-assistant.js` → `app.js`.
-- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.focus`, `Aura.suggest`, `Aura.assistant`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`, `Aura.focusUI`, `Aura.assistantUI`).
-- `points.js`, `focus.js`, `suggest.js` e `assistant.js` vanno prima di `storage.js`, che li usa per la migrazione e per pulire registro, sessione, preferenze e dati dell'assistente. `assistant.js` va dopo `nlp.js` e `suggest.js`, che usa. `reminders.js` va prima di `remote.js`, che ne usa gli anticipi. `ui-focus.js` e `ui-assistant.js` vanno prima di `app.js`, che li avvia in quest'ordine.
+**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `focus.js` → `suggest.js` → `assistant.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `settings.js` → `ui-focus.js` → `ui-assistant.js` → `ui-settings.js` → `app.js`.
+- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.focus`, `Aura.suggest`, `Aura.assistant`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`, `Aura.settings`, `Aura.focusUI`, `Aura.assistantUI`, `Aura.settingsUI`).
+- `points.js`, `focus.js`, `suggest.js` e `assistant.js` vanno prima di `storage.js`, che li usa per la migrazione e per pulire registro, sessione, preferenze e dati dell'assistente. `assistant.js` va dopo `nlp.js` e `suggest.js`, che usa. `reminders.js` va prima di `remote.js` e di `settings.js`, che ne usano gli anticipi. `ui-focus.js`, `ui-assistant.js` e `ui-settings.js` vanno prima di `app.js`, che li avvia in quest'ordine.
 
 Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 1. in `index.html`, con `defer`, prima di `app.js`;
@@ -278,7 +281,7 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - animazioni brevi, disattivate con `prefers-reduced-motion`, e **mai infinite** perché consumano batteria (vedi "Movimento"). Unica eccezione: lo sfondo del focus a tutto schermo.
 - **Movimento** (`js/motion.js`, token in `:root`):
   - durate e curve solo dai token `--dur-*` e `--ease-*`, anche come multipli con `calc()`. Il JavaScript li legge con `Aura.motion.ms('move')` e `Aura.motion.ease('out')`, timer di riserva compresi: nessuna durata scritta a mano;
-  - movimenti, keyframes ed elementi grandi (card, fogli, intestazione, pagina) si animano **solo con `transform` e `opacity`**. I piccoli controlli (pulsanti, chip, campi, spunta, interruttori, titolo barrato, opzioni del tema, fiamma) possono sfumare i colori, con `--dur-color` (al massimo 200 ms);
+  - movimenti, keyframes ed elementi grandi (card, fogli, intestazione, pagina) si animano **solo con `transform` e `opacity`**. I piccoli controlli (pulsanti, chip, campi, spunta, interruttori, titolo barrato, opzioni del tema, righe delle Impostazioni, fiamma) possono sfumare i colori, con `--dur-color` (al massimo 200 ms);
   - un'ombra o un bagliore che cambia è un livello (`::before`/`::after`) con l'ombra già disegnata, che sfuma con `opacity`. Su un contenitore flex o griglia il livello è `position: absolute` (con il genitore `relative`) e `pointer-events: none`, altrimenti diventa un elemento della riga o della griglia e ruba i tocchi;
   - niente `backdrop-filter`: su iPhone pesa;
   - **FLIP**: gli elementi con `data-flip` (sezioni `section:<chiave>`, card `task:<id>`, blocco `completed-body` e gli altri elementi fissi della lista) scivolano al loro posto. `commit()` chiama `Aura.motion.snapshot()` prima di `render()` e `play()` dopo; i disegni che non nascono da un gesto (avvio, ritorno nell'app, mezzanotte, importazione) non si animano;
@@ -294,7 +297,8 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
 - **Fogli `<dialog>`**: aprili e chiudili con `openSheet()` e `closeSheet()` di `app.js`, che gestiscono animazione, blocco dello scorrimento e chiusura con Esc, "indietro" o tocco sullo sfondo. Non contare sull'evento `close` per pulizie indispensabili.
   - `setupSheet(dialog, { onCancel, backdropClose })`: il focus a tutto schermo non si chiude toccando fuori, e per lui Esc e "indietro" valgono «Esci».
   - **Il blocco dello scorrimento (`html.is-locked`) su iPhone può non bastare**: nella prova del 16 novembre 2026, con il focus aperto, sul bordo si vedeva muoversi la barra di scorrimento. Il foglio non aveva niente da scorrere, quindi scorreva la pagina dietro: è una deduzione, sull'iPhone non si è potuto misurare. Il focus a tutto schermo si difende da solo: quando il contenuto ci sta, `.is-static` toglie lo scorrimento con il dito (`touch-action`, vedi [docs/tre-modalita.md](tre-modalita.md), «Schermata ferma»). Gli altri fogli non sono stati controllati.
-  - Dentro un foglio aperto gli avvisi in basso non si vedono, e il loro «Annulla» non si può toccare: un `<dialog>` modale sta sopra tutta la pagina. Un'azione che ne ha bisogno, come «Fatto» o «Completa», prima chiude il foglio. Un'azione che lascia il foglio aperto mostra l'esito **dentro** il foglio: le azioni automatiche dell'assistente sono righe con il loro «Annulla».
+  - Un foglio si può aprire sopra a un altro: le righe di «Impostazioni» aprono così i fogli che ci sono già. Chiudendolo si torna a quello sotto, con il fuoco sulla riga toccata. `showPart(dialog, titolo)` fa partire un foglio appena aperto da un suo riquadro («Comando Rapido di Siri», «Cosa ha fatto l'assistente»).
+  - Dentro un foglio aperto gli avvisi in basso non si vedono, e il loro «Annulla» non si può toccare: un `<dialog>` modale sta sopra tutta la pagina. Un'azione che ne ha bisogno, come «Fatto» o «Completa», prima chiude il foglio; se i fogli aperti possono essere più di uno, li chiude tutti con `closeAllSheets()` (non il focus a tutto schermo), come «Scollega questo dispositivo» e «Mostra» dell'elenco dell'assistente. Un'azione che lascia il foglio aperto mostra l'esito **dentro** il foglio: le azioni automatiche dell'assistente sono righe con il loro «Annulla».
 - **Service worker**: quando aggiungi, rinomini o togli un file dell'app, aggiorna `APP_FILES` in `sw.js` e aumenta `CACHE_VERSION`.
   - Con la rete lenta o assente `index.html` fa da riserva **solo per la pagina dell'app** (`isAppPage()` in `sw.js`). Le altre pagine, come `prove/voce.html`, stanno fuori da `APP_FILES`: si salvano in cache alla prima apertura, e prima di allora senza rete il browser mostra il suo errore.
 - **Premium**: vedi "Regola fondamentale" nella sezione "Funzioni premium".
@@ -395,6 +399,11 @@ Note per i controlli automatici con Edge headless:
   - il foglio ha due riquadri (`.panel`);
   - lo stato (`.status`) è sempre un puntino più il testo, con i colori già verificati dell'energia: verde acqua = attivi, ambra = attenzione;
   - dentro un foglio aperto i messaggi vanno nelle righe di stato, non negli avvisi in basso, che resterebbero sotto lo sfondo scuro del foglio.
+- **Impostazioni**:
+  - la rotella sta nella riga dei pulsanti dell'intestazione, accanto alla campanella, quindi l'intestazione non cresce (188 px in Focus a 390×664, prima e dopo);
+  - il foglio è un indice a gruppi (`.settings`): ogni riga (`.setting`) ha icona, nome, stato di adesso e freccia, ed è alta almeno 60 px. Lo stato è verde (`--low`) quando la funzione è in uso;
+  - il tema si sceglie nella sua riga, con tre anteprime affiancate (`.theme-option`); la scelta di adesso ha un bollino con la spunta;
+  - senza il server (file aperto dal computer) le righe dell'assistente sono spente ma leggibili, e lo stato dice perché.
 - Font di sistema. Le icone SVG stanno nello sprite di `index.html` (`<use href="#i-…">`) e il tratto usa `currentColor`.
 - **Icone dell'app**:
   - le PNG derivano da `icons/icon.svg`;
@@ -417,6 +426,7 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 | [docs/tre-modalita.md](tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fasi 1 e 2a fatte, da provare sull'iPhone |
 | [docs/illustrazioni.md](illustrazioni.md) | Illustrazioni: flusso, revisione, elenco e prompt per Nano Banana | in corso: 2 nell'app (una da sostituire), 5 da rifare |
 | [docs/assistente.md](assistente.md) | Assistente con l'IA: scrivere o parlare ad Aura, permessi, memoria breve, frasi di Siri, server e limiti | in corso: passi 0 (prova tecnica) e 1 (assistente scritto) pubblicati, da provare sull'iPhone |
+| [docs/impostazioni.md](impostazioni.md) | Rotella e foglio «Impostazioni»: indice con lo stato di ogni funzione, tema nella riga, foglio «Privacy», «Scollega questo dispositivo» con «Annulla» | realizzata, da provare sull'iPhone |
 | [docs/funzioni-future.md](funzioni-future.md) | Web Share Target e scorciatoie (Android), promemoria `.ics`, altre idee | da fare |
 | [docs/premium.md](premium.md) | Licenza premium: verifica offline, interfaccia e dati | da fare |
 
@@ -464,6 +474,7 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 | Frase del giorno | da decidere |
 | Illustrazioni | da decidere |
 | Assistente con l'IA (scrivere e parlare ad Aura) | da decidere |
+| Impostazioni: indice, tema nella riga, foglio «Privacy», «Scollega questo dispositivo» | gratuita |
 
 Le funzioni di oggi restano gratuite anche dove cambiano posto (vedi [docs/tre-modalita.md](tre-modalita.md)).
 

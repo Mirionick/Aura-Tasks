@@ -311,6 +311,91 @@
     assertEqual(kinds(add('18:00').auto), ['add'], 'stessa ora per tutti e due: nessun freno');
   });
 
+  test('assistente: se il modello e le regole leggono un giorno diverso, la domanda propone quello delle regole', () => {
+    const ALL = { autoAdd: true, autoEdit: true };
+    const SATURDAY = '2026-11-14';
+    const SUNDAY = '2026-11-15';
+    // Un'aggiunta. «Sabato dentista»: il modello scrive domenica, le regole leggono sabato. L'app chiede, e propone sabato.
+    const add = (date, message, perms) => {
+      const result = plan([], [{ type: 'add', title: 'Dentista', duration: 30, energy: 'medium', date, time: null }], { message, perms });
+      const entry = result.auto[0] || result.ask[0];
+      return [result.auto.length, kinds(result.ask), entry.value.date];
+    };
+    assertEqual(add(SUNDAY, 'sabato dentista'), [0, ['add:words'], SATURDAY]);
+    assertEqual(add(SUNDAY, 'sabato dentista', ALL), [0, ['add:words'], SATURDAY], 'resta una domanda con ogni permesso');
+    assertEqual(add(null, 'domani dentista'), [0, ['add:words'], TOMORROW], 'il modello non ha letto il giorno: vale quello delle regole');
+    assertEqual(add(SATURDAY, 'sabato dentista'), [1, [], SATURDAY], 'stesso giorno per tutti e due: nessun freno');
+    assertEqual(A.askText(plan([], [{ type: 'add', title: 'Dentista', duration: 30, energy: 'medium', date: SUNDAY, time: null }], { message: 'sabato dentista' }).ask[0], TODAY),
+      'Aggiungo «Dentista» · sab 14 nov?');
+    // Le regole non leggono nessun giorno («la settimana prossima»): resta quello del modello, sempre come domanda.
+    assertEqual(add('2026-11-19', 'la settimana prossima dentista', ALL), [0, ['add:words'], '2026-11-19']);
+
+    // Una modifica: stessa regola. L'ora dell'attività non si tocca.
+    const tasks = day();
+    const move = (id, date, message, perms) => {
+      const result = plan(tasks, [{ type: 'update', task: refFor(tasks, id), date }], { message, perms });
+      const entry = result.auto[0] || result.ask[0];
+      return [result.auto.length, kinds(result.ask), entry.taskId, entry.value.date, entry.value.time];
+    };
+    assertEqual(move('pal', SUNDAY, 'sposta la palestra a sabato'), [0, ['update:words'], 'pal', SATURDAY, '18:00']);
+    assertEqual(move('pal', SUNDAY, 'sposta la palestra a sabato', ALL), [0, ['update:words'], 'pal', SATURDAY, '18:00'], 'resta una domanda con ogni permesso');
+    assertEqual(move('pal', SATURDAY, 'sposta la palestra a sabato', ALL), [1, [], 'pal', SATURDAY, '18:00'], 'stesso giorno per tutti e due: nessun freno');
+    assertEqual(move('mec', TOMORROW, 'sposta il meccanico a sabato'), [0, ['update:words'], 'mec', SATURDAY, '08:30'], 'il modello lascia il giorno che c\'è: vale quello delle regole');
+    assertEqual(move('pal', '2026-11-19', 'sposta la palestra alla settimana prossima', ALL), [0, ['update:words'], 'pal', '2026-11-19', '18:00'], 'nessun giorno letto dalle regole: resta quello del modello');
+    // Togliere il giorno non è un giorno letto in un altro modo: la domanda resta quella del modello.
+    const removal = plan(tasks, [{ type: 'update', task: refFor(tasks, 'pal'), date: null }], { message: 'domani togli il giorno alla palestra', perms: ALL });
+    assertEqual([removal.auto.length, kinds(removal.ask), removal.ask[0].value.date, A.askText(removal.ask[0], TODAY)], [0, ['update:words'], null, 'Tolgo il giorno a «Palestra»?']);
+    // Una correzione sull'attività appena aggiunta sarebbe automatica: con due giorni diversi no.
+    const withDoctor = day().concat(medico());
+    const memory = afterAdd(withDoctor[6], 'domani devo chiamare il medico');
+    const fixed = plan(withDoctor, [{ type: 'update', task: refFor(withDoctor, 'med'), date: SUNDAY }], { message: 'no, facciamo sabato', memory });
+    assertEqual([fixed.auto.length, kinds(fixed.ask), fixed.ask[0].taskId, fixed.ask[0].value.date], [0, ['update:words'], 'med', SATURDAY]);
+  });
+
+  test('assistente: se le regole leggono l\'ora o il giorno che l\'attività ha già, la domanda propone il valore del modello', () => {
+    const ALL = { autoAdd: true, autoEdit: true };
+    const tasks = day().concat(make({ id: 'cen', title: 'Cena con Anna', duration: 90, date: TODAY, time: '21:00' }));
+    /** Il modello mette `change` sull'attività `id`: restituisce [automatiche, domande, attività, giorno, ora, frase della domanda]. */
+    const asked = (id, change, message, perms) => {
+      const result = plan(tasks, [{ type: 'update', task: refFor(tasks, id), ...change }], { message, perms });
+      const entry = result.ask[0];
+      return [result.auto.length, kinds(result.ask), entry.taskId, entry.value.date, entry.value.time, A.askText(entry, TODAY)];
+    };
+    // «Sposta la riunione dalle 9 alle 5»: le regole leggono la prima ora, le 9:00, che la riunione ha già.
+    // Prima Aura rispondeva «è già così»; adesso chiede, con l'ora del modello.
+    assertEqual(asked('riu', { time: '17:00' }, 'sposta la riunione dalle 9 alle 5'),
+      [0, ['update:words'], 'riu', TODAY, '17:00', 'Sposto «Riunione di lavoro» a oggi alle 17:00?']);
+    assertEqual(asked('riu', { time: '17:00' }, 'sposta la riunione dalle 9 alle 5', ALL).slice(0, 2), [0, ['update:words']], 'mai automatica, con nessun permesso');
+    assertEqual(asked('riu', { time: '10:00' }, 'sposta la riunione dalle 9 alle 10', ALL).slice(0, 5), [0, ['update:words'], 'riu', TODAY, '10:00'], 'un\'ora dopo');
+    // Mattina e pomeriggio. «Dalle 6» per le regole sono le 18:00, l'ora della palestra.
+    assertEqual(asked('pal', { time: '19:00' }, 'sposta la palestra dalle 6 alle 7', ALL).slice(0, 5), [0, ['update:words'], 'pal', TODAY, '19:00']);
+    // «Dalle 9» per le regole sono le 9:00, ma la cena è alle 21:00: la frase dice la stessa ora, nell'altra metà del giorno.
+    assertEqual(asked('cen', { time: '22:00' }, 'sposta la cena dalle 9 alle 10', ALL).slice(0, 5), [0, ['update:words'], 'cen', TODAY, '22:00']);
+    // Il modello scrive l'ora nuova di mattina (05:00): la domanda mostra la sua proposta così com'è, e per questo chiede.
+    assertEqual(asked('riu', { time: '05:00' }, 'sposta la riunione dalle 9 alle 5', ALL).slice(0, 5), [0, ['update:words'], 'riu', TODAY, '05:00']);
+    // Se l'ora letta dalle regole NON è quella dell'attività, vale ancora quella delle regole.
+    assertEqual(asked('riu', { time: '15:00' }, 'sposta la riunione alle 5', ALL).slice(0, 5), [0, ['update:words'], 'riu', TODAY, '17:00']);
+    assertEqual(asked('cen', { time: '22:00' }, 'sposta la cena dalle 17 alle 10', ALL).slice(0, 5), [0, ['update:words'], 'cen', TODAY, '17:00'], '«dalle 17» non sono le 21:00 della cena');
+    // La stessa ora letta in due modi resta «è già così», come prima («facciamo alle 6», palestra già alle 18:00).
+    const already = plan(tasks, [{ type: 'update', task: refFor(tasks, 'pal'), time: '06:00' }], { message: 'facciamo la palestra alle 6', perms: ALL });
+    assertEqual([already.auto, already.ask, already.say], [[], [], '«Palestra» è già così.']);
+
+    // Giorni uguali. «Sposta quella di domani a lunedì»: le regole leggono «domani», il giorno che il meccanico ha già.
+    assertEqual(asked('mec', { date: '2026-11-16' }, 'sposta quella di domani a lunedì'),
+      [0, ['update:words'], 'mec', '2026-11-16', '08:30', 'Sposto «Portare la macchina dal meccanico» a lun 16 nov alle 08:30?']);
+    assertEqual(asked('mec', { date: '2026-11-16' }, 'sposta quella di domani a lunedì', ALL).slice(0, 2), [0, ['update:words']], 'mai automatica, con nessun permesso');
+    assertEqual(asked('riu', { date: '2026-11-16' }, 'sposta la riunione da oggi a lunedì', ALL).slice(0, 4), [0, ['update:words'], 'riu', '2026-11-16']);
+    // «Quella di martedì» per le regole è martedì prossimo (17/11); la bolletta è di martedì scorso (10/11): è lo stesso giorno detto.
+    assertEqual(asked('bol', { date: TOMORROW }, 'sposta quella di martedì a venerdì', ALL).slice(0, 4), [0, ['update:words'], 'bol', TOMORROW]);
+    // I minuti che le regole non leggono: «dalle 8 e mezza» per le regole sono le 8:00, ma è l'ora del meccanico (8:30).
+    assertEqual(asked('mec', { time: '10:00' }, 'sposta il meccanico dalle 8 e mezza alle 10', ALL).slice(0, 5), [0, ['update:words'], 'mec', TOMORROW, '10:00']);
+    // Giorno e ora insieme: «domani» e «alle 8 e mezza» sono già quelli del meccanico, vale il modello per tutti e due.
+    assertEqual(asked('mec', { date: '2026-11-16', time: '10:00' }, 'sposta quella di domani alle 8 e mezza a lunedì alle 10', ALL).slice(0, 5), [0, ['update:words'], 'mec', '2026-11-16', '10:00']);
+    // Tutti d'accordo sul giorno che c'è già: niente da cambiare.
+    const sameDay = plan(tasks, [{ type: 'update', task: refFor(tasks, 'mec'), date: TOMORROW }], { message: 'sposta il meccanico a domani', perms: ALL });
+    assertEqual([sameDay.auto, sameDay.ask, sameDay.say], [[], [], '«Portare la macchina dal meccanico» è già così.']);
+  });
+
   test('assistente: una modifica che non cambia niente si ignora; il titolo non cambia mai', () => {
     const task = make({ id: 'p', title: 'Palestra', date: TODAY, time: '18:00' });
     const same = plan([task], [{ type: 'update', task: 't1', time: '18:00' }], { perms: { autoAdd: true, autoEdit: true } });

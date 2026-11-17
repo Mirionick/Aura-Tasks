@@ -185,6 +185,8 @@
     const edits = actions.filter(action => action && (action.type === 'add' || action.type === 'update')).length;
     // Giorno e ora letti dalle regole: valgono solo con una sola aggiunta o modifica (la frase non dice a quale va un'ora).
     const words = message && edits === 1 ? nlp.parseDetails(message, new Date(at)) : null;
+    // Le ore e i giorni nominati, con tutte le loro letture: servono a capire se la frase dice un valore che c'è già.
+    const said = words ? saidIn(message, spokenDay) : { times: [], days: [] };
     const recent = recentExchanges(memory, now);
     const openTask = id => tasks.find(task => task.id === id && !task.done) || null;
     // Una sola modifica e nient'altro: può essere una correzione senza nome («no, facciamo alle 5»), che va
@@ -210,7 +212,7 @@
       }
       let entry = null;
       if (action.type === 'add') entry = planAdd(action, { tasks, entries, words, today, spokenDay, at });
-      else if (action.type === 'update') entry = planUpdate(action, { refs, openTask, words, today, spokenDay, at, recent, target: action === lone ? redirect : null });
+      else if (action.type === 'update') entry = planUpdate(action, { refs, openTask, words, said, today, spokenDay, at, recent, target: action === lone ? redirect : null });
       else if (action.type === 'complete' || action.type === 'delete') {
         const task = openTask(refs[action.task]);
         entry = task ? { kind: action.type, taskId: task.id, title: task.title } : null;
@@ -264,12 +266,39 @@
    * (17:30 e non 17:00). Più lontana di così è un'altra ora, e vale quella delle regole.
    */
   function agreedTime(modelTime, ruleTime) {
+    const { near, time } = sameHalf(modelTime, ruleTime);
+    return near ? time : ruleTime;
+  }
+
+  /**
+   * L'ora del modello portata nella stessa metà del giorno di quella delle regole (`time`), e se le sta a meno di
+   * un'ora (`near`): allora è la stessa ora letta in due modi (06:00 e 18:00, 17:30 e 17:00), non un'altra ora.
+   */
+  function sameHalf(modelTime, ruleTime) {
     const minutesOf = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
     const rule = minutesOf(ruleTime);
     let model = minutesOf(modelTime);
     const gap = () => Math.min(Math.abs(model - rule), 1440 - Math.abs(model - rule));
     if (gap() > 360) model = (model + 720) % 1440; // era nell'altra metà del giorno
-    return gap() < 60 ? two(Math.floor(model / 60)) + ':' + two(model % 60) : ruleTime;
+    return { near: gap() < 60, time: two(Math.floor(model / 60)) + ':' + two(model % 60) };
+  }
+
+  /**
+   * Decisione 1 di P-002 («valore già uguale»): il giorno o l'ora letti dalle regole (`read`) sono quelli che l'attività
+   * ha già (`current`)? Allora la frase non dice il valore nuovo ma quello di adesso («sposta la riunione dalle 9 alle 5»,
+   * «sposta quella di domani a lunedì»), e nella domanda vale la proposta del modello.
+   * Conta anche l'altra lettura della stessa parola (`lists`, da saidIn): per un giorno della settimana quello passato
+   * («martedì» per un'attività di martedì scorso); per un'ora l'altra metà del giorno («dalle 9» per le 21:00) e i
+   * minuti che le regole non leggono («dalle 8 e mezza», che per le regole sono le 8:00, per un'attività delle 8:30).
+   */
+  function dayAlreadyThere(read, current, lists) {
+    if (!read || !current) return false;
+    return read === current || lists.some(list => list.includes(read) && list.includes(current));
+  }
+
+  function timeAlreadyThere(read, current, lists) {
+    if (!read || !current) return false;
+    return read === current || lists.some(list => list.includes(current) && list.some(value => sameHalf(value, read).near));
   }
 
   /** Un'aggiunta: giorno e ora con la regola dell'aggiunta rapida, poi la validazione del modulo e i freni. */
@@ -283,6 +312,8 @@
         if (date === null || date === spokenDay) date = words.date;
         else brake = 'words';
       } else if (date !== words.date) {
+        // Un giorno diverso da quello letto dalle regole: l'app chiede, e nella domanda propone il suo, come per l'ora.
+        date = words.date;
         brake = 'words';
       }
       // Un'ora diversa da quella letta dalle regole: l'app chiede, e nella domanda propone la sua (vedi agreedTime).
@@ -312,22 +343,29 @@
    * `target` è l'attività dell'ultimo scambio, quando la modifica è una correzione senza nome (vedi correctionTarget):
    * allora i campi del modello vanno su quella, e l'azione porta `redirected: true`.
    */
-  function planUpdate(action, { refs, openTask, words, today, spokenDay, at, recent, target = null }) {
+  function planUpdate(action, { refs, openTask, words, said, today, spokenDay, at, recent, target = null }) {
     const task = target || openTask(refs[action.task]);
     if (!task) return null;
     const before = T.editableFields(task);
     const next = { ...before };
     let brake = null;
     if ('date' in action) {
-      // Un giorno che l'utente non ha nominato: «oggi» messo dal modello non sposta niente, un altro giorno chiede.
       if (words && !words.dateSaid && action.date) {
+        // Un giorno che l'utente non ha nominato: «oggi» messo dal modello non sposta niente, un altro giorno chiede.
         if (action.date !== spokenDay && action.date !== before.date) {
           next.date = action.date; // la domanda mostra il giorno proposto dal modello
           brake = 'words';
         } else {
           next.date = before.date;
         }
+      } else if (words && words.dateSaid && action.date && action.date !== words.date) {
+        // Un giorno diverso da quello letto dalle regole: l'app chiede, e nella domanda propone il suo, come per l'ora.
+        // Se però le regole hanno letto il giorno che l'attività ha già («sposta quella di domani a lunedì»), il giorno
+        // nuovo è l'altro: resta la proposta del modello, sempre come domanda.
+        next.date = dayAlreadyThere(words.date, before.date, said.days) ? action.date : words.date;
+        brake = 'words';
       } else {
+        // Togliere il giorno (date: null) non è un giorno letto in un altro modo: la domanda resta quella del modello.
         next.date = action.date || null;
       }
       if (!next.date) next.time = null;
@@ -336,7 +374,14 @@
     // Un'ora diversa da quella letta dalle regole: l'app chiede, e nella domanda propone la sua (vedi agreedTime).
     // Togliere l'ora (time: null) non è un'ora letta in un altro modo: lì la domanda resta quella del modello.
     const otherTime = Boolean(words && words.time && 'time' in action && next.time !== words.time);
-    if (otherTime && next.time) next.time = agreedTime(next.time, words.time);
+    if (otherTime && next.time) {
+      const read = sameHalf(next.time, words.time);
+      // La stessa ora letta in due modi: vale la lettura delle regole. Un'altra ora del tutto: vale quella delle regole,
+      // a meno che le regole abbiano letto l'ora che l'attività ha già («sposta la riunione dalle 9 alle 5»). Allora
+      // l'ora nuova è l'altra, e resta la proposta del modello, sempre come domanda.
+      if (read.near) next.time = read.time;
+      else if (!timeAlreadyThere(words.time, before.time, said.times)) next.time = words.time;
+    }
     if (action.duration) next.duration = action.duration;
     if (action.energy) next.energy = action.energy;
     if (next.time && !next.date) next.date = dayForTime(next.time, at);
@@ -419,11 +464,10 @@
     '|\\b(\\d{1,2}):(\\d{2})\\b|\\b(mezzogiorno|mezzanotte)\\b', 'g');
 
   /**
-   * Ciò che in un messaggio può indicare un'attività: le parole (`words`), le ore (`times`) e i giorni (`days`) nominati.
-   * Ogni ora e ogni giorno è l'elenco dei valori possibili («delle 9» = 09:00 o 21:00; «lunedì» = quello passato o il
-   * prossimo). L'ora e il giorno che la modifica mette (`action.time`, `action.date`) si tolgono: sono il valore nuovo.
+   * Le ore (`times`) e i giorni (`days`) nominati in un messaggio. Ogni ora e ogni giorno è l'elenco dei valori
+   * possibili: «delle 9» = 09:00 o 21:00; «lunedì» = quello passato o il prossimo.
    */
-  function hintsOf(message, action, today) {
+  function saidIn(message, today) {
     const text = fold(message);
     const times = [];
     const clock = minutes => two(Math.floor(minutes / 60) % 24) + ':' + two(minutes % 60);
@@ -456,6 +500,15 @@
       }
       days.push(list);
     });
+    return { times, days };
+  }
+
+  /**
+   * Ciò che in un messaggio può indicare un'attività: le parole (`words`), le ore (`times`) e i giorni (`days`) nominati
+   * (vedi saidIn). L'ora e il giorno che la modifica mette (`action.time`, `action.date`) si tolgono: sono il valore nuovo.
+   */
+  function hintsOf(message, action, today) {
+    const { times, days } = saidIn(message, today);
     const newTime = typeof action.time === 'string' ? action.time : null;
     const newDate = typeof action.date === 'string' ? action.date : null;
     return {

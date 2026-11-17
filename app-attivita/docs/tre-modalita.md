@@ -143,7 +143,7 @@ Ognuno si pubblica da solo, con le sue misure.
   - È un `<nav>` con tre pulsanti (`aria-current="page"` su quello attivo). Le schede sono tre `<section>`; quelle non attive hanno `hidden`.
 - **Cambio di scheda**: dissolvenza con un leggero scorrimento (circa 24 px) nella direzione del cambio, in `--dur-move`. Ogni scheda ricorda dov'era arrivato lo scorrimento. La scheda nuova entra come un blocco unico (`Aura.motion.slideIn`); la vecchia sparisce subito. Un tocco sulla scheda già aperta riporta in cima.
 - **All'apertura** l'app parte da **Focus**. Se si ricarica entro 30 minuti dall'ultimo uso (su iPhone succede spesso tornando dallo sfondo), riparte dall'ultima scheda.
-- **Intestazione "aura"** in tutte le schede, con logo, campanella e tema. In Agenda e Motivazione è più bassa.
+- **Intestazione "aura"** in tutte le schede, con logo, campanella e tema. In Agenda e Motivazione è più bassa. Da P-002 (passo 1) al posto del pulsante del tema c'è la rotella delle Impostazioni, e il tema si sceglie lì (vedi [impostazioni.md](impostazioni.md)).
 - «+ Nuova attività» e gli avvisi stanno sopra la barra.
 
 ## Focus: per fare
@@ -329,7 +329,7 @@ Ognuno si pubblica da solo, con le sue misure.
 | «+ Nuova attività» | Sopra la barra, in tutte le schede. In Agenda propone il giorno scelto |
 | Lista vuota con l'illustrazione | Uno stato vuoto per scheda, con la sua illustrazione |
 | "I dati restano solo su questo dispositivo" e «Backup dei dati» | In fondo a Motivazione |
-| Fogli "Nuova attività" / "Modifica attività", "Tema", "Promemoria e Siri", "Backup dei dati" | Invariati, sopra qualsiasi scheda |
+| Fogli "Nuova attività" / "Modifica attività", "Tema", "Promemoria e Siri", "Backup dei dati" | Invariati, sopra qualsiasi scheda. Da P-002 il tema si sceglie nel foglio «Impostazioni» |
 | Frase, link `?add=`, casella di Siri | Invariati |
 | Promemoria e tocco sulla notifica | Invariati; la notifica apre la scheda giusta |
 | Avvisi con "Annulla" | Sopra la barra delle schede |

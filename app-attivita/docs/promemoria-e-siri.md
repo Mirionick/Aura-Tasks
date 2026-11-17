@@ -1,6 +1,6 @@
 # Server di Aura: promemoria push e casella di Siri (realizzata, gratuita)
 
-Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Crea il codice per Siri" (campanella → foglio "Promemoria e Siri"), l'app non fa nessuna richiesta di rete.
+Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Crea il codice per Siri" (campanella → foglio "Promemoria e Siri"; oppure le righe «Promemoria» e «Comando Rapido di Siri» delle Impostazioni, vedi [impostazioni.md](impostazioni.md)), l'app non fa nessuna richiesta di rete.
 
 **Dove e come**
 - Codice in `server/`:
@@ -19,7 +19,7 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
 **Codice del dispositivo**
 - 24 byte casuali (`crypto.getRandomValues`), cioè 32 caratteri base64url, generati dall'app e salvati in `aura-tasks:remote`.
 - Viaggia in `Authorization: Bearer <codice>`; il server ne conserva solo l'impronta SHA-256. Senza un codice registrato risponde 401.
-- "Scollega questo dispositivo" cancella sul server casella, sottoscrizione e promemoria. Il dispositivo diventa un **segno anonimo** (vedi "Tetto di nuove registrazioni") e il codice smette subito di valere. L'avviso offre "Annulla", che registra di nuovo lo stesso codice.
+- "Scollega questo dispositivo" cancella sul server casella, sottoscrizione e promemoria. Il dispositivo diventa un **segno anonimo** (vedi "Tetto di nuove registrazioni") e il codice smette subito di valere. L'avviso offre "Annulla", che registra di nuovo lo stesso codice. Si trova nel foglio "Promemoria e Siri", nel foglio «Assistente» e in fondo alle Impostazioni: da tutti e tre, se riesce, si chiudono tutti i fogli aperti, perché l'avviso sta sotto i fogli.
 - Se il server non conosce più il codice (401), l'app lo registra di nuovo da sola. Così il Comando Rapido continua a funzionare.
 
 **Casella di Siri**

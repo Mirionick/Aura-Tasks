@@ -139,7 +139,17 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
   - Per «alle 6» il modello a volte scrive 6:00; le regole leggono 18:00, e la domanda dice 18:00. Vale per le aggiunte e per le modifiche, e resta sempre una domanda.
   - I minuti che le regole non sanno leggere restano quelli del modello, nella metà del giorno delle regole: per «alle 5 e mezza» la domanda dice 17:30, per «alle 5 meno un quarto» 16:45, anche se il modello ha scritto 5:30 o 4:45. In pratica: se l'ora del modello, portata nella stessa metà del giorno, sta a meno di un'ora da quella delle regole, vale la sua; altrimenti è un'altra ora, e vale quella delle regole.
   - Se il modello non ha letto nessuna ora e le regole sì, un'aggiunta propone quella delle regole. Togliere l'ora («time: none») non è un'ora letta in un altro modo: lì la domanda resta «Tolgo l'ora a …?».
-  - Per il **giorno** la domanda mostra ancora quello del modello.
+- **Quale giorno propone la domanda, quando modello e regole ne leggono uno diverso** (P-002, passo 1): quello letto dall'app, come per l'ora.
+  - «Sabato dentista», con il modello che ha scritto domenica: la domanda dice sabato. Vale per le aggiunte e per le modifiche («sposta la palestra a sabato»), e resta sempre una domanda, anche con tutti e due i permessi accesi.
+  - Se il modello non ha letto nessun giorno e le regole sì («domani dentista»), la domanda propone quello delle regole.
+  - Se le regole non leggono nessun giorno («la settimana prossima»), resta quello del modello, sempre come domanda.
+  - Togliere il giorno non è un giorno letto in un altro modo: la domanda resta «Tolgo il giorno a …?», come per l'ora.
+- **Valore già uguale** (P-002, decisione 1): se il giorno o l'ora che le regole leggono nella frase sono **quelli che l'attività ha già**, e il modello propone un altro valore, la domanda mostra la proposta del modello. Mai una modifica automatica, con nessun permesso.
+  - Il caso da cui nasce: «sposta la riunione dalle 9 alle 5». Le regole leggono la prima ora della frase, le 9, che la riunione ha già. Prima Aura rispondeva «è già così»; adesso chiede: «Sposto «Riunione di lavoro» a oggi alle 17:00?». Lo stesso con i giorni: «sposta quella di domani a lunedì» propone lunedì.
+  - «Già uguale» conta anche l'altra lettura delle stesse parole: «dalle 9» vale per un'attività alle 9:00 e per una alle 21:00; «quella di martedì» per il martedì passato e per il prossimo; «dalle 8 e mezza» per un'attività alle 8:30, anche se le regole leggono solo le 8.
+  - Se l'ora del modello sta a meno di un'ora da quella delle regole, nell'altra metà del giorno, vale la metà del giorno delle regole, come sopra. Per la cena alle 21:00, «dalle 9 alle 10» con il modello che scrive 22:00 propone le 22:00.
+  - Limite noto: se il modello scrive la nuova ora nella metà sbagliata del giorno (5:00 per «alle 5»), la domanda la mostra così. Resta una domanda: l'utente la vede e può dire «no, alle 17». Le regole non leggono la seconda ora della frase: farlo andrebbe oltre il testo approvato in P-002.
+  - Prova: i due test «se il modello e le regole leggono un giorno diverso…» e «se le regole leggono l'ora o il giorno che l'attività ha già…» in `tests/assistant.test.js`, con mattina e pomeriggio e con date uguali.
 - **Una modifica che non cambia niente** non fa niente, e Aura lo dice con una frase dell'app: ««Palestra» è già così.». La frase del modello («Ho spostato…») lì non vale: direbbe una cosa non fatta.
 - **Dati non validi per il modulo** (`Aura.tasks.validateInput`): l'azione si scarta. Durata ed energia mancanti prendono i valori predefiniti del modulo.
 - **Un'ora senza giorno** («alle 3 dentista»; scelta dell'utente, 11 novembre 2026): giorno e ora li decide **l'app**, con la stessa regola dell'aggiunta rapida (`parseTaskText` in `js/nlp.js`).
@@ -179,9 +189,10 @@ Da fare 6 · Tempo 3 h · Fatte oggi 1
   - Accendere «Assistente» da qui vale come consenso. Per questo subito sotto l'interruttore c'è la frase del consenso, la stessa del primo uso: «Per capirti, Aura manda al suo server quello che scrivi o dici, l'ora e le attività da fare. Non viene salvato niente.» (scelta dell'utente, 12 novembre 2026). L'interruttore la dichiara anche ai lettori di schermo (`aria-describedby`). Più sotto il foglio dice per intero che cosa viene inviato.
   - Spegnerlo cancella la memoria breve e la copia della proposta. L'elenco resta, per i suoi 30 giorni.
 - **Riga fissa**, senza interruttore: «Completare ed eliminare: sempre con il tuo tocco».
-- **«Cosa ha fatto l'assistente»**: le ultime 50 azioni automatiche, per 30 giorni. Ognuna dice quando, da dove (scritto, voce, Siri), cosa ha detto l'utente e cosa ha fatto l'assistente, con «Mostra» e, finché l'attività non è cambiata, «Annulla».
+- **«Cosa ha fatto l'assistente»**: le ultime 50 azioni automatiche, per 30 giorni. Ognuna dice quando, da dove (scritto, voce, Siri), cosa ha detto l'utente e cosa ha fatto l'assistente, con «Mostra» e, finché l'attività non è cambiata, «Annulla». «Mostra» chiude tutti i fogli aperti (anche «Aura» o «Impostazioni», da cui si arriva qui) e porta all'attività.
 - **In fondo**: quanti messaggi restano oggi, che cosa viene inviato, lo stato del microfono.
-- **«Scollega questo dispositivo»**: la stessa azione del foglio «Promemoria e Siri». Sotto il pulsante una riga lo dice: «Spegne anche i promemoria e il Comando Rapido di Siri, e cancella i conteggi sul server.» (scelta dell'utente, 12 novembre 2026). Chiude i fogli, così l'avviso «Dispositivo scollegato» con «Annulla» si vede; «Annulla» riaccende anche l'assistente com'era.
+- **«Scollega questo dispositivo»**: la stessa azione del foglio «Promemoria e Siri». Sotto il pulsante una riga lo dice: «Spegne anche i promemoria e il Comando Rapido di Siri, e cancella i conteggi sul server.» (scelta dell'utente, 12 novembre 2026). Chiude tutti i fogli aperti, così l'avviso «Dispositivo scollegato» con «Annulla» si vede; «Annulla» riaccende anche l'assistente com'era.
+- **Da dove si apre**: dall'ingranaggio del foglio «Aura» e, da P-002 passo 1, dalle righe «Assistente e permessi» e «Cosa ha fatto l'assistente» del foglio «Impostazioni» (vedi [impostazioni.md](impostazioni.md)). La seconda fa partire il foglio dall'elenco. Senza il server, come l'ingranaggio, le due righe sono spente.
 
 ### Primo uso
 - Al primo tocco sul microfono o sul campo compaiono due righe: «Per capirti, Aura manda al suo server quello che scrivi o dici, l'ora e le attività da fare. Non viene salvato niente.»
@@ -329,6 +340,7 @@ Codice in `server/`, sullo stesso Worker di promemoria e Siri.
 - **Come si spegne**: l'interruttore «Assistente»; «Scollega questo dispositivo» cancella anche i conteggi.
 - **Avvertenza**: non dettare cose che non si vogliono far uscire dal telefono.
 - La nota va nel foglio «Assistente», nel primo uso (in breve), qui e in `server/README.md`. Va aggiornata anche la nota del foglio «Promemoria e Siri».
+- Il foglio «Privacy» delle Impostazioni mostra una copia dei tre paragrafi di «Che cosa viene inviato» (attributo `data-privacy="assistant"`): si cambiano solo nel foglio «Assistente», e la copia segue da sola (vedi [impostazioni.md](impostazioni.md)).
 
 ## Cosa è stato verificato (11 novembre 2026)
 
