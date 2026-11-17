@@ -22,7 +22,7 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 - **PR 6 — passo 1 di P-002** (17 novembre 2026, `4473775`): la rotella apre «Impostazioni», un indice con lo stato di ogni funzione; il tema si sceglie nella riga; un foglio unico «Privacy»; «Scollega» con «Annulla»; la regola del giorno dell'assistente. **Da provare sull'iPhone** (vedi [impostazioni.md](../app-attivita/docs/impostazioni.md), «Da verificare sull'iPhone»).
 
 ## In lavorazione
-- **Proposta P-003 v2** (livello A, autore Claude Project; v2 con le osservazioni di Codex): Agenda a calendario, Motivazione con tre idee da scegliere (la tua settimana, i tuoi premi, sfide di oggi), cambio di scheda con un movimento d'insieme e un'aurora nel focus. Testo in [proposte/P-003.md](proposte/P-003.md). Il Product Owner la approva con il merge, scegliendo le idee di Motivazione.
+- **Proposta P-003 v3** (livello A, autore Claude Project; v2 e v3 con le osservazioni di Codex): Agenda a calendario, Motivazione con tre idee da scegliere (la tua settimana, i tuoi premi, sfide di oggi), cambio di scheda con un movimento d'insieme e un'aurora nel focus. Testo in [proposte/P-003.md](proposte/P-003.md). Il Product Owner la approva con il merge, scegliendo le idee di Motivazione.
 
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.

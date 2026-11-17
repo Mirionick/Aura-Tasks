@@ -19,7 +19,7 @@ Una voce sta in una sola sezione e, quando cambia stato, si sposta. Il resto non
 | **Nuovi promemoria senza migrazione D1** | I nuovi promemoria si realizzano senza migrazione del database D1. La funzione è pianificata, non realizzata (sezione 3). | 13 novembre 2026 |
 | **Ciclo di lavoro con una sola approvazione** | Il Product Owner approva una volta sola, con il merge, dopo un riassunto; implementazione e revisione tra agenti avvengono da sole. Ruoli e passi in [AGENTS.md](../AGENTS.md), «Ciclo di lavoro». | 16 novembre 2026 |
 | **P-002 v2: finire l'app del telefono** | Ordine, contenuti, condizioni tecniche e decisioni di prodotto 1–5 in [proposte/P-002.md](proposte/P-002.md). Approvata con il merge della PR che la introduce. | 16 novembre 2026 |
-| **P-003 v2: Agenda a calendario, Motivazione, animazioni** | Ordine, contenuti e decisioni di prodotto 1–5 in [proposte/P-003.md](proposte/P-003.md); sostituisce le fasi 3 e 4 di [tre-modalita.md](../app-attivita/docs/tre-modalita.md). Approvata con il merge della PR che la introduce, con le idee di Motivazione scelte dal Product Owner. | 17 novembre 2026 |
+| **P-003 v3: Agenda a calendario, Motivazione, animazioni** | Ordine, contenuti e decisioni di prodotto 1–5 in [proposte/P-003.md](proposte/P-003.md); sostituisce le fasi 3 e 4 di [tre-modalita.md](../app-attivita/docs/tre-modalita.md). Approvata con il merge della PR che la introduce, con le idee di Motivazione scelte dal Product Owner. | 17 novembre 2026 |
 | **Test dell'app nel browser** | I test dell'app si eseguono in un browser reale, aprendo `app-attivita/tests/index.html`. | 13 novembre 2026 |
 
 Le decisioni prese prima di questo registro restano scritte nelle specifiche delle funzioni.
