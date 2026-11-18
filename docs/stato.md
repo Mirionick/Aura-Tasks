@@ -4,7 +4,7 @@ Fotografia breve di dove siamo, per chi comincia un intervento. La aggiorna chi 
 
 Non ripete gli altri documenti: decisioni, funzioni e verifiche sono in [decisioni.md](decisioni.md), le regole in [AGENTS.md](../AGENTS.md).
 
-**Aggiornato il** 17 novembre 2026, con la PR della proposta P-003 (Agenda a calendario, Motivazione, animazioni).
+**Aggiornato il** 18 novembre 2026, con la PR della proposta P-003 (Agenda a calendario, Motivazione, animazioni), approvata con tutte e tre le idee di Motivazione.
 
 ## Pubblicato su `main`
 - **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più i passi 0b e 1 di P-002: il focus a tutto schermo resta fermo; la rotella apre le Impostazioni. Cache `aura-tasks-v14` (17 novembre 2026).
@@ -20,9 +20,10 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 - **PR 3 — P-002 v2 e ciclo di lavoro** (16 novembre 2026): la proposta in [proposte/P-002.md](proposte/P-002.md) e `AGENTS.md` con il nuovo ciclo.
 - **PR 5 — passo 0b di P-002** (16 novembre 2026, `49fac71`): nel focus a tutto schermo un dito che trascina non muove più niente. **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Schermata ferma»).
 - **PR 6 — passo 1 di P-002** (17 novembre 2026, `4473775`): la rotella apre «Impostazioni», un indice con lo stato di ogni funzione; il tema si sceglie nella riga; un foglio unico «Privacy»; «Scollega» con «Annulla»; la regola del giorno dell'assistente. **Da provare sull'iPhone** (vedi [impostazioni.md](../app-attivita/docs/impostazioni.md), «Da verificare sull'iPhone»).
+- **PR 7 — P-003 v3** (18 novembre 2026): la proposta in [proposte/P-003.md](proposte/P-003.md), rivista tre volte da Codex. Il Product Owner ha tenuto tutte e tre le idee di Motivazione: la tua settimana, i tuoi premi, sfide di oggi.
 
 ## In lavorazione
-- **Proposta P-003 v3** (livello A, autore Claude Project; v2 e v3 con le osservazioni di Codex): Agenda a calendario, Motivazione con tre idee da scegliere (la tua settimana, i tuoi premi, sfide di oggi), cambio di scheda con un movimento d'insieme e un'aurora nel focus. Testo in [proposte/P-003.md](proposte/P-003.md). Il Product Owner la approva con il merge, scegliendo le idee di Motivazione.
+- **Passo 3.1 di P-003** (Claude Project): cambio di scheda con un movimento d'insieme e aurora nel focus a tutto schermo.
 
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.
@@ -34,4 +35,4 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 
 ## Prossimi passi
 - **P-002**: 0a e passo 2 (Aura con un volto) toccano a ChatGPT / Codex e aspettano che il Product Owner crei l'ambiente di Codex. I passi 3 e 4 aspettano le prove sull'iPhone.
-- **P-003**, dopo l'approvazione: si parte dal passo 3.1 (cambio di scheda e aurora, Claude Project), senza aspettare il passo 2 di P-002, perché tocca altre parti. L'ordine è in [proposte/P-003.md](proposte/P-003.md).
+- **P-003**: dopo il passo 3.1, i passi 3.2–3.5 nell'ordine di [proposte/P-003.md](proposte/P-003.md), senza aspettare il passo 2 di P-002, perché toccano altre parti. Il 3.2 (Agenda a calendario) e il 3.5 (sfide) toccano a ChatGPT / Codex; il 3.2 lo fa Claude Project se l'ambiente di Codex non c'è ancora.
