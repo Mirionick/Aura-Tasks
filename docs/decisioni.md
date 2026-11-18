@@ -43,6 +43,7 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 | P-002, passo 0b: il focus a tutto schermo resta fermo quando il contenuto ci sta | [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Schermata ferma» | **Da verificare** |
 | P-002, passo 1: rotella e foglio «Impostazioni» (indice con lo stato di adesso, tema nella riga, foglio «Privacy», «Scollega» con «Annulla») | [impostazioni.md](../app-attivita/docs/impostazioni.md) | **Da verificare**: rotella sotto la barra di stato nell'app installata, foglio sopra un altro, cambio tema, «Scollega» con «Annulla» |
 | P-002, passo 1: regola del giorno dell'assistente e decisione 1 («valore già uguale») | [assistente.md](../app-attivita/docs/assistente.md), «Cosa può fare l'assistente» | **Da verificare**, con le prove dell'assistente |
+| P-003, passo 3.1: cambio di scheda con un movimento d'insieme; aurora nel focus a tutto schermo | [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Navigazione» e «Focus a tutto schermo con timer» | **Da verificare**: fluidità dei tre cambi di scheda, aurora per qualche minuto di focus, bagliore alla fine, «Riduci movimento» |
 | Assistente, passo 0: prova tecnica (server e pagina di prova) | [assistente.md](../app-attivita/docs/assistente.md), «Risultati del passo 0» | **Da verificare** |
 | Assistente, passo 1: assistente scritto («Scrivi ad Aura») | [assistente.md](../app-attivita/docs/assistente.md), «Risultati del passo 1» | **Da verificare** |
 | Illustrazioni: due nell'app, una delle quali da sostituire | [illustrazioni.md](../app-attivita/docs/illustrazioni.md) | — |
@@ -57,7 +58,6 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 |---|---|---|
 | Notifica push alla fine del focus (tre modalità, fase 2b) | [tre-modalita.md](../app-attivita/docs/tre-modalita.md) | Approvata il 10 novembre 2026 come passo a parte, dopo la prova della fase 2a sull'iPhone |
 | Apertura più leggera del foglio «Nuova attività»; rispetto di «Dimensione testo» dell'iPhone | [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Passi a parte, dopo la fase 2a» | |
-| Cambio di scheda con un movimento d'insieme; aurora nel focus a tutto schermo | [proposte/P-003.md](proposte/P-003.md), passo 3.1 | |
 | Agenda a calendario | [proposte/P-003.md](proposte/P-003.md), passo 3.2 | Sostituisce la fase 3 delle tre modalità. Oggi la scheda mostra solo «Domani» e «Prossimi giorni» |
 | Motivazione: livello, «La tua settimana», «I tuoi numeri» | [proposte/P-003.md](proposte/P-003.md), passo 3.3; [illustrazioni.md](../app-attivita/docs/illustrazioni.md) | Sostituisce la fase 4 delle tre modalità. Cinque illustrazioni sono da rifare |
 | «I tuoi premi» | [proposte/P-003.md](proposte/P-003.md), passo 3.4 | Versione nuova dello schema |
