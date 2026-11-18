@@ -14,8 +14,8 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | 2b | Notifica push alla fine del focus | approvata: passo a parte, dopo la prova della 2a sull'iPhone (vedi "Notifica push alla fine del focus") |
 | — | Passo a parte: apertura più leggera del foglio «Nuova attività» | da fare, dopo la 2a |
 | — | Passo a parte: rispettare «Dimensione testo» dell'iPhone | da fare, dopo la 2a |
-| 3 | Agenda | da fare |
-| 4 | Motivazione, con le illustrazioni | da fare |
+| 3 | Agenda | sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario |
+| 4 | Motivazione, con le illustrazioni | sostituita da [P-003](../../docs/proposte/P-003.md), passi 3.3–3.5 |
 
 ### Fase 1: animazioni più fluide
 - **Token**: durate (`--dur-*`) e curve (`--ease-*`) stanno solo in `:root`. Il JavaScript le legge con `Aura.motion` (`js/motion.js`): nessuna durata scritta a mano.
@@ -188,7 +188,7 @@ Ognuno si pubblica da solo, con le sue misure.
 - **Interfaccia**: foglio a tutto schermo con il titolo dell'attività, un anello SVG che fa il conto alla rovescia partendo dalla durata stimata e il tempo grande (mm:ss). Comandi: Pausa/Riprendi, +5 min, Completa, Esci.
 - **Una sessione per volta**. Se l'attività del focus viene completata o eliminata, la sessione si chiude e i suoi minuti restano.
 - **Uscita**: Esc, il gesto "indietro" ed "Esci" chiudono la sessione. L'avviso "Focus terminato · 12 min" ha "Annulla", che la riapre com'era e toglie i minuti.
-- **Sfondo che respira**, come l'aura dell'intestazione: bagliori ciano e rosa disegnati come gradienti in livelli separati, che si muovono solo con `transform` e `opacity` in un ciclo lento (`--dur-breath`).
+- **Sfondo che respira**, come l'aura dell'intestazione (con [P-003](../../docs/proposte/P-003.md), passo 3.1, diventa un'aurora che sale con il tempo): bagliori ciano e rosa disegnati come gradienti in livelli separati, che si muovono solo con `transform` e `opacity` in un ciclo lento (`--dur-breath`).
   - È l'**unica animazione continua** dell'app, un'eccezione a "mai infinite": gira solo mentre il foglio è aperto, la pagina è visibile e il tempo scorre. Si ferma in pausa e alla fine del tempo (`.is-breathing`).
   - Con «Riduci movimento» lo sfondo resta fermo.
   - I bagliori sono disegnati piccoli (30vmax) e ingranditi con `scale`: occupano un quarto della memoria.
@@ -237,6 +237,8 @@ Ognuno si pubblica da solo, con le sue misure.
 - **Idee per dopo**: modalità Pomodoro (25/5); bonus punti per il focus.
 
 ## Agenda: per pianificare
+**Sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2 (Agenda a calendario)**: vale quella. Qui resta il piano di prima, per memoria.
+
 - **Striscia della settimana**, da lunedì a domenica:
   - ogni giorno ha nome e numero, e un **puntino** se ha attività da fare;
   - il giorno scelto è evidenziato;
@@ -263,6 +265,8 @@ Ognuno si pubblica da solo, con le sue misure.
   - elenco dei prossimi giorni.
 
 ## Motivazione: per vedere i progressi
+**Sostituita da [P-003](../../docs/proposte/P-003.md), passi 3.3–3.5**: vale quella. Qui resta il piano di prima, per memoria; P-003 riprende i livelli, l'obiettivo settimanale, i minuti di focus, lo storico, «mai sensi di colpa» e l'invito al backup.
+
 - **Serie e record in grande**, con la fiamma e la barra verso il prossimo traguardo.
 - **Punti** di oggi e totali.
 - **Livello**, calcolato dai punti totali e mai salvato. Mostra distintivo, nome e barra verso il prossimo livello. Le soglie stanno in `LEVELS` (`js/points.js`):
