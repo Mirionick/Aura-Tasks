@@ -191,6 +191,7 @@
     return tasks.reduce((sum, task) => sum + task.duration, 0);
   }
 
+  // Ordini delle liste, esportati anche per l'Agenda (js/agenda.js) come compareByCreation, compareByTime e compareByDate.
   const byCreation = (a, b) => a.createdAt - b.createdAt;
   // Nello stesso giorno: prima quelle con orario, in ordine d'ora; quelle senza orario restano in ordine di creazione.
   const byTime = (a, b) => {
@@ -261,6 +262,9 @@
     completedOn,
     groupTasks,
     totalMinutes,
-    summarize
+    summarize,
+    compareByTime: byTime,
+    compareByDate: byDate,
+    compareByCreation: byCreation
   };
 })(window.Aura = window.Aura || {});

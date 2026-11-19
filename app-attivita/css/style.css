@@ -623,7 +623,8 @@ button {
 .content:focus { outline: none; }
 
 /* Striscia della proposta: in cima a Focus, larga quanto la lista, alta 48 px fissi su due righe (la frase e il titolo).
-   Sta a cavallo del bordo dell'intestazione (metà sopra, metà sotto), che le lascia il posto con .hero--cta:
+   Sta a cavallo del bordo dell'intestazione (metà sopra, metà sotto), che le lascia il posto con .hero--cta (lo usa anche
+   il calendario dell'Agenda):
    così all'apertura si vedono più card. Il margine negativo è il margine della lista (14 px) più la metà della striscia.
    L'altezza non cambia mai, neanche quando arriva la proposta dell'IA: nessuna card si sposta. */
 .hero--cta { padding-bottom: 32px; }
@@ -962,6 +963,185 @@ button {
 }
 .footnote__text { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .footnote .icon { width: 14px; height: 14px; }
+
+/* ---------- Agenda a calendario (js/ui-agenda.js; P-003, passo 3.2) ---------- */
+
+/* Il calendario sta a cavallo del bordo dell'intestazione, come la striscia di Focus (.hero--cta gli lascia il posto):
+   il margine negativo è il margine della lista (14 px) più i 24 px che salgono sopra il bordo. Sta sopra le sezioni che
+   seguono (z-index): quando la maniglia lo riapre, scivolano giù da sotto di lui. */
+.cal {
+  position: relative;
+  z-index: 1;
+  margin: -38px 0 14px;
+  padding: 0 6px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.cal__head { display: flex; align-items: center; gap: 2px; }
+.cal__month {
+  flex: 1;
+  min-width: 0;
+  padding-left: 8px;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* «Oggi»: area di tocco alta 44 px, con dentro la pillola */
+.cal__today {
+  flex: none;
+  height: var(--tap);
+  padding: 7px 2px;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+.cal__today span { display: block; height: 30px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); line-height: 30px; }
+.cal__back { transform: scaleX(-1); } /* la freccia a destra, girata */
+.cal__week,
+.cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal__week { padding-bottom: 2px; color: var(--text-3); font-size: 12px; font-weight: 700; line-height: 16px; text-align: center; }
+/* Lo scorrimento in verticale resta della pagina; quello di lato cambia mese o settimana (ui-agenda.js) */
+.cal__grid { touch-action: pan-y; }
+.cal__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: var(--tap);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cal__blank { height: var(--tap); }
+/* Il numero è centrato con line-height, senza un'altra griglia: 42 giorni da disegnare a ogni cambio di scheda */
+.cal__num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 32px;
+  text-align: center;
+  transition: background-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out);
+}
+.cal__day.is-past .cal__num { color: var(--text-3); }
+.cal__day.is-today .cal__num { box-shadow: inset 0 0 0 2px var(--accent); color: var(--accent-text); font-weight: 800; }
+.cal__day.is-selected .cal__num { background: var(--accent); box-shadow: none; color: var(--on-accent); font-weight: 800; }
+.cal__day:focus-visible { outline: none; }
+.cal__day:focus-visible .cal__num { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+@media (hover: hover) {
+  .cal__day:hover .cal__num { background: var(--hover); }
+  .cal__day.is-selected:hover .cal__num { background: var(--accent); }
+}
+/* Fino a tre puntini, uno per attività da fare, del colore della sua energia; rossi nei giorni passati */
+.cal__dots { display: flex; gap: 3px; height: 4px; }
+.cal__dot { width: 4px; height: 4px; border-radius: 50%; }
+.cal__dot--low { background: var(--low); }
+.cal__dot--medium { background: var(--medium); }
+.cal__dot--high { background: var(--high); }
+.cal__dot--late { background: var(--danger); }
+.cal__handle {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 3px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+.cal__grip { width: 36px; height: 4px; border-radius: 2px; background: var(--border-strong); }
+
+/* Il giorno scelto: titolo e numeri vanno a capo insieme sugli schermi stretti */
+.day .section__header { flex-wrap: wrap; row-gap: 2px; }
+.day__title { color: var(--text); font-size: 16px; font-weight: 800; letter-spacing: 0; text-transform: none; }
+.day__block + .day__block { margin-top: 16px; }
+.day__group {
+  margin: 0 4px 8px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.day__empty {
+  padding: 18px 14px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  text-align: center;
+}
+
+/* «Con orario»: l'ora a sinistra e la card a destra; tra due attività gli spazi liberi, oggi la linea dell'ora */
+.sched { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sched__row,
+.sched__now { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 8px; }
+.sched__row { align-items: start; }
+.sched__time {
+  padding-top: 15px;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sched__time.is-late { color: var(--danger); }
+.sched__free {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding-left: 12px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.sched__free-text { flex: 1; min-width: 0; }
+.sched__add { color: var(--accent-text); }
+.sched__now {
+  align-items: center;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sched__line { position: relative; height: 2px; border-radius: 1px; background: var(--danger); }
+.sched__line::before { content: ""; position: absolute; top: -3px; left: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+/* «Si sovrappone a «…»», sotto la riga della card */
+.task__note { display: block; margin-top: 4px; color: var(--medium); font-size: 12.5px; font-weight: 700; }
+
+/* «Metti a…» in «Da pianificare»: sopra il pulsante invisibile della card (che apre la modifica), con l'area di tocco di 44 px */
+.plan-btn {
+  position: relative;
+  z-index: 1;
+  min-height: 32px;
+  margin-left: auto;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+.plan-btn::before { content: ""; position: absolute; inset: -6px 0; }
 
 /* ---------- 5. Pulsanti, chip e campi ---------- */
 
@@ -2209,7 +2389,6 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .empty__title { font-size: 20px; font-weight: 800; }
 .empty__text { max-width: 30ch; margin: 6px auto 0; color: var(--text-2); }
 .empty .link-btn { margin-top: 4px; }
-.empty--small { padding-top: 16px; }
 
 /* ---------- 7. Desktop, animazioni e accessibilità ---------- */
 

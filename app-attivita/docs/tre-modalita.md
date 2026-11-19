@@ -17,6 +17,7 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | 3 | Agenda | sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario |
 | 4 | Motivazione, con le illustrazioni | sostituita da [P-003](../../docs/proposte/P-003.md), passi 3.3–3.5 |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.1: cambio di scheda animato e aurora nel focus | fatto con la v15; da provare sull'iPhone (vedi "P-003, passo 3.1") |
+| — | [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario | fatto con la v16; da provare sull'iPhone (vedi "Agenda: per pianificare" e "P-003, passo 3.2") |
 
 ### Fase 1: animazioni più fluide
 - **Token**: durate (`--dur-*`) e curve (`--ease-*`) stanno solo in `:root`. Il JavaScript le legge con `Aura.motion` (`js/motion.js`): nessuna durata scritta a mano.
@@ -154,6 +155,32 @@ Fotogrammi persi, mediana di 10 prove (5 in tema chiaro e 5 in tema scuro): gli 
 - L'aurora, come i bagliori di prima, non perde fotogrammi: gira sul compositore. La prova vera è quella sull'iPhone, dove la muove la scheda grafica: è la prima cosa da guardare, per qualche minuto di focus.
 - Prove di funzionamento, nei due temi: nessun errore nella console e nessuno scorrimento orizzontale a 320×568, 390×844 e 1280×800, e aprendo `index.html` da file. Con «Riduci movimento» nessuna animazione in corso e l'aurora ferma. A riposo l'intestazione è uguale a prima: stessa altezza (188 px in Focus a 390 px) e stessi colori.
 
+### P-003, passo 3.2: Agenda a calendario
+La scheda Agenda diventa un calendario con il giorno scelto sotto (vedi "Agenda: per pianificare"). L'ha scritto Claude Project, perché l'ambiente di Codex non c'è ancora.
+
+#### Risultati del passo 3.2 (19 novembre 2026)
+Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 390×844 in Chromium 153 headless, con una giornata piena (11 attività da fare, 10 completate). «Prima» è la versione pubblicata (v15), «dopo» quella nuova (v16); i gesti sul calendario prima non c'erano. WebKit non è stato eseguito: in questo ambiente non c'è.
+
+| Gesto | Chromium, CPU 4 volte più lenta | Chromium a piena velocità |
+|---|---|---|
+| passare ad Agenda | 1 → 3 | 0 → 0 |
+| tornare a Focus | 1 → 1 | 0 → 0 |
+| scegliere un giorno | 1 | 0 |
+| mese dopo | 1 | 0 |
+| «Oggi» | 1 | 0 |
+| «Solo la settimana» | 2 | 0 |
+| «Tutto il mese» | 1 | 0 |
+
+- Passare ad Agenda costa due fotogrammi in più, solo con la CPU rallentata, perché la scheda ha molto più contenuto: il calendario e le card del giorno, dei prossimi giorni e da pianificare. Non dipende dai movimenti: con «Riduci movimento» lo stesso passaggio perde 0,5 fotogrammi prima e 2,5 dopo, e le tracce mostrano il tempo in più nel calcolo del layout e nel disegno. `content-visibility` sulle sezioni sotto il giorno non ha aiutato ed è stato tolto. A piena velocità nessun gesto perde fotogrammi; la prova vera è quella sull'iPhone.
+- Il calendario del mese è alto 372 px quando ha 6 righe (la proposta stimava circa 330 px), 152 px con «Solo la settimana».
+- Prove di funzionamento, con Playwright 1.63: nessun errore nella console e nessuno scorrimento orizzontale a 390×664 nei due temi, a 320×568 e a 1280×800. Gli stessi gesti danno lo stesso risultato con «Riduci movimento» e aprendo `index.html` da file, senza messaggi della CSP:
+  - scegliere un giorno, anche passato (le completate barrate, l'attività in ritardo, niente «Metti a…»); frecce, dito, «Oggi», «Solo la settimana» ricordata dopo il ricaricamento;
+  - «Metti a oggi» con «Annulla»; il «+» di uno spazio libero apre «Nuova attività» con giorno e ora, e l'attività finisce in «Con orario»; «Nuova attività» con domani scelto propone domani, con un giorno passato nessun giorno;
+  - frecce della tastiera e Invio tra i giorni, con il fuoco che resta; completare un'attività dal giorno scelto;
+  - con l'orologio finto (`page.clock`): la linea dell'ora avanza ogni minuto; lo spazio libero si accorcia ogni 5 minuti e il «+» tiene il fuoco; alle 14:00 l'attività delle 14:00 diventa rossa e la linea le passa sotto; con un altro giorno scelto il minuto non cambia niente; a mezzanotte il giorno scelto passa al giorno nuovo;
+  - una settimana a cavallo di due mesi: scegliendo oggi, «Oggi» sparisce.
+- Intestazione di Focus a 390×664: 188 px prima e dopo, con 4 card intere.
+
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.
   - Ogni scheda ha icona e testo; aree di tocco ≥ 44 px; margine sotto con `env(safe-area-inset-bottom)`.
@@ -261,7 +288,39 @@ Fotogrammi persi, mediana di 10 prove (5 in tema chiaro e 5 in tema scuro): gli 
 - **Idee per dopo**: modalità Pomodoro (25/5); bonus punti per il focus.
 
 ## Agenda: per pianificare
-**Sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2 (Agenda a calendario)**: vale quella. Qui resta il piano di prima, per memoria.
+Da [P-003](../../docs/proposte/P-003.md), passo 3.2 (v16): un calendario, con il giorno scelto sotto. Immagini della proposta: [mese](../../docs/proposte/P-003/anteprima-agenda.jpg) e [settimana](../../docs/proposte/P-003/anteprima-agenda-settimana.jpg).
+
+- **Calendario**, in un riquadro a cavallo del bordo dell'intestazione (`.cal`), come la striscia di Focus:
+  - in alto il mese e l'anno, «Oggi» e le frecce. «Oggi» compare quando il giorno scelto non è oggi o si guarda un altro mese, e riporta a oggi;
+  - le frecce portano al mese prima e dopo; anche scorrendo di lato con il dito (almeno 40 px, e più di lato che in verticale). Nel mese nuovo il giorno scelto è oggi, se è il mese di oggi, altrimenti il primo del mese;
+  - settimane da lunedì; i giorni degli altri mesi restano vuoti; un mese ha da 4 a 6 righe;
+  - oggi ha l'anello; il giorno scelto è pieno, del colore dell'accento; i giorni passati hanno il numero più tenue;
+  - sotto ogni giorno fino a tre puntini, uno per attività da fare, del colore della sua energia; nei giorni passati sono rossi (in ritardo).
+- **Maniglia** in fondo al calendario: «Solo la settimana» lo riduce alla settimana del giorno scelto, e allora frecce e dito spostano il giorno scelto di 7 giorni; «Tutto il mese» lo riapre. All'inizio si vede il mese; la scelta si ricorda.
+- **Il giorno scelto**, sotto il calendario:
+  - il titolo («Oggi · giovedì 19 novembre»; «Domani · …» e «Ieri · …»; l'anno solo se non è quello di oggi), quante attività da fare e quanto tempo; nei giorni passati anche quante completate;
+  - «In giornata»: le attività senza orario, prima quelle da fare, poi in ordine di creazione;
+  - «Con orario»: in ordine d'ora, con l'ora a sinistra, rossa se oggi è già passata. Le card sono quelle di sempre, senza l'ora dentro;
+  - tra due attività, se c'è almeno mezz'ora libera, una riga «Libero dalle 09:30 alle 11:30 · 2 h» con un «+» che apre «Nuova attività» con il giorno e l'ora già scritti. Lo spazio comincia quando sono finite tutte le attività prima;
+  - oggi gli spazi liberi contano da adesso (arrotondato ai 5 minuti dopo), e una linea rossa segna l'ora. La linea avanza ogni minuto; le righe si ridisegnano solo se cambiano (lo spazio libero si accorcia, la linea passa un'attività), e il pulsante che ha il fuoco lo tiene;
+  - se un'attività comincia prima che finisca una di quelle prima, sotto il titolo c'è «Si sovrappone a «…»». Un'attività che finisce dopo mezzanotte conta fino alla sua fine;
+  - un giorno passato mostra le attività rimaste da fare (in ritardo) e quelle completate quel giorno, barrate, senza spazi liberi né sovrapposizioni. Una completata senza giorno conta nel giorno in cui è stata completata;
+  - un giorno senza niente dice «Giornata libera. Con «Nuova attività» aggiungi qualcosa per oggi.» (o per quel giorno); un giorno passato, «Nessuna attività in questo giorno.».
+- **«Prossimi giorni»**: tutte le attività da fare da domani in poi, in ordine di data e ora, con la data su ogni card, tranne quelle del giorno scelto, che stanno già sopra. Così nessuna attività lontana resta nascosta.
+- **«Da pianificare»**: le attività senza giorno, in ordine di creazione, ognuna con «Metti a gio 26» (il giorno scelto: anche «Metti a oggi», «Metti a domani»). Con un giorno passato scelto il pulsante non c'è. L'avviso «Pianificata per …» ha «Annulla».
+- Le due liste spariscono quando sono vuote.
+- Il pulsante **«Nuova attività»** propone il giorno scelto, se non è passato. Se un'attività aggiunta o modificata finisce dove l'Agenda non la mostra (per esempio oggi, con domani scelto), l'avviso dice in quale scheda è, come tra le altre schede.
+- **Movimenti** (solo `transform` e `opacity`; con «Riduci movimento» niente): cambiando mese o settimana il calendario nuovo entra di lato, dalla parte verso cui si va; il giorno scelto sfuma; «Prossimi giorni» e «Da pianificare» scivolano al posto nuovo. Con la maniglia il contenuto sotto scivola alla nuova altezza e i giorni sfumano.
+- **Accessibilità**:
+  - i giorni sono pulsanti; il lettore di schermo dice la data, «oggi» e quante attività («Giovedì 19 novembre, oggi, 3 attività»; «…, 2 attività in ritardo»; «…, libero»). Il giorno scelto ha `aria-pressed="true"`; le caselle vuote sono nascoste al lettore;
+  - con la tastiera il calendario è un solo passo di Tab (il giorno scelto); le frecce si spostano di un giorno o di una settimana, Invio o Spazio sceglie;
+  - il mese nuovo viene annunciato (`aria-live="polite"`); la maniglia ha `aria-expanded`; le frecce dicono se cambiano mese o settimana;
+  - la linea dell'ora si legge «Adesso, 11:07»; un'ora passata «In ritardo, era alle 09:00»; il «+» «Aggiungi un'attività alle 11:10»; «Metti a…» dice anche il titolo dell'attività.
+- **Dati**: niente di nuovo, solo la scelta mese o settimana in `prefs.agendaView` (vedi "Dati"). Il giorno scelto non si salva: all'apertura è oggi e, se è oggi, a mezzanotte passa al giorno nuovo.
+- **Codice**: la logica pura sta in `js/agenda.js` (`Aura.agenda`), con 16 test in `tests/agenda.test.js`: griglia del mese (4, 5 e 6 righe, febbraio bisestile, giorni del cambio d'ora), puntini e settimana del giorno scelto, frecce, giorno diviso tra senza orario e con orario, spazi liberi (anche con «adesso» in mezzo e dopo mezzanotte), sovrapposizioni, «Prossimi giorni» e «Da pianificare», frasi. La pagina la scrive `js/ui-agenda.js` (vedi "Codice").
+
+### Il piano di prima, per memoria
+Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» nella proposta).
 
 - **Striscia della settimana**, da lunedì a domenica:
   - ogni giorno ha nome e numero, e un **puntino** se ha attività da fare;
@@ -328,7 +387,8 @@ Fotogrammi persi, mediana di 10 prove (5 in tema chiaro e 5 in tema scuro): gli 
   - `sanitizeStats()` aggiunge `focus: {}` e scarta giorni non validi e minuti non interi o fuori da 1–1440 (`Aura.focus.sanitizeMinutes`).
   - `emptyStats()` parte con `focus: {}`, quindi anche `rebuildStats()`.
   - I backup della v1, v2 e v3 si importano ancora: passano dalle stesse migrazioni.
-- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy } }`. Nella fase 4 si aggiungono `weeklyGoal` e `lastBackupAt`.
+- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy }, agendaView }`. Nella fase 4 si aggiungono `weeklyGoal` e `lastBackupAt`.
+  - `agendaView` (P-003, passo 3.2): `'month'` o `'week'`, la vista del calendario dell'Agenda; un valore diverso torna `'month'`.
   - È senza versione, come `aura-tasks:remote`, e fuori dal backup, come il tema.
   - La scrive e la legge solo `js/storage.js` (`loadPrefs()` e `savePrefs()`). `sanitizePrefs()` pulisce i valori e conserva i campi sconosciuti.
   - `suggest.minutes` è una delle scelte del foglio; `null` vuol dire «120+».
@@ -339,7 +399,7 @@ Fotogrammi persi, mediana di 10 prove (5 in tema chiaro e 5 in tema scuro): gli 
 - `?add=`, casella di Siri, promemoria, modifica e backup restano come oggi. Il foglio "Nuova attività" si apre sopra la scheda in cui si è.
 - **Notifica toccata** (`?task=id` o messaggio `open-task`): `showTask(id)` apre la scheda in cui l'attività si vede, la porta in vista e la evidenzia:
   - In ritardo, Oggi o Senza data → Focus;
-  - un giorno futuro → Agenda, su quel giorno;
+  - un giorno futuro → Agenda: nel giorno scelto, se è quello, altrimenti in «Prossimi giorni»;
   - completata → Motivazione, nello storico.
 
 ## Dove va ogni funzione di oggi
@@ -385,11 +445,12 @@ Le categorie stanno nella tabella di `CLAUDE-GUIDE.md`:
 ## Codice
 - **Moduli puri nuovi**:
   - `js/suggest.js` e `js/focus.js` (fase 2);
-  - `js/agenda.js` (fase 3);
+  - `js/agenda.js` (P-003, passo 3.2, al posto della fase 3);
   - `js/motivation.js` (fase 4);
   - `LEVELS` e il calcolo del livello, Aurora 2, 3… compresi, in `js/points.js`.
 - `js/motion.js` (fase 1) tocca la pagina solo per le animazioni. `slideIn()` (fase 2a) fa entrare un blocco intero; da P-003 (passo 3.1) la scheda entra a blocchi con `staggerIn()` e lo sfondo dell'intestazione scivola con `shiftIn()`.
 - Ogni scheda può avere un suo file che tocca la pagina, come `app.js`: così `app.js` non cresce troppo.
   - `js/ui-focus.js` (fase 2a): i fogli «Cosa faccio adesso?» e Focus, il suono di fine e lo schermo acceso. `app.js` gli passa con `Aura.focusUI.init()` quello che gli serve: stato, `commit()`, fogli, avvisi, preferenze.
-  - `js/ui-agenda.js` e `js/ui-motivation.js` arrivano con le fasi 3 e 4.
+  - `js/ui-agenda.js` (P-003, passo 3.2): calendario, giorno scelto, «Prossimi giorni», «Da pianificare», gesti e movimenti dell'Agenda. Tiene il giorno scelto; `app.js` gli passa con `Aura.agendaUI.init()` stato, `commit()`, la card (`buildTask()`), avvisi, il foglio «Nuova attività» e le preferenze, e ogni minuto chiama `tick()` per la linea dell'ora. `isVisible()` dice ad `app.js` se un'attività si vede nell'Agenda (dipende dal giorno scelto), `addPreset()` che giorno propone «Nuova attività».
+  - `js/ui-motivation.js` arriva con il passo 3.3 di P-003.
 - Ogni file nuovo va in `index.html`, in `tests/index.html` se ha logica pura, e in `APP_FILES` di `sw.js`.

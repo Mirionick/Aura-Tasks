@@ -28,6 +28,7 @@
   <script src="js/focus.js" defer></script>
   <script src="js/suggest.js" defer></script>
   <script src="js/assistant.js" defer></script>
+  <script src="js/agenda.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/reminders.js" defer></script>
   <script src="js/remote.js" defer></script>
@@ -36,6 +37,7 @@
   <script src="js/ui-focus.js" defer></script>
   <script src="js/ui-assistant.js" defer></script>
   <script src="js/ui-settings.js" defer></script>
+  <script src="js/ui-agenda.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -226,12 +228,52 @@
       </details>
     </section>
 
-    <!-- Scheda Agenda, per pianificare. Fino alla fase 3: le sezioni Domani e Prossimi giorni di sempre -->
+    <!-- Scheda Agenda, per pianificare (P-003, passo 3.2): il calendario del mese, che si riduce alla settimana, a cavallo
+         del bordo dell'intestazione; sotto, il giorno scelto, «Prossimi giorni» e «Da pianificare». Li scrive js/ui-agenda.js,
+         con la logica di js/agenda.js (vedi docs/tre-modalita.md, «Agenda a calendario»). -->
     <section class="tab" id="tab-agenda" aria-label="Agenda" hidden>
-      <div id="agenda-sections"></div>
-      <section class="empty empty--small" id="agenda-empty" data-flip="agenda-empty" hidden>
-        <h2 class="empty__title">Niente in programma 🗓️</h2>
-        <p class="empty__text">Le attività con una data da domani in poi compaiono qui.</p>
+      <div class="cal" id="cal" data-flip="agenda-cal">
+        <div class="cal__head">
+          <h2 class="cal__month" id="cal-month" aria-live="polite"></h2>
+          <button class="cal__today" id="cal-today" type="button" hidden><span>Oggi</span></button>
+          <button class="icon-btn cal__nav" id="cal-prev" type="button" aria-label="Mese prima">
+            <svg class="icon cal__back" aria-hidden="true" focusable="false"><use href="#i-arrow-right"></use></svg>
+          </button>
+          <button class="icon-btn cal__nav" id="cal-next" type="button" aria-label="Mese dopo">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-arrow-right"></use></svg>
+          </button>
+        </div>
+        <div class="cal__week" aria-hidden="true"><span>L</span><span>M</span><span>M</span><span>G</span><span>V</span><span>S</span><span>D</span></div>
+        <!-- I giorni sono pulsanti (con data e numero di attività per il lettore di schermo); si scorre anche di lato -->
+        <div class="cal__grid" id="cal-grid" role="group" aria-labelledby="cal-month"></div>
+        <button class="cal__handle" id="cal-handle" type="button" aria-expanded="true" aria-controls="cal-grid">
+          <span class="cal__grip" aria-hidden="true"></span>
+          <span id="cal-handle-text">Solo la settimana</span>
+        </button>
+      </div>
+
+      <section class="section day" id="agenda-day" aria-labelledby="agenda-day-title" data-flip="agenda-day">
+        <div class="section__header">
+          <h2 class="section__title day__title" id="agenda-day-title"></h2>
+          <span class="section__info" id="agenda-day-info"></span>
+        </div>
+        <div id="agenda-day-body"></div>
+      </section>
+
+      <section class="section" id="agenda-upcoming" aria-labelledby="agenda-upcoming-title" data-flip="agenda-upcoming" hidden>
+        <div class="section__header">
+          <h2 class="section__title" id="agenda-upcoming-title">Prossimi giorni</h2>
+          <span class="section__info" id="agenda-upcoming-info"></span>
+        </div>
+        <ul class="task-list" id="agenda-upcoming-list"></ul>
+      </section>
+
+      <section class="section" id="agenda-unplanned" aria-labelledby="agenda-unplanned-title" data-flip="agenda-unplanned" hidden>
+        <div class="section__header">
+          <h2 class="section__title" id="agenda-unplanned-title">Da pianificare</h2>
+          <span class="section__info" id="agenda-unplanned-info"></span>
+        </div>
+        <ul class="task-list" id="agenda-unplanned-list"></ul>
       </section>
     </section>
 
