@@ -246,12 +246,13 @@
 
   /* ---------- Salvataggio ---------- */
 
-  test('storage.parse: nessun dato → elenco vuoto e registro vuoto', () => {
-    const empty = { version: storage.SCHEMA_VERSION, tasks: [], stats: P.emptyStats() };
+  test('storage.parse: nessun dato → elenco vuoto, nessun premio e registro vuoto', () => {
+    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats() };
     assertEqual(storage.parse(null), empty);
     assertEqual(storage.parse(''), empty);
-    assertEqual(storage.SCHEMA_VERSION, 4);
+    assertEqual(storage.SCHEMA_VERSION, 5);
     assertEqual(P.emptyStats().focus, {}, 'registro vuoto con i minuti di focus');
+    assertEqual(P.emptyStats().spent, [], 'registro vuoto con i riscatti dei premi');
   });
 
   test('storage.parse: testo illeggibile o formato sbagliato → errore', () => {
@@ -352,7 +353,11 @@
     const state = {
       version: storage.SCHEMA_VERSION,
       tasks: [make({ id: 'a', title: 'Andata e ritorno' }), make({ id: 'b', done: true, completedAt: 9, pointsAwarded: 24 })],
-      stats: { totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } }, focus: { '1970-01-01': 25 } }
+      rewards: [{ id: 'r', title: 'Gelato', emoji: '🍦', cost: 20, createdAt: 3 }],
+      stats: {
+        totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } }, focus: { '1970-01-01': 25 },
+        spent: [{ id: 's', rewardId: 'r', title: 'Gelato', cost: 20, at: 10 }]
+      }
     };
     assertEqual(storage.parse(storage.serialize(state)), state);
   });
@@ -412,23 +417,23 @@
     });
     const state = storage.parse(raw);
     assertEqual(state.version, storage.SCHEMA_VERSION);
-    assertEqual(state.stats, { ...stats, focus: {} }, 'registro identico, più i minuti di focus (v4) vuoti');
+    assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'registro identico, più i minuti di focus (v4) e i riscatti (v5) vuoti');
     assertEqual(state.tasks.map(t => [t.time, t.pointsAwarded]), [[null, 24], [null, null]]);
     assertEqual([state.future, state.tasks[0].extra], ['ok', 1]);
   });
 
   /* ---------- Minuti di focus (schema v4), preferenze e schede ---------- */
 
-  test('storage.parse: dalla v3 alla v4 cambia solo la versione; il registro riceve i minuti di focus vuoti', () => {
+  test('storage.parse: dalla v3 alla v4 (e poi all\'ultima) cambia solo la versione; il registro riceve i minuti di focus vuoti', () => {
     const stats = { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-09': { done: 1, points: 24 } }, level: 2 };
     const tasks = [
       { id: 'a', title: 'Fatta', duration: 30, energy: 'medium', date: '2026-11-09', time: '10:00', done: true, createdAt: 1, completedAt: 5, pointsAwarded: 24, extra: 1 },
       { id: 'b', title: 'Da fare', duration: 15, energy: 'low', date: null, time: null, done: false, createdAt: 2, completedAt: null, pointsAwarded: null }
     ];
     const state = storage.parse(JSON.stringify({ version: 3, future: 'ok', stats, tasks }));
-    assertEqual(state.version, 4);
+    assertEqual(state.version, storage.SCHEMA_VERSION);
     assertEqual(state.tasks, tasks, 'attività identiche');
-    assertEqual(state.stats, { ...stats, focus: {} }, 'punti, serie e campi sconosciuti intatti');
+    assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'punti, serie e campi sconosciuti intatti');
     assertEqual(state.future, 'ok');
   });
 

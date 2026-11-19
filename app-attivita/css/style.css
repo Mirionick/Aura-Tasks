@@ -1096,6 +1096,133 @@ button {
   .nums__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* «I tuoi premi» (P-003, passo 3.4): pillola d'oro del saldo, righe con emoji, barra e «Riscatta», riscatti chiusi.
+   Nella pagina i premi si chiamano «prize»: .stats--rewards è già il riquadro di serie e punti. */
+/* Su uno schermo stretto la pillola del saldo va sotto il titolo, invece di spezzarlo su due righe */
+.prizes .block__head { flex-wrap: wrap; row-gap: 6px; }
+.prizes__balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  min-height: 30px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  background: var(--points-chip-bg);
+  color: var(--points-chip-text);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.prizes__star { width: 15px; height: 15px; flex: none; fill: currentColor; }
+.prizes__empty { margin: 0 0 4px; color: var(--text-2); font-size: 14px; line-height: 1.45; }
+.prizes__list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.prize { display: flex; align-items: center; gap: 10px; }
+/* Emoji, nome, barra e stato: un pulsante solo, che apre il foglio del premio */
+.prize__open {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 64px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+.prize__emoji {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--field-bg);
+  font-size: 26px;
+  line-height: 1;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.prize__open:active .prize__emoji { transform: scale(.94); }
+.prize__text { display: grid; gap: 5px; flex: 1 1 auto; min-width: 0; }
+.prize__title { font-size: 16px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.prize__bar { display: block; height: 6px; overflow: hidden; border-radius: 999px; background: var(--field-bg); }
+.prize__fill { display: block; height: 100%; border-radius: inherit; background: var(--star); transform-origin: left center; }
+.prize__status { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; }
+.prize.is-ready .prize__status { color: var(--low); }
+/* «Riscatta»: pieno con il saldo che basta; altrimenti grigio, ma toccabile (aria-disabled): un tocco dice quanto manca */
+.prize__redeem {
+  flex: none;
+  min-width: 92px;
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--on-accent);
+  font-size: 15px;
+  font-weight: 750;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.prize__redeem:active { transform: scale(.96); }
+.prize__redeem[aria-disabled="true"] { background: var(--field-bg); color: var(--text-3); cursor: default; }
+.prizes__add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: 2px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+}
+.prizes__add .icon { width: 18px; height: 18px; }
+/* Senza premi «Aggiungi un premio» è l'invito principale della card */
+.prizes--empty .prizes__add { justify-content: center; margin-top: 10px; color: var(--accent-text); background: var(--accent-soft); }
+.prizes__add:active { background: var(--hover); }
+@media (hover: hover) {
+  .prize__open:hover .prize__title,
+  .prizes__add:hover { color: var(--accent-text); }
+}
+.prizes__history { margin-top: 6px; border-top: 1px solid var(--border); }
+.prizes__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 0 4px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 700;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.prizes__summary::-webkit-details-marker { display: none; }
+.prizes__history[open] .completed__chevron { transform: rotate(180deg); }
+.prizes__log { display: grid; margin: 0 0 4px; padding: 0 4px; list-style: none; }
+.prizes__entry { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 14px; }
+.prizes__entry-emoji { flex: none; font-size: 18px; line-height: 1; }
+.prizes__entry-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prizes__entry-meta { flex: none; color: var(--text-3); font-variant-numeric: tabular-nums; }
+/* Sugli schermi da 320 px più spazio per il nome: l'emoji e «Riscatta» un poco più stretti */
+@media (max-width: 359px) {
+  .prize { gap: 8px; }
+  .prize__open { gap: 10px; }
+  .prize__emoji { width: 40px; height: 40px; border-radius: 12px; font-size: 22px; }
+  .prize__redeem { min-width: 0; padding: 0 12px; }
+}
+
 /* «Completate» in Motivazione: dentro la sezione aperta, «Svuota» in alto a destra */
 .history__tools { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
 .btn.history__clear { min-height: var(--tap); } /* «Svuota»: area di tocco piena (più specifico di .btn--small, che viene dopo) */
@@ -1620,6 +1747,39 @@ button {
 .segment:active .segment__body { transform: scale(.97); }
 .segment input:checked + .segment__body { color: var(--level); background: var(--level-soft); border-color: var(--level); }
 .segment input:focus-visible + .segment__body { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+
+/* Foglio del premio: le 15 emoji in cinque colonne (almeno 48 px anche a 320 px), come pulsanti di opzione; il prezzo */
+.emoji-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.emoji-pick { position: relative; display: block; cursor: pointer; }
+/* Il pulsante di opzione, trasparente, copre la faccia anche mentre questa si rimpicciolisce al tocco */
+.emoji-pick input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.emoji-pick__face {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  border: 1.5px solid var(--field-border);
+  border-radius: 14px;
+  background: var(--field-bg);
+  font-size: 24px;
+  line-height: 1;
+  transition: background-color var(--dur-color) var(--ease-out), border-color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.emoji-pick:active .emoji-pick__face { transform: scale(.94); }
+.emoji-pick input:checked + .emoji-pick__face { border-color: var(--accent); background: var(--accent-soft); }
+.emoji-pick input:focus-visible + .emoji-pick__face { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.input.prize-cost { margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+/* I sei prezzi pronti in due righe ordinate, tre per riga, alti quanto un'area di tocco */
+.chips.prize-costs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.prize-costs .chip { min-height: var(--tap); }
 
 /* Data: un'etichetta leggibile con sopra il calendario nativo, invisibile ma toccabile */
 .date-picker {
@@ -2608,8 +2768,10 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .mini--points.is-bumping .star { animation: star-spin var(--dur-reward) var(--ease-out); }
 /* Il contatore di «Completate oggi» quando ci arriva una card */
 .badge.is-bumping { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
-/* Motivazione: il distintivo salta quando si sale di livello; le linee della costellazione appaiono piano */
+/* Motivazione: il distintivo salta quando si sale di livello; le linee della costellazione appaiono piano;
+   la pillola dei punti da spendere salta quando il saldo cambia */
 .lvl__badge.is-leveling { animation: value-pop var(--dur-reward) var(--ease-spring); }
+.prizes__balance.is-bumping { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
 .sky-line.is-appearing { animation: fade-in var(--dur-celebrate) var(--ease-out); }
 
 /* Focus: l'aurora scorre piano (solo transform e opacity); il primo fotogramma è lo stato di riposo di ogni livello */

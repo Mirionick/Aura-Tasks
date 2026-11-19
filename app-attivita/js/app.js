@@ -8,14 +8,16 @@
  * La rotella con i fogli «Impostazioni» e «Privacy» sta in js/ui-settings.js, avviato allo stesso modo.
  * L'Agenda a calendario (calendario, giorno scelto, «Prossimi giorni», «Da pianificare») sta in js/ui-agenda.js, avviato
  * allo stesso modo: render() la ridisegna insieme alle altre schede. Così anche Motivazione (livello, «La tua settimana»,
- * «I tuoi numeri»), in js/ui-motivation.js; «Completate», serie e punti restano qui.
+ * «I tuoi numeri»), in js/ui-motivation.js, e i suoi premi («I tuoi premi» e il foglio del premio), in js/ui-rewards.js;
+ * «Completate», serie e punti restano qui.
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, focus: F, storage, theme, reminders: RM, remote: R, motion: M, settings: Settings,
-    focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI, motivationUI: MotivationUI } = Aura;
+  const { utils, tasks: T, nlp, points: P, focus: F, rewards: RW, storage, theme, reminders: RM, remote: R, motion: M,
+    settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
+    motivationUI: MotivationUI, rewardsUI: RewardsUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -166,6 +168,7 @@
   let settingsCtl = null; // rotella, foglio «Impostazioni» e foglio «Privacy» (js/ui-settings.js), pronti all'avvio
   let agendaCtl = null;   // scheda Agenda a calendario (js/ui-agenda.js), pronta all'avvio
   let motivationCtl = null; // livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), pronti all'avvio
+  let rewardsCtl = null;    // «I tuoi premi» e il foglio del premio (js/ui-rewards.js), pronti all'avvio
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -182,8 +185,16 @@
    * Restituisce false (e avvisa) se il salvataggio non riesce.
    */
   function commit(nextTasks, nextStats = state.stats, motion = {}) {
+    return commitState({ tasks: nextTasks, stats: nextStats }, motion);
+  }
+
+  /**
+   * Come commit(), ma `change` dice quali parti dello stato cambiano: per esempio { rewards } o { stats } dai premi
+   * (js/ui-rewards.js). Le altre restano com'erano.
+   */
+  function commitState(change, motion = {}) {
     const before = M.snapshot(els.main);
-    state = { ...state, tasks: nextTasks, stats: nextStats };
+    state = { ...state, ...change };
     const saved = storage.save(state);
     render();
     const plan = M.play(els.main, before, motion);
@@ -303,8 +314,10 @@
     renderEmpty(focusSections.length === 0, completed.length, agendaCount, today);
     // Agenda: calendario, giorno scelto, Prossimi giorni e Da pianificare (js/ui-agenda.js)
     if (agendaCtl) agendaCtl.render(now);
-    // Motivazione: livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), poi «Completate»
+    // Motivazione: livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), «I tuoi premi» (js/ui-rewards.js),
+    // poi «Completate»
     if (motivationCtl) motivationCtl.render(now);
+    if (rewardsCtl) rewardsCtl.render(now);
     renderHistory(completed, now);
     renderedPassed = T.passedCount(state.tasks, now);
 
@@ -559,13 +572,14 @@
 
   /**
    * Dopo un completamento: avviso con i punti, e festa se la serie si accende o tocca un traguardo.
-   * L'avviso dice anche il livello nuovo («✨ Livello Stella») e la settimana che diventa una costellazione (una volta per
-   * settimana, vedi js/ui-motivation.js). `focus` ({ minutes, day }): minuti di focus registrati insieme, detti nell'avviso
-   * e tolti anche da «Annulla».
+   * L'avviso dice anche il livello nuovo («✨ Livello Stella»), la settimana che diventa una costellazione (una volta per
+   * settimana, vedi js/ui-motivation.js) e il premio che si può riscattare da adesso (js/ui-rewards.js). `focus`
+   * ({ minutes, day }): minuti di focus registrati insieme, detti nell'avviso e tolti anche da «Annulla».
    */
   function celebrate(id, result, firstToday, focus) {
     const milestone = result.reached.length ? Math.max(...result.reached) : 0;
     const progress = motivationCtl ? motivationCtl.celebrate(result) : { level: null, reached: false };
+    const ready = rewardsCtl ? rewardsCtl.celebrate(result) : null;
     const targets = rewardTargets();
     if (firstToday && targets) M.flash(targets.streak, 'is-igniting');
     if (milestone) {
@@ -584,9 +598,10 @@
     if (milestone) message = '🎉 ' + daysLabel(milestone) + ' di fila! · ' + points;
     else if (progress.level) message = '✨ Livello ' + progress.level.name + ' · ' + points;
     else if (progress.reached) message = '🌌 Obiettivo della settimana raggiunto · ' + points;
+    else if (ready) message = RW.readyText(ready) + ' · ' + points;
     else if (firstToday) message = (result.streak === 1 ? '🔥 Serie iniziata · ' : '🔥 ' + daysLabel(result.streak) + ' di fila · ') + points;
     if (focus) message += ' · ' + utils.formatDuration(focus.minutes) + ' di focus';
-    const special = Boolean(milestone || progress.level || progress.reached);
+    const special = Boolean(milestone || progress.level || progress.reached || ready);
 
     showToast(message, {
       action: 'Annulla',
@@ -1185,14 +1200,14 @@
       title: 'Importare questo backup?',
       source: 'Nel file',
       when: 'Esportato: ',
-      text: 'Attività, punti e serie di adesso verranno sostituiti. Prima ne salvo una copia su questo dispositivo.',
+      text: 'Attività, punti, serie e premi di adesso verranno sostituiti. Prima ne salvo una copia su questo dispositivo.',
       ok: 'Sostituisci'
     },
     restore: {
       title: 'Ripristinare i dati di prima dell\'importazione?',
       source: 'Nella copia',
       when: 'Salvata: ',
-      text: 'Attività, punti e serie di adesso verranno sostituiti da quelli della copia.',
+      text: 'Attività, punti, serie e premi di adesso verranno sostituiti da quelli della copia.',
       ok: 'Ripristina'
     }
   };
@@ -1202,7 +1217,10 @@
 
   const tasksLabel = count => count + ' attività';
   const pointsLabel = points => (points === 1 ? '1 punto' : utils.formatNumber(points) + ' punti');
-  const dataLabel = data => tasksLabel(data.tasks.length) + ' · ' + pointsLabel(data.stats.totalPoints);
+  const prizesLabel = count => (count === 1 ? '1 premio' : count + ' premi');
+  // «12 attività · 1240 punti», più « · 3 premi» se ce ne sono
+  const dataLabel = data => tasksLabel(data.tasks.length) + ' · ' + pointsLabel(data.stats.totalPoints) +
+    (data.rewards && data.rewards.length ? ' · ' + prizesLabel(data.rewards.length) : '');
   const momentLabel = ms => (ms ? utils.formatMoment(ms, utils.todayISO()) : 'data sconosciuta');
 
   /** Il foglio riparte sempre dallo stato normale: una scelta lasciata a metà si perde (non si conta sull'evento close). */
@@ -2289,6 +2307,19 @@
     getState: () => state,
     getPrefs: () => prefs,
     setPrefs,
+    isActive: () => activeTab === 'motivation'
+  });
+  // «I tuoi premi»: la card in Motivazione e il foglio del premio. Premi e riscatti passano da commitState().
+  rewardsCtl = RewardsUI.init({
+    getState: () => state,
+    commitState,
+    showToast,
+    openSheet,
+    closeSheet,
+    setupSheet,
+    setAutofocus,
+    burstConfetti,
+    vibrate,
     isActive: () => activeTab === 'motivation'
   });
 
