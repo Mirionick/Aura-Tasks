@@ -16,8 +16,8 @@
   // Suono di fine: tre note brevi, generate con Web Audio (nessun file). [frequenza in Hz, partenza in secondi]
   const CHIME = { notes: [[660, 0], [880, 0.18], [1320, 0.36]], volume: 0.22, attack: 0.02, length: 0.6 };
   const VIBRATION = [180, 90, 180]; // solo Android: su iPhone navigator.vibrate non esiste
-  // Respiro dello sfondo: dopo l'apertura si guardano 24 fotogrammi; se più della metà dura oltre 45 ms (meno di circa
-  // 22 al secondo), su questo dispositivo lo sfondo pesa troppo e resta fermo.
+  // Aurora dello sfondo (la classe si chiama ancora is-breathing): dopo l'apertura si guardano 24 fotogrammi; se più della
+  // metà dura oltre 45 ms (meno di circa 22 al secondo), su questo dispositivo l'aurora pesa troppo e resta ferma.
   const BREATH = { warmupMs: 600, frames: 24, slowMs: 45 };
 
   let ctx = null;
@@ -297,6 +297,12 @@
       write('clock', els.focusClock, clock);
       // L'anello si accorcia a scatti, una volta al secondo, senza transizioni.
       els.focusArc.style.strokeDashoffset = String(RING * (1 - remaining / session.durationMs));
+      // L'aurora sale con il tempo: passi di un decimo di punto percentuale, che a occhio non si vedono.
+      const rise = F.auroraRise(remaining, session.durationMs);
+      if (shown.rise !== rise) {
+        shown.rise = rise;
+        els.auroraRise.style.transform = 'translateY(' + rise + '%)';
+      }
     }
     let state = 'Fino alle ' + utils.formatTime(new Date(F.endsAt(session) || now));
     if (finished) state = 'Tempo finito ✨';
@@ -313,7 +319,7 @@
     els.focusSheet.classList.toggle('is-finished', finished);
   }
 
-  /** Decide se il tempo va aggiornato, se lo schermo va tenuto acceso e se l'aura respira. */
+  /** Decide se il tempo va aggiornato, se lo schermo va tenuto acceso e se l'aurora scorre. */
   function syncRunning() {
     const visible = els.focusSheet.open && !els.focusSheet.classList.contains('is-closing') && !document.hidden;
     const running = Boolean(session) && visible && !F.isPaused(session) && !F.isFinished(session, Date.now());
@@ -330,11 +336,11 @@
     if (breathe) watchBreath();
   }
 
-  let breathFits = null; // null = da misurare; false = lo sfondo che respira pesa troppo qui, e resta fermo
+  let breathFits = null; // null = da misurare; false = l'aurora pesa troppo qui, e resta ferma
   let breathTimer = 0;
 
   /**
-   * Misura una volta sola se il dispositivo regge lo sfondo che respira: conta i fotogrammi lenti a regime, dopo
+   * Misura una volta sola se il dispositivo regge l'aurora che scorre: conta i fotogrammi lenti a regime, dopo
    * l'apertura del foglio. Un fotogramma lungo isolato (pagina tornata dallo sfondo) non conta: serve la maggioranza.
    */
   function watchBreath() {
@@ -381,6 +387,7 @@
       if (late < LATE_CHIME_MS && !document.hidden) {
         chime();
         ctx.vibrate(VIBRATION);
+        M.flash(els.auroraBloom, 'is-blooming'); // l'aurora si apre in un bagliore, una volta sola
       }
       if (els.focusSheet.open) els.focusComplete.focus({ preventScroll: true });
     }
@@ -593,7 +600,7 @@
       'focusSheet:focus-sheet', 'focusTitle:focus-title', 'focusMeta:focus-meta', 'focusArc:focus-arc',
       'focusClock:focus-clock', 'focusState:focus-state', 'focusToggle:focus-toggle', 'focusToggleIcon:focus-toggle-icon',
       'focusToggleText:focus-toggle-text', 'focusExtend:focus-extend', 'focusComplete:focus-complete',
-      'focusCompleteText:focus-complete-text', 'focusExit:focus-exit'
+      'focusCompleteText:focus-complete-text', 'focusExit:focus-exit', 'auroraRise:aurora-rise', 'auroraBloom:aurora-bloom'
     ].forEach(pair => {
       const [key, id] = pair.split(':');
       els[key] = byId(id);

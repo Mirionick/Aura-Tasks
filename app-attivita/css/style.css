@@ -56,6 +56,20 @@
   --hero-bottom: #6a46f3;
   --hero-glow-1: rgba(56, 214, 255, .38);
   --hero-glow-2: rgba(255, 112, 190, .42);
+  /* Bagliore dell'intestazione per scheda (P-003): Focus usa --hero-glow-*, Agenda azzurro e lilla, Motivazione oro e rosa */
+  --tint-agenda-1: rgba(56, 214, 255, .42);
+  --tint-agenda-2: rgba(124, 140, 255, .48);
+  --tint-motivation-1: rgba(255, 210, 63, .36);
+  --tint-motivation-2: rgba(255, 112, 190, .46);
+  /* Aurora del focus a tutto schermo: uguale nei due temi, perché il fondo del focus è sempre viola */
+  --aurora-1: rgba(82, 211, 168, .7);
+  --aurora-2: rgba(56, 214, 255, .62);
+  --aurora-3: rgba(255, 112, 190, .56);
+  --aurora-4: rgba(195, 181, 255, .56);
+  --aurora-deep: rgba(106, 76, 245, .28);
+  --aurora-star: rgba(255, 255, 255, .9);
+  --aurora-bloom: rgba(255, 245, 214, .6);
+  --aurora-bloom-2: rgba(255, 210, 63, .2);
   --hero-text: #ffffff;
   --hero-text-2: rgba(255, 255, 255, .86);
   --glass: rgba(22, 10, 70, .2);
@@ -125,14 +139,15 @@
   --dur-color: 180ms;      /* transizioni di colore dei piccoli controlli: al massimo 200 ms */
   --dur-exit: 220ms;       /* uscite: card, fogli, avvisi */
   --dur-move: 320ms;       /* entrate e spostamenti: card, fogli, avvisi, «Completate», spunta */
+  --dur-tab: 460ms;        /* cambio di scheda: sfondo dell'intestazione, pillola della barra, gesto dell'icona */
   --dur-reward: 600ms;     /* fiamma, stella, numeri che contano, barra del traguardo */
   --dur-celebrate: 1100ms; /* "+N" che vola, coriandoli, bagliore della serie */
   --dur-glow: 1600ms;      /* bagliore di una card nuova o modificata */
-  --dur-breath: 6s;        /* respiro dello sfondo del focus a tutto schermo */
   --ease-out: cubic-bezier(.2, .8, .2, 1);        /* entrate e spostamenti */
   --ease-in: cubic-bezier(.4, 0, 1, 1);           /* uscite */
   --ease-in-out: cubic-bezier(.45, 0, .25, 1);    /* viaggi da un punto all'altro, respiri */
   --ease-spring: cubic-bezier(.34, 1.56, .64, 1); /* piccoli rimbalzi */
+  --ease-bounce: cubic-bezier(.34, 1.32, .64, 1); /* la pillola della barra che si ferma con un rimbalzo */
 }
 
 /* Tema scuro: palette dedicata (non un'inversione). Sfondo blu-notte, superfici a livelli, bordi al posto delle ombre. */
@@ -173,6 +188,10 @@
   --hero-bottom: #2b1f7a;
   --hero-glow-1: rgba(56, 214, 255, .2);
   --hero-glow-2: rgba(236, 72, 153, .26);
+  --tint-agenda-1: rgba(56, 214, 255, .22);
+  --tint-agenda-2: rgba(124, 140, 255, .26);
+  --tint-motivation-1: rgba(255, 210, 63, .18);
+  --tint-motivation-2: rgba(236, 72, 153, .26);
   --hero-text: #f4f2ff;
   --hero-text-2: rgba(244, 242, 255, .78);
   --glass: rgba(255, 255, 255, .06);
@@ -299,19 +318,50 @@ button {
 
 .hero {
   position: relative;
-  overflow: hidden;
+  isolation: isolate; /* lo sfondo (z-index: -1) resta dietro il contenuto dell'intestazione, sopra la pagina */
   color: var(--hero-text);
-  background:
-    radial-gradient(70% 90% at 105% 55%, var(--hero-glow-1), transparent 70%),
-    radial-gradient(60% 80% at -5% 110%, var(--hero-glow-2), transparent 70%),
-    linear-gradient(180deg, var(--hero-top) 0%, var(--hero-bottom) 100%);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   padding:
     calc(env(safe-area-inset-top, 0px) + 8px)
     max(var(--gutter), env(safe-area-inset-right, 0px))
     14px
     max(var(--gutter), env(safe-area-inset-left, 0px));
 }
+
+/* Sfondo dell'intestazione (P-003, passo 3.1): un livello che sale 640 px sopra l'intestazione e ne segue il fondo.
+   Quando l'altezza cambia (cambio di scheda) scivola con transform dalla vecchia alla nuova posizione (js/motion.js,
+   Aura.motion.shiftIn): il bordo arrotondato sale o scende senza ridisegnare la pagina. Fuori dallo schermo, in alto, non si vede. */
+.hero__bg {
+  position: absolute;
+  z-index: -1;
+  top: -640px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: linear-gradient(180deg, var(--hero-top) 640px, var(--hero-bottom) 100%);
+  pointer-events: none;
+}
+.hero__bg.is-moving { will-change: transform; }
+/* Un bagliore per scheda, sull'area dell'intestazione: sfumano l'uno nell'altro con opacity */
+.hero__tint {
+  position: absolute;
+  top: 640px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  opacity: 0;
+  background:
+    radial-gradient(70% 90% at 105% 55%, var(--tint-1), transparent 70%),
+    radial-gradient(60% 80% at -5% 110%, var(--tint-2), transparent 70%);
+  transition: opacity var(--dur-tab) var(--ease-in-out);
+}
+.hero__tint--focus { --tint-1: var(--hero-glow-1); --tint-2: var(--hero-glow-2); }
+.hero__tint--agenda { --tint-1: var(--tint-agenda-1); --tint-2: var(--tint-agenda-2); }
+.hero__tint--motivation { --tint-1: var(--tint-motivation-1); --tint-2: var(--tint-motivation-2); }
+.hero[data-tab="focus"] .hero__tint--focus,
+.hero[data-tab="agenda"] .hero__tint--agenda,
+.hero[data-tab="motivation"] .hero__tint--motivation { opacity: 1; }
 
 /* Stessa colonna della lista (che ha i suoi margini interni), così su desktop testo e card sono allineati */
 .hero__inner { max-width: calc(var(--content-max) - 2 * var(--gutter)); margin: 0 auto; }
@@ -1027,15 +1077,16 @@ button {
   left: 0;
   width: calc(100% / 3);
   pointer-events: none;
-  transition: transform var(--dur-move) var(--ease-out);
+  transition: transform var(--dur-tab) var(--ease-bounce);
 }
-.tabbar__indicator::before {
-  content: "";
+/* La pillola vera è un elemento a sé (non ::before), così Aura.motion.flash vede la fine del suo allungamento */
+.tabbar__pill {
   position: absolute;
   inset: 6px 14%;
   border-radius: 999px;
   background: var(--accent-soft);
 }
+.tabbar__pill.is-moving { animation: pill-stretch var(--dur-tab) var(--ease-out); }
 .tabbar[data-active="agenda"] .tabbar__indicator { transform: translateX(100%); }
 .tabbar[data-active="motivation"] .tabbar__indicator { transform: translateX(200%); }
 
@@ -1057,6 +1108,10 @@ button {
   transition: color var(--dur-color) var(--ease-out);
 }
 .tabbar__tab .icon { width: 22px; height: 22px; }
+/* Il gesto dell'icona quando la scheda si apre: gli anelli di Focus pulsano, il calendario salta, la medaglia oscilla */
+.tabbar__tab .icon.is-popping { animation: pop-rings var(--dur-tab) var(--ease-out); }
+.tabbar__tab[data-tab="agenda"] .icon.is-popping { animation-name: pop-calendar; }
+.tabbar__tab[data-tab="motivation"] .icon.is-popping { animation-name: pop-medal; transform-origin: 50% 8%; }
 .tabbar__tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabbar__tab[aria-current="page"] { color: var(--accent-text); }
 @media (hover: hover) {
@@ -1836,32 +1891,119 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .sheet--focus.is-static,
 .sheet--focus.is-static .focus { touch-action: pinch-zoom; }
 
-/* Bagliori ciano e rosa: livelli assoluti dietro il contenuto, senza tocchi. Si muovono solo con transform e opacity.
-   Sono disegnati piccoli (30vmax) e ingranditi con scale: una sfumatura non perde qualità, e il livello occupa un quarto
-   della memoria. will-change li tiene pronti così, senza ridisegnarli più grandi. */
+/* Aurora (P-003, passo 3.1): quattro fasce di luce che scorrono piano, ognuna con la sua durata (da 13 a 29 s), e due
+   livelli di stelline che brillano. Livelli assoluti dietro il contenuto, senza tocchi, solo transform e opacity.
+   Le fasce sono disegnate piccole e ingrandite con scale (3 volte in larghezza), come i bagliori di prima: una
+   sfumatura non perde qualità e il livello occupa molta meno memoria. Lo stato di riposo di ogni livello è il primo
+   fotogramma della sua animazione: con «Riduci movimento» l'aurora c'è, ferma. */
 .focus__aura { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
-.focus__glow {
+.aurora__stars {
   position: absolute;
-  width: 30vmax;
-  height: 30vmax;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
   border-radius: 50%;
-  transform: scale(2.6);
+  opacity: .7;
+  will-change: opacity;
+}
+.aurora__stars--a {
+  box-shadow:
+    6vw 9vh 0 0 var(--aurora-star),
+    17vw 31vh 0 1px var(--aurora-star),
+    26vw 4vh 0 0 var(--aurora-star),
+    34vw 22vh 0 0 var(--aurora-star),
+    43vw 47vh 0 0 var(--aurora-star),
+    51vw 12vh 0 1px var(--aurora-star),
+    58vw 36vh 0 0 var(--aurora-star),
+    64vw 6vh 0 0 var(--aurora-star),
+    71vw 27vh 0 0 var(--aurora-star),
+    78vw 52vh 0 0 var(--aurora-star),
+    84vw 15vh 0 1px var(--aurora-star),
+    91vw 39vh 0 0 var(--aurora-star),
+    96vw 3vh 0 0 var(--aurora-star),
+    12vw 56vh 0 0 var(--aurora-star),
+    38vw 60vh 0 0 var(--aurora-star),
+    67vw 58vh 0 0 var(--aurora-star);
+  animation: aurora-twinkle 3.4s var(--ease-in-out) infinite alternate paused;
+}
+.aurora__stars--b {
+  box-shadow:
+    3vw 24vh 0 0 var(--aurora-star),
+    10vw 41vh 0 0 var(--aurora-star),
+    21vw 15vh 0 0 var(--aurora-star),
+    30vw 51vh 0 1px var(--aurora-star),
+    47vw 29vh 0 0 var(--aurora-star),
+    55vw 2vh 0 0 var(--aurora-star),
+    61vw 44vh 0 0 var(--aurora-star),
+    75vw 11vh 0 0 var(--aurora-star),
+    81vw 33vh 0 0 var(--aurora-star),
+    88vw 58vh 0 0 var(--aurora-star),
+    94vw 20vh 0 1px var(--aurora-star),
+    40vw 8vh 0 0 var(--aurora-star),
+    24vw 35vh 0 0 var(--aurora-star),
+    70vw 49vh 0 0 var(--aurora-star);
+  animation: aurora-twinkle 4.8s var(--ease-in-out) -2s infinite alternate-reverse paused;
+}
+/* Sale con il tempo: js/ui-focus.js la sposta in basso all'inizio (16%) e a zero alla fine, una volta al secondo */
+.aurora__rise { position: absolute; inset: 0; transform: translateY(16%); }
+.aurora__band {
+  position: absolute;
+  left: 50%;
+  width: 30vmax;
+  margin-left: -15vmax;
+  border-radius: 50%;
+  transform-origin: 50% 100%;
   will-change: transform, opacity;
 }
-.focus__glow--a {
-  top: -7vmax;
-  right: -11vmax;
-  background: radial-gradient(closest-side, var(--hero-glow-1), transparent);
-  animation: focus-breathe-a var(--dur-breath) var(--ease-in-out) infinite alternate paused;
+.aurora__band--1 {
+  bottom: 2%;
+  height: 16vmax;
+  background: radial-gradient(closest-side, var(--aurora-1), var(--aurora-deep) 58%, transparent);
+  opacity: .65;
+  transform: translateX(-36%) rotate(-9deg) scale(3, 2.25);
+  animation: aurora-band-1 17s var(--ease-in-out) infinite alternate paused;
 }
-.focus__glow--b {
-  bottom: -9vmax;
-  left: -13vmax;
-  background: radial-gradient(closest-side, var(--hero-glow-2), transparent);
-  animation: focus-breathe-b calc(var(--dur-breath) * 1.25) var(--ease-in-out) infinite alternate paused;
+.aurora__band--2 {
+  bottom: 16%;
+  height: 13.5vmax;
+  background: radial-gradient(closest-side, var(--aurora-2), var(--aurora-deep) 60%, transparent);
+  opacity: .95;
+  transform: translateX(30%) rotate(7deg) scale(3, 3.3);
+  animation: aurora-band-2 23s var(--ease-in-out) -6s infinite alternate paused;
 }
+.aurora__band--3 {
+  bottom: -10%;
+  height: 17.5vmax;
+  background: radial-gradient(closest-side, var(--aurora-3), var(--aurora-deep) 60%, transparent);
+  opacity: .6;
+  transform: translateX(-18%) rotate(4deg) scale(3, 2.7);
+  animation: aurora-band-3 29s var(--ease-in-out) -11s infinite alternate paused;
+}
+.aurora__band--4 {
+  bottom: 30%;
+  height: 8.5vmax;
+  background: radial-gradient(closest-side, var(--aurora-4), transparent);
+  opacity: .45;
+  transform: translateX(42%) scale(3, 2.1);
+  animation: aurora-band-4 13s var(--ease-in-out) -3s infinite alternate paused;
+}
+/* Allo scadere del tempo: un bagliore, una volta sola (Aura.motion.flash), poi tutto si ferma */
+.aurora__bloom {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: 30vmax;
+  height: 30vmax;
+  margin: -15vmax 0 0 -15vmax;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--aurora-bloom), var(--aurora-bloom-2) 45%, transparent);
+  opacity: 0;
+}
+.aurora__bloom.is-blooming { animation: aurora-bloom calc(var(--dur-celebrate) * 1.6) var(--ease-out) forwards; }
 /* L'unica animazione continua dell'app: gira solo mentre il tempo scorre, a foglio aperto e pagina visibile (js/ui-focus.js) */
-.sheet--focus.is-breathing .focus__glow { animation-play-state: running; }
+.sheet--focus.is-breathing .aurora__band,
+.sheet--focus.is-breathing .aurora__stars { animation-play-state: running; }
 
 .focus__head { display: grid; justify-items: center; gap: 6px; width: 100%; max-width: 34rem; }
 .focus__label {
@@ -2139,9 +2281,19 @@ button.setting:not(:disabled):active { background: var(--hover); }
 /* Il contatore di «Completate oggi» quando ci arriva una card */
 .badge.is-bumping { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
 
-/* Focus: l'aura respira piano (solo transform e opacity) */
-@keyframes focus-breathe-a { from { transform: scale(2.6); opacity: 1; } to { transform: translate(-8vmax, 6vmax) scale(3.1); opacity: .55; } }
-@keyframes focus-breathe-b { from { transform: scale(2.6); opacity: .9; } to { transform: translate(7vmax, -7vmax) scale(3.2); opacity: .5; } }
+/* Focus: l'aurora scorre piano (solo transform e opacity); il primo fotogramma è lo stato di riposo di ogni livello */
+@keyframes aurora-band-1 { to { transform: translateX(33%) rotate(4deg) scale(3, 3.45); opacity: 1; } }
+@keyframes aurora-band-2 { to { transform: translateX(-39%) rotate(-5deg) scale(3, 2.4); opacity: .6; } }
+@keyframes aurora-band-3 { to { transform: translateX(27%) rotate(-7deg) scale(3, 3.6); opacity: .9; } }
+@keyframes aurora-band-4 { to { transform: translateX(-30%) scale(3, 3.75); opacity: .85; } }
+@keyframes aurora-twinkle { from { opacity: .25; } to { opacity: 1; } }
+@keyframes aurora-bloom { 30% { opacity: 1; } to { opacity: 0; transform: scale(4.5); } }
+
+/* Cambio di scheda: la pillola si allunga mentre scivola; l'icona della scheda fa il suo gesto */
+@keyframes pill-stretch { 35% { transform: scaleX(1.45) scaleY(.88); } }
+@keyframes pop-rings { 35% { transform: scale(1.24); } 70% { transform: scale(.94); } }
+@keyframes pop-calendar { 30% { transform: translateY(-4px) rotate(-9deg); } 62% { transform: translateY(0) rotate(5deg); } }
+@keyframes pop-medal { 22% { transform: rotate(18deg); } 50% { transform: rotate(-12deg); } 76% { transform: rotate(6deg); } }
 
 /* Fantasmi (js/motion.js): elementi appena tolti dalla lista che escono dov'erano. Non ricevono tocchi,
    e dentro non ripartono le animazioni CSS (spunta, bagliore): si muove solo il fantasma intero. */

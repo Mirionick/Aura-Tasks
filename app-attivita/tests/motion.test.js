@@ -129,4 +129,15 @@
     assertEqual(plan.moves, [{ key: 'section:oggi', dx: 0, dy: -94 }]);
     assertEqual(plan.enters, ['task:n']);
   });
+
+  test('cambio di scheda: i blocchi entrano uno dopo l\'altro, al massimo cinque gradini', () => {
+    assertEqual(M.staggerDelays(0), []);
+    assertEqual(M.staggerDelays(1), [0]);
+    assertEqual(M.staggerDelays(3), [0, 55, 110]);
+    assertEqual(M.staggerDelays(5), [0, 55, 110, 165, 220]);
+    // Dopo il quinto, i blocchi entrano con il quinto: il cambio dura sempre al massimo 220 ms più un'entrata.
+    assertEqual(M.staggerDelays(7), [0, 55, 110, 165, 220, 220, 220]);
+    assertEqual(M.staggerDelays(3, 2, 40), [0, 40, 40]);
+    assertEqual(M.staggerDelays(-2), []);
+  });
 })();

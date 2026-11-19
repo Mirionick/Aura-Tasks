@@ -147,8 +147,23 @@
     return visibleHeight > 0 && contentHeight <= visibleHeight + FIT_SLACK_PX;
   }
 
+  /** Quanto sta in basso l'aurora all'inizio del focus, in percentuale dell'altezza dello schermo (P-003, passo 3.1). */
+  const AURORA_RISE_PERCENT = 16;
+
+  /**
+   * L'aurora sale con il tempo: all'inizio sta in basso di AURORA_RISE_PERCENT, alla fine a zero. Percentuale con un
+   * decimale, così la pagina si aggiorna solo quando il valore cambia davvero. Con «+5 min» la durata cresce e l'aurora
+   * scende un poco. Durata non valida: aurora già su.
+   */
+  function auroraRise(remaining, duration) {
+    if (!(duration > 0)) return 0;
+    const left = Math.min(Math.max(remaining / duration, 0), 1);
+    return Math.round(left * AURORA_RISE_PERCENT * 10) / 10;
+  }
+
   Aura.focus = {
     FOCUS,
+    AURORA_RISE_PERCENT,
     MINUTE_MS,
     start,
     isPaused,
@@ -166,6 +181,7 @@
     sanitizeMinutes,
     sanitizeSession,
     clockLabel,
-    fitsWithoutScroll
+    fitsWithoutScroll,
+    auroraRise
   };
 })(window.Aura = window.Aura || {});

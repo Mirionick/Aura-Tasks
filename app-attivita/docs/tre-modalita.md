@@ -16,6 +16,7 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | — | Passo a parte: rispettare «Dimensione testo» dell'iPhone | da fare, dopo la 2a |
 | 3 | Agenda | sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario |
 | 4 | Motivazione, con le illustrazioni | sostituita da [P-003](../../docs/proposte/P-003.md), passi 3.3–3.5 |
+| — | [P-003](../../docs/proposte/P-003.md), passo 3.1: cambio di scheda animato e aurora nel focus | fatto con la v15; da provare sull'iPhone (vedi "P-003, passo 3.1") |
 
 ### Fase 1: animazioni più fluide
 - **Token**: durate (`--dur-*`) e curve (`--ease-*`) stanno solo in `:root`. Il JavaScript le legge con `Aura.motion` (`js/motion.js`): nessuna durata scritta a mano.
@@ -136,12 +137,33 @@ Ognuno si pubblica da solo, con le sue misure.
   - I campi restano sempre ad almeno 16 px.
   - Servono schermate con il testo grande, senza rompere i layout a 375 px.
 
+### P-003, passo 3.1: cambio di scheda e aurora
+Il cambio di scheda diventa un movimento d'insieme (vedi "Navigazione") e lo sfondo del focus diventa un'aurora che sale con il tempo (vedi "Focus a tutto schermo con timer").
+
+#### Risultati del passo 3.1 (17 novembre 2026)
+Fotogrammi persi, mediana di 10 prove (5 in tema chiaro e 5 in tema scuro): gli stessi gesti sulla versione pubblicata (v14, «prima») e su quella nuova (v15, «dopo»), a 390×844, in Chromium headless. WebKit non è stato eseguito: in questo ambiente non c'è. Le misure valgono come confronto tra prima e dopo; non si confrontano con quelle della fase 2a, fatte in Edge su un altro computer.
+
+| Gesto | Chromium, CPU 4 volte più lenta | Chromium a piena velocità |
+|---|---|---|
+| passare ad Agenda | 0 → 1 | 0 → 0 |
+| passare a Motivazione | 3 → 3 | 0 → 0 |
+| tornare a Focus | 0 → 0 | 0 → 0 |
+| 10 secondi di focus in corso (prima i bagliori che respirano, dopo l'aurora) | 0 → 0 | 0 → 0 |
+
+- Il cambio di scheda adesso muove molto di più (lo sfondo che scivola, il bagliore, i blocchi uno dopo l'altro, la pillola e l'icona) e costa al massimo un fotogramma in più, solo con la CPU rallentata.
+- L'aurora, come i bagliori di prima, non perde fotogrammi: gira sul compositore. La prova vera è quella sull'iPhone, dove la muove la scheda grafica: è la prima cosa da guardare, per qualche minuto di focus.
+- Prove di funzionamento, nei due temi: nessun errore nella console e nessuno scorrimento orizzontale a 320×568, 390×844 e 1280×800, e aprendo `index.html` da file. Con «Riduci movimento» nessuna animazione in corso e l'aurora ferma. A riposo l'intestazione è uguale a prima: stessa altezza (188 px in Focus a 390 px) e stessi colori.
+
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.
   - Ogni scheda ha icona e testo; aree di tocco ≥ 44 px; margine sotto con `env(safe-area-inset-bottom)`.
-  - Un **indicatore**, una pillola tenue dietro la scheda attiva, scivola sulla scheda scelta con `transform`.
+  - Un **indicatore**, una pillola tenue dietro la scheda attiva, scivola sulla scheda scelta con `transform`. Da P-003 (passo 3.1) si allunga mentre scivola e si ferma con un piccolo rimbalzo; l'icona della scheda aperta fa un gesto (gli anelli di Focus pulsano, il calendario fa un salto, la medaglia oscilla).
   - È un `<nav>` con tre pulsanti (`aria-current="page"` su quello attivo). Le schede sono tre `<section>`; quelle non attive hanno `hidden`.
-- **Cambio di scheda**: dissolvenza con un leggero scorrimento (circa 24 px) nella direzione del cambio, in `--dur-move`. Ogni scheda ricorda dov'era arrivato lo scorrimento. La scheda nuova entra come un blocco unico (`Aura.motion.slideIn`); la vecchia sparisce subito. Un tocco sulla scheda già aperta riporta in cima.
+- **Cambio di scheda** (da P-003, passo 3.1: un movimento d'insieme, solo `transform` e `opacity`; con «Riduci movimento» niente):
+  - **l'intestazione si allunga o si accorcia** con un movimento invece che di colpo. Il suo sfondo è un livello a parte (`.hero__bg`) che sale 640 px sopra l'intestazione e ne segue il fondo: quando l'altezza cambia, scivola dalla vecchia posizione alla nuova (`Aura.motion.shiftIn`, in `--dur-tab`), con `will-change` solo durante il movimento;
+  - **ogni scheda ha il suo bagliore**: Focus ciano e rosa (come prima), Agenda azzurro e lilla, Motivazione oro e rosa. Sono tre livelli dentro lo sfondo che sfumano con `opacity` (`.hero[data-tab]`); i colori sono token nei due temi;
+  - **il contenuto entra a blocchi**, uno dopo l'altro, con una dissolvenza e un leggero scorrimento (24 px) nella direzione del cambio (`Aura.motion.staggerIn`). Un blocco è un figlio della scheda (la striscia, una sezione, «Completate»…), mai una card; si animano solo quelli che si vedono, al massimo 5 gradini a 55 ms. Il contenuto dell'intestazione sfuma;
+  - ogni scheda ricorda dov'era arrivato lo scorrimento; la vecchia sparisce subito. Un tocco sulla scheda già aperta riporta in cima.
 - **All'apertura** l'app parte da **Focus**. Se si ricarica entro 30 minuti dall'ultimo uso (su iPhone succede spesso tornando dallo sfondo), riparte dall'ultima scheda.
 - **Intestazione "aura"** in tutte le schede, con logo, campanella e tema. In Agenda e Motivazione è più bassa. Da P-002 (passo 1) al posto del pulsante del tema c'è la rotella delle Impostazioni, e il tema si sceglie lì (vedi [impostazioni.md](impostazioni.md)).
 - «+ Nuova attività» e gli avvisi stanno sopra la barra.
@@ -188,11 +210,13 @@ Ognuno si pubblica da solo, con le sue misure.
 - **Interfaccia**: foglio a tutto schermo con il titolo dell'attività, un anello SVG che fa il conto alla rovescia partendo dalla durata stimata e il tempo grande (mm:ss). Comandi: Pausa/Riprendi, +5 min, Completa, Esci.
 - **Una sessione per volta**. Se l'attività del focus viene completata o eliminata, la sessione si chiude e i suoi minuti restano.
 - **Uscita**: Esc, il gesto "indietro" ed "Esci" chiudono la sessione. L'avviso "Focus terminato · 12 min" ha "Annulla", che la riapre com'era e toglie i minuti.
-- **Sfondo che respira**, come l'aura dell'intestazione (con [P-003](../../docs/proposte/P-003.md), passo 3.1, diventa un'aurora che sale con il tempo): bagliori ciano e rosa disegnati come gradienti in livelli separati, che si muovono solo con `transform` e `opacity` in un ciclo lento (`--dur-breath`).
-  - È l'**unica animazione continua** dell'app, un'eccezione a "mai infinite": gira solo mentre il foglio è aperto, la pagina è visibile e il tempo scorre. Si ferma in pausa e alla fine del tempo (`.is-breathing`).
-  - Con «Riduci movimento» lo sfondo resta fermo.
-  - I bagliori sono disegnati piccoli (30vmax) e ingranditi con `scale`: occupano un quarto della memoria.
-  - **Si ferma da solo dove pesa troppo**: dopo l'apertura `ui-focus.js` guarda 24 fotogrammi (`watchBreath()`); se più della metà dura oltre 45 ms, lo sfondo resta fermo per il resto della sessione.
+- **Sfondo: l'aurora** (da [P-003](../../docs/proposte/P-003.md), passo 3.1; prima erano due bagliori che respiravano): quattro fasce di luce (verde acqua, ciano, rosa, lilla) che scorrono piano, ognuna con la sua durata (da 13 a 29 secondi), e due livelli di stelline che brillano. Si muovono solo con `transform` e `opacity`.
+  - **Sale con il tempo**: all'inizio sta in basso (16% dello schermo), alla fine riempie lo schermo. Lo spostamento lo calcola `Aura.focus.auroraRise()` e si aggiorna una volta al secondo, insieme all'anello, a passi che a occhio non si vedono. Con «+5 min» scende un poco.
+  - **Allo scadere** si apre un bagliore, una volta sola (`Aura.motion.flash`), con il suono di fine; poi tutto si ferma.
+  - È l'**unica animazione continua** dell'app, un'eccezione a "mai infinite": gira solo mentre il foglio è aperto, la pagina è visibile e il tempo scorre. Si ferma in pausa e alla fine del tempo (`.is-breathing`, il nome di prima).
+  - Con «Riduci movimento» l'aurora c'è, ferma: lo stato di riposo di ogni livello è il primo fotogramma della sua animazione.
+  - Le fasce sono disegnate piccole (30vmax di larghezza) e ingrandite con `scale`, come i bagliori di prima: occupano molta meno memoria. I colori sono uguali nei due temi, perché il fondo del focus è sempre viola.
+  - **Si ferma da sola dove pesa troppo**: dopo l'apertura `ui-focus.js` guarda 24 fotogrammi (`watchBreath()`); se più della metà dura oltre 45 ms, l'aurora resta ferma per il resto della sessione.
 - **Schermi bassi**: l'anello si adatta all'altezza (38vh). Sotto i 700 px di altezza (iPhone SE, Safari con le sue barre) tutto è più raccolto e il titolo sta su due righe: titolo, anello e comandi stanno in una schermata da 320×568 in su. In orizzontale i comandi si raggiungono scorrendo.
 - **Schermata ferma** (16 novembre 2026, cache v13; **da verificare sull'iPhone**): quando titolo, anello e comandi ci stanno tutti, un dito che trascina non muove niente.
   - **Il difetto** (prova sull'iPhone del 16 novembre): trascinando verso il basso, sul bordo destro si vedeva muoversi la barra di scorrimento. Nel foglio non c'era niente da scorrere: nelle misure a 390×844 con i margini di iPhone 13 avanzano almeno 66 px, anche con il titolo su tre righe. Quindi scorreva la pagina rimasta dietro: è una deduzione, sull'iPhone non si è potuto misurare.
@@ -364,7 +388,7 @@ Le categorie stanno nella tabella di `CLAUDE-GUIDE.md`:
   - `js/agenda.js` (fase 3);
   - `js/motivation.js` (fase 4);
   - `LEVELS` e il calcolo del livello, Aurora 2, 3… compresi, in `js/points.js`.
-- `js/motion.js` (fase 1) tocca la pagina solo per le animazioni. `slideIn()` (fase 2a) fa entrare una scheda come un blocco unico.
+- `js/motion.js` (fase 1) tocca la pagina solo per le animazioni. `slideIn()` (fase 2a) fa entrare un blocco intero; da P-003 (passo 3.1) la scheda entra a blocchi con `staggerIn()` e lo sfondo dell'intestazione scivola con `shiftIn()`.
 - Ogni scheda può avere un suo file che tocca la pagina, come `app.js`: così `app.js` non cresce troppo.
   - `js/ui-focus.js` (fase 2a): i fogli «Cosa faccio adesso?» e Focus, il suono di fine e lo schermo acceso. `app.js` gli passa con `Aura.focusUI.init()` quello che gli serve: stato, `commit()`, fogli, avvisi, preferenze.
   - `js/ui-agenda.js` e `js/ui-motivation.js` arrivano con le fasi 3 e 4.
