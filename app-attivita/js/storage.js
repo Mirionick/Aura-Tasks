@@ -8,7 +8,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG } = Aura;
+  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO } = Aura;
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
@@ -258,7 +258,8 @@
   /**
    * Preferenze ripulite: ultima scheda usata e quando (lastTab, lastTabAt), scelte di «Cosa faccio adesso?» (suggest),
    * interruttori e permessi dell'assistente (assistant, vedi Aura.assistant.sanitizePrefs), vista del calendario
-   * dell'Agenda (agendaView: 'month' o 'week', vedi Aura.agenda).
+   * dell'Agenda (agendaView: 'month' o 'week', vedi Aura.agenda), obiettivo della settimana in Motivazione (weeklyGoal:
+   * 5, 10, 15, 20, 30 o 50; null = nessun obiettivo, vedi Aura.motivation).
    * I valori non validi tornano a quelli di partenza; i campi sconosciuti vengono conservati.
    */
   function sanitizePrefs(raw) {
@@ -275,7 +276,8 @@
         energy: T.ENERGY_KEYS.includes(suggest.energy) ? suggest.energy : defaults.energy
       },
       assistant: A.sanitizePrefs(base.assistant),
-      agendaView: AG.AGENDA.views.includes(base.agendaView) ? base.agendaView : AG.AGENDA.views[0]
+      agendaView: AG.AGENDA.views.includes(base.agendaView) ? base.agendaView : AG.AGENDA.views[0],
+      weeklyGoal: MO.sanitizeGoal(base.weeklyGoal)
     };
   }
 

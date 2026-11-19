@@ -15,7 +15,8 @@ Le genera l'utente, gratis, con **Nano Banana nell'app Gemini**: niente API né 
      - Va tolto sia quello attaccato ai bordi sia quello **chiuso nel disegno**, come il manico di una tazza o lo spazio tra le foglie: il soggetto non usa mai il bianco puro.
      - Poi si toglie 1 px di bordo del soggetto, cioè i pixel mescolati al bianco, così non resta un alone chiaro;
      - **Ripiego per una scena con un alone**, quando entra nell'app prima di essere rifatta: la frangia chiara legata al bianco (da 12 a 60 livelli dallo sfondo) non si taglia netta. Diventa semitrasparente in proporzione, e le si toglie il bianco che ha mescolato. Sul tema chiaro l'immagine resta com'era; su quello scuro l'alone sfuma, invece di fare un bordo chiaro e frastagliato;
-   - ritaglio quadrato attorno al soggetto, con un margine del 6 % per lato, e riduzione in due passi;
+   - ritaglio quadrato: per le scene attorno al soggetto, con un margine del 6 % per lato; per i distintivi stretto sul cerchio, senza margine, perché l'ombra la disegna l'app;
+   - riduzione in due passi, con l'alfa premoltiplicata (così il bordo non prende il bianco dello sfondo);
    - **WebP**, poche decine di kB (`suggest-none`: 22 kB; `empty-focus`: 34 kB);
    - controllo di ognuna sul tema chiaro e su quello scuro.
 4. Le WebP vanno in `app-attivita/images/` e in `APP_FILES` di `sw.js`. **Gli originali non entrano mai nel repository.**
@@ -36,10 +37,10 @@ Le 12 immagini sono state guardate e misurate: cerchio e anello d'oro lungo 720 
 
 | Immagine | Esito | Perché |
 |---|---|---|
-| `level-1-spark`, `level-2-flame` | ok | |
-| `level-3-glow` | ok, da rifare solo se si vuole | è un pianeta con gli anelli: con il nome «Bagliore» stona un po' |
-| `level-4-star` | **da rifare** | cornice identica alla 5: stessi 24 puntini e stesso anello interno |
-| `level-5-comet`, `level-6-constellation`, `level-7-aurora` | ok | |
+| `level-1-spark`, `level-2-flame` | ok, **nell'app** dal passo 3.3 di P-003 | |
+| `level-3-glow` | ok, **nell'app** dal passo 3.3 di P-003; da rifare solo se si vuole | è un pianeta con gli anelli: con il nome «Bagliore» stona un po' |
+| `level-4-star` | **da rifare**; intanto nell'app c'è un distintivo disegnato in SVG | cornice identica alla 5: stessi 24 puntini e stesso anello interno |
+| `level-5-comet`, `level-6-constellation`, `level-7-aurora` | ok, **nell'app** dal passo 3.3 di P-003 | |
 | `empty-focus` | **da rifare**; intanto **nell'app** dalla fase 2a, così com'è | alone attorno al vapore (frangia chiara di 25 px in media; nei distintivi 1,6) |
 | `empty-agenda` | **da rifare** | alone attorno al sole e alla scia dell'aeroplanino (16 px) |
 | `empty-motivation` | **da rifare** | alone arancio attorno alla scintilla (12,5 px) |
@@ -47,6 +48,8 @@ Le 12 immagini sono state guardate e misurate: cerchio e anello d'oro lungo 720 
 | `streak-restart` | **da rifare** | l'arco sfuma nel bianco ed è interrotto in alto |
 
 Tre scene (`empty-motivation`, `suggest-none`, `streak-restart`) hanno le stesse stelline negli stessi punti: non è un motivo per rifarle, perché non compaiono mai insieme.
+
+**Distintivi nell'app** (19 novembre 2026): il cerchio, misurato di nuovo su 720 raggi, è lo stesso nei 6 (centro entro 0,05 px, raggio tra 873,8 e 874,1 px su 2048, scarto massimo 1,5 px). Il ritaglio passa 1,5 px all'interno del bordo dell'anello, con 1 px di contorno morbido; le WebP 336×336 pesano da 12 a 24 kB.
 
 `empty-focus` è entrata nella fase 2a per scelta dell'utente, senza aspettare la versione rifatta. È ottimizzata con il ripiego della frangia semitrasparente. Quando arriva quella nuova, prende il suo posto.
 
@@ -72,13 +75,13 @@ Se un'immagine va generata da capo, nei prompt delle **scene** (dall'8 al 12, qu
 
 | Originale (PNG quadrato, almeno 1024×1024) | Nell'app | Mostrata a | Uso |
 |---|---|---|---|
-| `level-1-spark.png` | `images/level-1-spark.webp`, 336×336 | 112 px | distintivo Scintilla |
-| `level-2-flame.png` | `images/level-2-flame.webp`, 336×336 | 112 px | distintivo Fiamma |
-| `level-3-glow.png` | `images/level-3-glow.webp`, 336×336 | 112 px | distintivo Bagliore |
-| `level-4-star.png` | `images/level-4-star.webp`, 336×336 | 112 px | distintivo Stella |
-| `level-5-comet.png` | `images/level-5-comet.webp`, 336×336 | 112 px | distintivo Cometa |
-| `level-6-constellation.png` | `images/level-6-constellation.webp`, 336×336 | 112 px | distintivo Costellazione |
-| `level-7-aurora.png` | `images/level-7-aurora.webp`, 336×336 | 112 px | distintivo Aurora, anche per Aurora 2, 3… con il numero scritto dall'app |
+| `level-1-spark.png` | `images/level-1-spark.webp`, 336×336 | 60 px | distintivo Scintilla |
+| `level-2-flame.png` | `images/level-2-flame.webp`, 336×336 | 60 px | distintivo Fiamma |
+| `level-3-glow.png` | `images/level-3-glow.webp`, 336×336 | 60 px | distintivo Bagliore |
+| `level-4-star.png` | `images/level-4-star.webp`, 336×336 | 60 px | distintivo Stella |
+| `level-5-comet.png` | `images/level-5-comet.webp`, 336×336 | 60 px | distintivo Cometa |
+| `level-6-constellation.png` | `images/level-6-constellation.webp`, 336×336 | 60 px | distintivo Costellazione |
+| `level-7-aurora.png` | `images/level-7-aurora.webp`, 336×336 | 60 px | distintivo Aurora, anche per Aurora 2, 3… con il numero scritto dall'app |
 | `empty-focus.png` | `images/empty-focus.webp`, 540×540 | 180 px | Focus senza attività |
 | `empty-agenda.png` | `images/empty-agenda.webp`, 540×540 | 180 px | giorno libero in Agenda |
 | `empty-motivation.png` | `images/empty-motivation.webp`, 540×540 | 180 px | Motivazione all'inizio |

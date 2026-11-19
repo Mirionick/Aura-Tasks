@@ -4,12 +4,12 @@ Fotografia breve di dove siamo, per chi comincia un intervento. La aggiorna chi 
 
 Non ripete gli altri documenti: decisioni, funzioni e verifiche sono in [decisioni.md](decisioni.md), le regole in [AGENTS.md](../AGENTS.md).
 
-**Aggiornato il** 19 novembre 2026, con la PR del passo 3.2 di P-003 (Agenda a calendario).
+**Aggiornato il** 19 novembre 2026, con la PR del passo 3.3 di P-003 (Motivazione).
 
 ## Pubblicato su `main`
-- **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più i passi 0b e 1 di P-002 (il focus a tutto schermo resta fermo; la rotella apre le Impostazioni) e il passo 3.1 di P-003 (cambio di scheda e aurora nel focus). Cache `aura-tasks-v15` (19 novembre 2026). Con questa PR: passo 3.2 di P-003, cache `aura-tasks-v16`.
+- **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più i passi 0b e 1 di P-002 (il focus a tutto schermo resta fermo; la rotella apre le Impostazioni) e i passi 3.1 (cambio di scheda e aurora nel focus) e 3.2 (Agenda a calendario) di P-003. Cache `aura-tasks-v16` (19 novembre 2026). Con questa PR: passo 3.3 di P-003, cache `aura-tasks-v17`.
 - **Server**: quello pubblicato con il passo 0 dell'assistente (11 novembre 2026); il passo 1 non lo ha cambiato.
-- **CI**: test del server e dell'app in Chrome headless su ogni PR (PR 2, unita il 16 novembre 2026 con `4351b18`), con un minimo di 212 test dell'app (196 prima del passo 3.2 di P-003).
+- **CI**: test del server e dell'app in Chrome headless su ogni PR (PR 2, unita il 16 novembre 2026 con `4351b18`), con un minimo di 233 test dell'app (212 prima del passo 3.3 di P-003).
 - **Protezione di `main`** (16 novembre 2026): solo PR, con il controllo «Test backend e frontend» obbligatorio, niente force push né cancellazione, nessuna eccezione. Attivi secret scanning, push protection, avvisi di Dependabot e CodeQL. Codex rivede ogni PR: la revisione parte all'apertura oppure con il commento `@codex review` (così è partita sulla PR 3).
 
 L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2.
@@ -22,9 +22,10 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 - **PR 6 — passo 1 di P-002** (17 novembre 2026, `4473775`): la rotella apre «Impostazioni», un indice con lo stato di ogni funzione; il tema si sceglie nella riga; un foglio unico «Privacy»; «Scollega» con «Annulla»; la regola del giorno dell'assistente. **Da provare sull'iPhone** (vedi [impostazioni.md](../app-attivita/docs/impostazioni.md), «Da verificare sull'iPhone»).
 - **PR 7 — P-003 v3** (18 novembre 2026, `0b0f766`): la proposta in [proposte/P-003.md](proposte/P-003.md), rivista tre volte da Codex. Il Product Owner ha tenuto tutte e tre le idee di Motivazione: la tua settimana, i tuoi premi, sfide di oggi.
 - **PR 8 — passo 3.1 di P-003** (19 novembre 2026, `9626161`): cambio di scheda con un movimento d'insieme e, nel focus a tutto schermo, l'aurora che sale con il tempo. **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «P-003, passo 3.1»).
+- **PR 9 — passo 3.2 di P-003** (19 novembre 2026, `5a76a08`): l'Agenda diventa un calendario del mese o della settimana, con il giorno scelto (orari, spazi liberi, linea dell'ora), «Prossimi giorni» e «Da pianificare» con «Metti a…». **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «P-003, passo 3.2»).
 
 ## In lavorazione
-- **Passo 3.2 di P-003** (livello A, esecutore Claude Project perché l'ambiente di Codex non c'è ancora, revisione di ChatGPT / Codex): l'Agenda diventa un calendario del mese, o solo della settimana con la maniglia; sotto, il giorno scelto con «In giornata» e «Con orario» (spazi liberi con il «+», linea dell'ora, sovrapposizioni), «Prossimi giorni» e «Da pianificare» con «Metti a…». Specifica in [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Agenda: per pianificare», con le misure in «Risultati del passo 3.2». Provato nel browser; **da provare sull'iPhone** dopo il merge.
+- **Passo 3.3 di P-003** (livello A, esecutore Claude Project, revisione di ChatGPT / Codex): Motivazione con il livello nell'intestazione (distintivo, nome, barra e quanto manca); «La tua settimana», un cielo con una stella per ogni attività completata, l'obiettivo con i cerchi delle stelle che mancano, la costellazione a obiettivo raggiunto e la settimana scorsa; «I tuoi numeri»; «Completate» chiusa. Entrano i distintivi dei livelli 1, 2, 3, 5, 6 e 7; Stella è disegnata finché `level-4-star` non è rifatta. Specifica in [proposte/P-003.md](proposte/P-003.md), passo 3.3, con le misure in [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Risultati del passo 3.3». Provato nel browser; **da provare sull'iPhone** dopo il merge.
 
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.
@@ -36,4 +37,4 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 
 ## Prossimi passi
 - **P-002**: 0a e passo 2 (Aura con un volto) toccano a ChatGPT / Codex e aspettano che il Product Owner crei l'ambiente di Codex. I passi 3 e 4 aspettano le prove sull'iPhone.
-- **P-003**: dopo il passo 3.2, i passi 3.3–3.5 nell'ordine di [proposte/P-003.md](proposte/P-003.md), senza aspettare il passo 2 di P-002, perché toccano altre parti. Il 3.3 e il 3.4 toccano a Claude Project, il 3.5 (sfide) a ChatGPT / Codex.
+- **P-003**: dopo il passo 3.3, il 3.4 («I tuoi premi», Claude Project) e il 3.5 («Sfide di oggi», ChatGPT / Codex) nell'ordine di [proposte/P-003.md](proposte/P-003.md), senza aspettare il passo 2 di P-002, perché toccano altre parti.
