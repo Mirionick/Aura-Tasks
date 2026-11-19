@@ -372,15 +372,22 @@
     selectDay(button.dataset.date);
   }
 
+  /**
+   * Frecce della tastiera: il fuoco va al giorno accanto (±1) o alla stessa colonna della settimana accanto (±7); Invio
+   * o Spazio lo sceglie. Se quel giorno non è nella griglia (il mese o la settimana accanto) si va lì, come con le
+   * frecce in alto, e il fuoco lo segue.
+   */
   function onGridKey(event) {
     const step = KEY_STEPS[event.key];
     const from = event.target.closest('.cal__day');
     if (!step || !from) return;
-    const target = els.grid.querySelector('.cal__day[data-date="' + utils.addDays(from.dataset.date, step) + '"]');
-    if (!target) return;
     event.preventDefault();
-    from.tabIndex = -1;
-    target.tabIndex = 0;
+    const date = utils.addDays(from.dataset.date, step);
+    const dayOf = () => els.grid.querySelector('.cal__day[data-date="' + date + '"]');
+    if (!dayOf()) go(Math.sign(step));
+    const target = dayOf();
+    if (!target) return;
+    els.grid.querySelectorAll('.cal__day').forEach(button => { button.tabIndex = button === target ? 0 : -1; });
     target.focus();
   }
 

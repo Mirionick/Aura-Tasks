@@ -176,7 +176,7 @@ Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 
 - Prove di funzionamento, con Playwright 1.63: nessun errore nella console e nessuno scorrimento orizzontale a 390×664 nei due temi, a 320×568 e a 1280×800. Gli stessi gesti danno lo stesso risultato con «Riduci movimento» e aprendo `index.html` da file, senza messaggi della CSP:
   - scegliere un giorno, anche passato (le completate barrate, l'attività in ritardo, niente «Metti a…»); frecce, dito, «Oggi», «Solo la settimana» ricordata dopo il ricaricamento;
   - «Metti a oggi» con «Annulla»; il «+» di uno spazio libero apre «Nuova attività» con giorno e ora, e l'attività finisce in «Con orario»; «Nuova attività» con domani scelto propone domani, con un giorno passato nessun giorno;
-  - frecce della tastiera e Invio tra i giorni, con il fuoco che resta; completare un'attività dal giorno scelto;
+  - frecce della tastiera e Invio tra i giorni, con il fuoco che resta, anche oltre il bordo (mese e settimana accanto); completare un'attività dal giorno scelto;
   - con l'orologio finto (`page.clock`): la linea dell'ora avanza ogni minuto; lo spazio libero si accorcia ogni 5 minuti e il «+» tiene il fuoco; alle 14:00 l'attività delle 14:00 diventa rossa e la linea le passa sotto; con un altro giorno scelto il minuto non cambia niente; a mezzanotte il giorno scelto passa al giorno nuovo;
   - una settimana a cavallo di due mesi: scegliendo oggi, «Oggi» sparisce.
 - Intestazione di Focus a 390×664: 188 px prima e dopo, con 4 card intere.
@@ -313,7 +313,7 @@ Da [P-003](../../docs/proposte/P-003.md), passo 3.2 (v16): un calendario, con il
 - **Movimenti** (solo `transform` e `opacity`; con «Riduci movimento» niente): cambiando mese o settimana il calendario nuovo entra di lato, dalla parte verso cui si va; il giorno scelto sfuma; «Prossimi giorni» e «Da pianificare» scivolano al posto nuovo. Con la maniglia il contenuto sotto scivola alla nuova altezza e i giorni sfumano.
 - **Accessibilità**:
   - i giorni sono pulsanti; il lettore di schermo dice la data, «oggi» e quante attività («Giovedì 19 novembre, oggi, 3 attività»; «…, 2 attività in ritardo»; «…, libero»). Il giorno scelto ha `aria-pressed="true"`; le caselle vuote sono nascoste al lettore;
-  - con la tastiera il calendario è un solo passo di Tab (il giorno scelto); le frecce si spostano di un giorno o di una settimana, Invio o Spazio sceglie;
+  - con la tastiera il calendario è un solo passo di Tab (il giorno scelto); le frecce si spostano di un giorno o di una settimana, Invio o Spazio sceglie. Oltre il bordo si passa al mese o alla settimana accanto, come con le frecce in alto, e il fuoco segue;
   - il mese nuovo viene annunciato (`aria-live="polite"`); la maniglia ha `aria-expanded`; le frecce dicono se cambiano mese o settimana;
   - la linea dell'ora si legge «Adesso, 11:07»; un'ora passata «In ritardo, era alle 09:00»; il «+» «Aggiungi un'attività alle 11:10»; «Metti a…» dice anche il titolo dell'attività.
 - **Dati**: niente di nuovo, solo la scelta mese o settimana in `prefs.agendaView` (vedi "Dati"). Il giorno scelto non si salva: all'apertura è oggi e, se è oggi, a mezzanotte passa al giorno nuovo.
