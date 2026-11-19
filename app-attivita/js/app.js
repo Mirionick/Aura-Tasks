@@ -6,13 +6,15 @@
  * I fogli «Cosa faccio adesso?» e Focus stanno in js/ui-focus.js, che riceve da qui quello che gli serve.
  * L'assistente (striscia, campo nel foglio «Aura», foglio «Assistente») sta in js/ui-assistant.js, avviato allo stesso modo.
  * La rotella con i fogli «Impostazioni» e «Privacy» sta in js/ui-settings.js, avviato allo stesso modo.
+ * L'Agenda a calendario (calendario, giorno scelto, «Prossimi giorni», «Da pianificare») sta in js/ui-agenda.js, avviato
+ * allo stesso modo: render() la ridisegna insieme alle altre schede.
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
   const { utils, tasks: T, nlp, points: P, focus: F, storage, theme, reminders: RM, remote: R, motion: M, settings: Settings,
-    focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI } = Aura;
+    focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -38,8 +40,6 @@
     tabAgenda: byId('tab-agenda'),
     tabMotivation: byId('tab-motivation'),
     suggestButton: byId('suggest-button'),
-    agendaSections: byId('agenda-sections'),
-    agendaEmpty: byId('agenda-empty'),
     emptyAgendaLink: byId('empty-agenda-link'),
     focusMinutesText: byId('focus-minutes-text'),
     historyCount: byId('history-count'),
@@ -150,7 +150,7 @@
   // Le schede: nome, titolo nell'intestazione (Agenda e Motivazione) e la loro <section>.
   const TABS = {
     focus: { name: 'Focus', section: els.tabFocus },
-    agenda: { name: 'Agenda', title: 'Agenda', subtitle: 'Domani e i prossimi giorni', section: els.tabAgenda },
+    agenda: { name: 'Agenda', title: 'Agenda', subtitle: 'Pianifica i tuoi giorni', section: els.tabAgenda },
     motivation: { name: 'Motivazione', title: 'Motivazione', subtitle: 'Serie, punti e attività completate', section: els.tabMotivation }
   };
   const LAST_TAB_MS = 30 * 60 * 1000; // riaprendo Aura entro 30 minuti dall'ultimo uso si riparte dall'ultima scheda
@@ -163,6 +163,7 @@
   let focusCtl = null; // fogli «Cosa faccio adesso?» e Focus (js/ui-focus.js), pronti all'avvio
   let assistantCtl = null; // striscia, foglio «Aura» e foglio «Assistente» (js/ui-assistant.js), pronti all'avvio
   let settingsCtl = null; // rotella, foglio «Impostazioni» e foglio «Privacy» (js/ui-settings.js), pronti all'avvio
+  let agendaCtl = null;   // scheda Agenda a calendario (js/ui-agenda.js), pronta all'avvio
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -225,11 +226,12 @@
   }
 
   /**
-   * In Focus «Cosa faccio adesso?» sta a cavallo del bordo dell'intestazione, che gli lascia il posto (.hero--cta).
-   * Quando il pulsante compare o sparisce l'intestazione cambia altezza: va rimisurata per la fascia della barra di stato.
+   * In Focus «Cosa faccio adesso?» e in Agenda il calendario stanno a cavallo del bordo dell'intestazione, che gli lascia
+   * il posto (.hero--cta). Quando la striscia compare o sparisce l'intestazione cambia altezza: va rimisurata per la fascia
+   * della barra di stato.
    */
   function syncHeroCta() {
-    const on = activeTab === 'focus' && !els.suggestButton.hidden;
+    const on = (activeTab === 'focus' && !els.suggestButton.hidden) || activeTab === 'agenda';
     if (els.hero.classList.contains('hero--cta') === on) return;
     els.hero.classList.toggle('hero--cta', on);
     measureHero();
@@ -278,8 +280,10 @@
     const hadFocus = els.main.contains(document.activeElement) && document.activeElement !== els.main;
     const { sections, completed } = T.groupTasks(state.tasks, today);
     const focusSections = sections.filter(section => T.TAB_SECTIONS.focus.includes(section.key));
-    const agendaSections = sections.filter(section => T.TAB_SECTIONS.agenda.includes(section.key));
-    const agendaCount = agendaSections.reduce((sum, section) => sum + section.tasks.length, 0);
+    // Attività da domani in poi: Focus vuoto le cita, con il link all'Agenda.
+    const agendaCount = sections
+      .filter(section => T.TAB_SECTIONS.agenda.includes(section.key))
+      .reduce((sum, section) => sum + section.tasks.length, 0);
 
     renderHeader(now, today);
     // Focus: la striscia della proposta, In ritardo, Oggi, Senza data e «Completate oggi»
@@ -289,9 +293,8 @@
     renderSections(els.sections, focusSections, now);
     renderCompletedToday(T.completedOn(state.tasks, today), now);
     renderEmpty(focusSections.length === 0, completed.length, agendaCount, today);
-    // Agenda (fino alla fase 3): Domani e Prossimi giorni
-    renderSections(els.agendaSections, agendaSections, now);
-    els.agendaEmpty.hidden = agendaSections.length > 0;
+    // Agenda: calendario, giorno scelto, Prossimi giorni e Da pianificare (js/ui-agenda.js)
+    if (agendaCtl) agendaCtl.render(now);
     // Motivazione (fino alla fase 4): minuti di focus e storico delle completate
     renderFocusMinutes(today);
     renderHistory(completed, now);
@@ -403,7 +406,7 @@
       const list = document.createElement('ul');
       list.className = 'task-list';
       const showDate = DATED_SECTIONS.includes(section.key);
-      section.tasks.forEach(task => list.appendChild(buildTask(task, now, showDate)));
+      section.tasks.forEach(task => list.appendChild(buildTask(task, now, { showDate })));
 
       el.append(header, list);
       fragment.appendChild(el);
@@ -415,7 +418,7 @@
   function renderCompletedToday(completed, now) {
     els.completed.hidden = completed.length === 0;
     els.completedCount.textContent = completed.length;
-    els.completedList.replaceChildren(...completed.map(task => buildTask(task, now, false)));
+    els.completedList.replaceChildren(...completed.map(task => buildTask(task, now)));
   }
 
   /** Storico in Motivazione: tutte le completate, dalla più recente, con «Svuota». */
@@ -423,7 +426,7 @@
     els.historyCount.textContent = completed.length ? tasksLabel(completed.length) : '';
     els.clearCompleted.hidden = completed.length === 0;
     els.historyEmpty.hidden = completed.length > 0;
-    els.historyList.replaceChildren(...completed.map(task => buildTask(task, now, false)));
+    els.historyList.replaceChildren(...completed.map(task => buildTask(task, now)));
   }
 
   /** Minuti di focus di oggi e in tutto (Motivazione). */
@@ -454,8 +457,11 @@
     else els.emptyText.textContent = 'Goditi il momento, oppure aggiungi una nuova attività.';
   }
 
-  /** Card di un'attività, copiata dal <template> e riempita con textContent. `now` (Date): oggi, e le ore già passate. */
-  function buildTask(task, now, showDate) {
+  /**
+   * Card di un'attività, copiata dal <template> e riempita con textContent. `now` (Date): oggi, e le ore già passate.
+   * Opzioni: `showDate` aggiunge il giorno; `showTime: false` toglie l'ora (in «Con orario» dell'Agenda sta a sinistra).
+   */
+  function buildTask(task, now, { showDate = false, showTime = true } = {}) {
     const today = utils.toISODate(now);
     const node = els.taskTemplate.content.firstElementChild.cloneNode(true);
     const energy = T.ENERGY[task.energy];
@@ -474,7 +480,7 @@
     node.querySelector('.task__title').textContent = task.title;
     node.querySelector('.task__edit').setAttribute('aria-label', 'Modifica: ' + task.title);
     const atMeta = node.querySelector('.meta--at');
-    if (task.time) {
+    if (task.time && showTime) {
       node.querySelector('.meta__at').textContent = task.time;
       // Oggi, con l'ora già passata: rossa come «Ieri», e detta anche al lettore di schermo.
       if (T.isTimePassed(task, now)) {
@@ -867,16 +873,21 @@
 
   /**
    * Apre il foglio vuoto, oppure già compilato da una frase (dal link ?add= o dalla casella di Siri).
-   * `note` è la riga sopra la frase, per esempio "Da Siri · 1 di 2".
+   * `note` è la riga sopra la frase, per esempio "Da Siri · 1 di 2". `preset` ({ date, time }) scrive già giorno e ora:
+   * dall'Agenda, il giorno scelto nel calendario e l'inizio di uno spazio libero.
    */
-  function openAddSheet(phrase, note) {
+  function openAddSheet(phrase, note, preset) {
     resetAddSheet(false);
     editingId = null;
     els.inboxNoteText.textContent = note || '';
     els.inboxNote.hidden = !note;
+    if (preset) {
+      els.dateInput.value = preset.date || '';
+      els.timeInput.value = preset.time || '';
+    }
     syncDuration();
     syncEnergyHint();
-    syncDate();
+    syncDate(); // l'ora resta solo con un giorno valido
     if (phrase) {
       els.phrase.value = phrase;
       applyPhrase();
@@ -1085,10 +1096,10 @@
     closeSheet(els.addSheet);
     if (!saved) return;
     if (isFirst) storage.requestPersistence();
-    // Finita in un'altra scheda (per esempio domani, vista da Focus): l'avviso dice dove, e «Mostra» la porta in vista.
+    // Finita dove non si vede (per esempio domani, vista da Focus): l'avviso dice dove, e «Mostra» la porta in vista.
     const today = utils.todayISO();
     const tab = T.tabOf(task, today);
-    if (tab !== activeTab) {
+    if (!isVisibleIn(task, activeTab, today)) {
       showToast('Attività aggiunta in ' + TABS[tab].name + (task.date ? ' · ' + utils.formatDateLabel(task.date, today) : ''), {
         action: 'Mostra',
         onAction: () => showTask(task.id)
@@ -1121,7 +1132,7 @@
     // Spostata in un'altra scheda (per esempio a domani, da Focus): l'avviso dice dove è finita.
     const today = utils.todayISO();
     const edited = state.tasks.find(t => t.id === id);
-    const moved = edited && !T.isInTab(edited, activeTab, today);
+    const moved = edited && !isVisibleIn(edited, activeTab, today);
     showToast(moved ? 'Modifiche salvate · ora in ' + TABS[T.tabOf(edited, today)].name : 'Modifiche salvate', {
       action: 'Annulla',
       onAction: () => {
@@ -1130,6 +1141,15 @@
       }
     });
     revealTask(id);
+  }
+
+  /**
+   * true se l'attività si vede adesso nella scheda `tab`. Per l'Agenda dipende anche dal giorno scelto nel calendario:
+   * un'attività di oggi, per esempio, ci si vede solo con oggi scelto (vedi Aura.agenda.isInAgenda).
+   */
+  function isVisibleIn(task, tab, today) {
+    if (tab === 'agenda' && agendaCtl) return agendaCtl.isVisible(task, today);
+    return T.isInTab(task, tab, today);
   }
 
   /** La card di un'attività nella scheda attiva (la stessa attività può avere una card anche in un'altra scheda). */
@@ -1901,13 +1921,14 @@
 
   /**
    * Dalla notifica di un promemoria (o da «Mostra»): apre la scheda in cui l'attività si vede, la evidenzia e la porta
-   * in vista. In ritardo, oggi e senza data → Focus; un giorno futuro → Agenda; completata → Motivazione.
+   * in vista. Se si vede già nella scheda aperta resta lì; altrimenti in ritardo, oggi e senza data → Focus;
+   * un giorno futuro → Agenda; completata → Motivazione.
    */
   function showTask(id) {
     const task = id ? state.tasks.find(item => item.id === id) : null;
     if (!task) return;
     const today = utils.todayISO();
-    if (!T.isInTab(task, activeTab, today)) showTab(T.tabOf(task, today), { animate: false });
+    if (!isVisibleIn(task, activeTab, today)) showTab(T.tabOf(task, today), { animate: false });
     highlightId = id;
     render();
     revealTask(id);
@@ -2006,7 +2027,8 @@
   });
 
   els.clearCompleted.addEventListener('click', onClearCompleted);
-  els.addButton.addEventListener('click', () => openAddSheet());
+  // Dall'Agenda «Nuova attività» propone il giorno scelto nel calendario (mai un giorno passato).
+  els.addButton.addEventListener('click', () => openAddSheet(null, null, activeTab === 'agenda' && agendaCtl ? agendaCtl.addPreset() : null));
   els.form.addEventListener('submit', onSubmit);
 
   els.title.addEventListener('input', () => setError('title', null));
@@ -2132,7 +2154,10 @@
     const now = new Date();
     // Giorno nuovo, oppure l'ora di un'attività di oggi è appena passata (diventa rossa): si ridisegna.
     if (utils.toISODate(now) !== renderedDay || T.passedCount(state.tasks, now) !== renderedPassed) render();
-    else els.greeting.textContent = utils.greeting(now);
+    else {
+      els.greeting.textContent = utils.greeting(now);
+      if (agendaCtl) agendaCtl.tick(now); // la linea dell'ora in «Con orario», se il giorno scelto è oggi
+    }
   }, 60 * 1000);
 
   // Dati modificati in un'altra scheda.
@@ -2228,6 +2253,19 @@
     openRemote: openRemoteSheet,
     openBackup: openBackupSheet,
     disconnect: disconnectDevice
+  });
+
+  // L'Agenda a calendario: legge la vista salvata (mese o settimana) e scrive la scheda a ogni render().
+  agendaCtl = AgendaUI.init({
+    getState: () => state,
+    commit,
+    buildTask,
+    showToast,
+    openAddSheet,
+    getPrefs: () => prefs,
+    setPrefs,
+    setEdited: id => { editedId = id; },
+    isActive: () => activeTab === 'agenda'
   });
 
   syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti
