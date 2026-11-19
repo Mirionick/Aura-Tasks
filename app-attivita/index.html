@@ -29,6 +29,7 @@
   <script src="js/suggest.js" defer></script>
   <script src="js/assistant.js" defer></script>
   <script src="js/agenda.js" defer></script>
+  <script src="js/motivation.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/reminders.js" defer></script>
   <script src="js/remote.js" defer></script>
@@ -38,6 +39,7 @@
   <script src="js/ui-assistant.js" defer></script>
   <script src="js/ui-settings.js" defer></script>
   <script src="js/ui-agenda.js" defer></script>
+  <script src="js/ui-motivation.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -71,7 +73,6 @@
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 5.8v12.4L18.5 12z" fill="currentColor"/></symbol>
     <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
     <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3.5 7h3.3c2 0 3.1.9 4.2 2.6l2.4 3.9c1.1 1.7 2.2 2.5 4.2 2.5h2.9M3.5 17h3.3c1.3 0 2.2-.4 3-1.2M13.6 8.2c.8-.8 1.7-1.2 3-1.2h2.9M17.5 4.5L20 7l-2.5 2.5M17.5 14.5L20 17l-2.5 2.5"/></symbol>
-    <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M6.5 3.5h11M6.5 20.5h11M8 3.5c0 4.2 4 5.4 4 8.5s-4 4.3-4 8.5M16 3.5c0 4.2-4 5.4-4 8.5s4 4.3 4 8.5"/></symbol>
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M9 5.5l6.5 6.5L9 18.5"/></symbol>
     <!-- Assistente: invio del messaggio (freccia in su), impostazioni (ingranaggio) -->
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19.5v-15M5.5 11L12 4.5 18.5 11"/></symbol>
@@ -152,6 +153,34 @@
       <div class="hero__tab" id="hero-tab" hidden>
         <h2 class="hero__title" id="hero-title">Agenda</h2>
         <p class="hero__subtitle" id="hero-subtitle"></p>
+      </div>
+
+      <!-- Livello, in Motivazione (P-003, passo 3.3): distintivo, nome, barra e quanto manca. Lo scrive js/ui-motivation.js.
+           Il distintivo è l'illustrazione del livello (images/level-N-….webp, aggiunta da js/ui-motivation.js); per Stella,
+           finché level-4-star non è rifatta, c'è quello disegnato qui sotto (vedi docs/illustrazioni.md). -->
+      <div class="lvl" id="level" hidden>
+        <span class="lvl__badge" id="level-badge" aria-hidden="true">
+          <svg class="lvl__drawn" id="level-drawn" viewBox="0 0 64 64" focusable="false" hidden>
+            <defs>
+              <linearGradient id="level-face" x1="0" y1="0" x2="1" y2="1">
+                <stop class="lvl__face-a" offset="0"/>
+                <stop class="lvl__face-b" offset="1"/>
+              </linearGradient>
+            </defs>
+            <circle class="lvl__disc" cx="32" cy="32" r="29"/>
+            <circle class="lvl__dots" cx="32" cy="32" r="24.5"/>
+            <path class="lvl__star" d="M32 17.5l4.1 8.4 9.2 1.3-6.7 6.5 1.6 9.2L32 38.6l-8.2 4.3 1.6-9.2-6.7-6.5 9.2-1.3z"/>
+            <circle class="lvl__spark" cx="45" cy="18" r="1.6"/>
+            <circle class="lvl__spark" cx="19" cy="44" r="1.2"/>
+            <circle class="lvl__spark" cx="47" cy="44" r="1"/>
+          </svg>
+          <span class="lvl__rank" id="level-rank" hidden></span>
+        </span>
+        <div class="lvl__text">
+          <p class="lvl__name"><span id="level-name">Scintilla</span> <span class="lvl__step" id="level-step">livello 1 di 7</span></p>
+          <span class="lvl__bar" aria-hidden="true"><span class="lvl__fill" id="level-fill"></span></span>
+          <p class="lvl__note" id="level-note">Ancora 150 punti per Fiamma</p>
+        </div>
       </div>
 
       <!-- Serie e punti in grande, in Motivazione: app.js li aggiorna e li anima (vedi docs/punti-e-serie.md). -->
@@ -277,26 +306,61 @@
       </section>
     </section>
 
-    <!-- Scheda Motivazione, per i progressi. Fino alla fase 4: minuti di focus, storico delle completate e backup;
-         serie e punti in grande stanno nell'intestazione -->
+    <!-- Scheda Motivazione, per i progressi (P-003, passo 3.3): «La tua settimana», «I tuoi numeri», «Completate» chiusa e,
+         in fondo, privacy e backup. Livello, serie e punti stanno nell'intestazione. Settimana e numeri li scrive
+         js/ui-motivation.js, con la logica di js/motivation.js; «Completate» la scrive app.js (vedi docs/tre-modalita.md). -->
     <section class="tab" id="tab-motivation" aria-label="Motivazione" hidden>
-      <p class="focus-minutes" id="focus-minutes" data-flip="focus-minutes">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-hourglass"></use></svg>
-        <span id="focus-minutes-text">Minuti di focus: nessuno per ora</span>
-      </p>
-
-      <section class="history" id="history" aria-labelledby="history-title" data-flip="history">
-        <div class="history__header">
-          <h2 class="section__title" id="history-title">Completate</h2>
-          <span class="section__info" id="history-count"></span>
-          <button class="btn btn--ghost btn--small history__clear" id="clear-completed" type="button" hidden>
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
-            Svuota
-          </button>
+      <section class="card-block sky" id="sky" aria-labelledby="sky-title" data-flip="sky">
+        <div class="block__head">
+          <h2 class="block__title" id="sky-title">La tua settimana</h2>
+          <button class="block__action" id="goal-button" type="button">Scegli l'obiettivo</button>
         </div>
-        <ul class="task-list" id="history-list"></ul>
-        <p class="history__empty" id="history-empty">Qui compaiono le attività completate.</p>
+        <!-- Il cielo: una stella per ogni attività completata nella colonna del suo giorno; con un obiettivo, un cerchio
+             tratteggiato per ogni stella che manca. Il lettore di schermo legge la frase in aria-label. -->
+        <div class="sky__frame" id="sky-frame" role="img" aria-label="La tua settimana">
+          <svg class="sky__svg" id="sky-svg" viewBox="0 0 336 150" aria-hidden="true" focusable="false">
+            <defs>
+              <radialGradient id="sky-halo">
+                <stop class="sky__halo-in" offset="0"/>
+                <stop class="sky__halo-out" offset="1"/>
+              </radialGradient>
+            </defs>
+            <g id="sky-layer"></g>
+          </svg>
+          <p class="sky__count" aria-hidden="true"><strong id="sky-done">0</strong> <span id="sky-rest">stelle</span></p>
+        </div>
+        <div class="sky__days" id="sky-days" aria-hidden="true"></div>
+        <p class="block__note" id="sky-note"></p>
+        <p class="sky__recap" id="sky-recap" hidden><span class="sky__tag">Settimana scorsa</span> <span id="sky-recap-text"></span></p>
+        <p class="sr-only" id="goal-live" aria-live="polite"></p>
       </section>
+
+      <section class="section nums" id="nums" aria-labelledby="nums-title" data-flip="nums">
+        <div class="section__header">
+          <h2 class="section__title" id="nums-title">I tuoi numeri</h2>
+        </div>
+        <dl class="nums__grid" id="nums-grid"></dl>
+        <p class="nums__hint" id="nums-hint" hidden>I minuti di focus arrivano da «Inizia focus», in «Cosa faccio adesso?» o nel foglio di un'attività.</p>
+      </section>
+
+      <!-- Tutte le completate, dalla più recente: chiusa, con il numero, come «Completate oggi» in Focus. Dentro, spunta,
+           modifica e cestino delle card e «Svuota». -->
+      <details class="completed history" id="history" hidden>
+        <summary class="completed__summary" data-flip="history">
+          <span>Completate</span>
+          <span class="badge" id="history-count">0</span>
+          <svg class="icon completed__chevron" aria-hidden="true" focusable="false"><use href="#i-chevron"></use></svg>
+        </summary>
+        <div class="completed__body" data-flip="history-body">
+          <div class="history__tools">
+            <button class="btn btn--ghost btn--small history__clear" id="clear-completed" type="button">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
+              Svuota
+            </button>
+          </div>
+          <ul class="task-list" id="history-list"></ul>
+        </div>
+      </details>
 
       <div class="footnote" data-flip="footnote">
         <p class="footnote__text">

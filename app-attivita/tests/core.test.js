@@ -467,11 +467,11 @@
   const ASSISTANT_OFF = { enabled: false, voice: true, autoAdd: true, autoEdit: false, consentAt: null };
 
   test('storage.sanitizePrefs: valori non validi tornano a quelli di partenza, i campi sconosciuti restano', () => {
-    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' }, assistant: ASSISTANT_OFF, agendaView: 'month' };
+    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null };
     [null, undefined, 'testo', [], 5].forEach(raw => assertEqual(storage.sanitizePrefs(raw), defaults, 'prefs: ' + JSON.stringify(raw)));
     const messy = storage.sanitizePrefs({ lastTab: 'boh', lastTabAt: -5, suggest: { minutes: 25, energy: 'tanta', extra: 1 }, weeklyGoal: 10 });
     assertEqual(messy, { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium', extra: 1 }, weeklyGoal: 10, assistant: ASSISTANT_OFF, agendaView: 'month' });
-    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' }, assistant: ASSISTANT_OFF, agendaView: 'week' };
+    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' }, assistant: ASSISTANT_OFF, agendaView: 'week', weeklyGoal: 20 };
     assertEqual(storage.sanitizePrefs(good), good, '«120+» (null) è una scelta valida');
   });
 
@@ -486,7 +486,7 @@
     const area = fakeArea();
     assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'niente salvato');
     assert(storage.savePrefs({ lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' } }, area));
-    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' }, assistant: ASSISTANT_OFF, agendaView: 'month' });
+    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null });
     area.items.set(storage.PREFS_KEY, '{rotto');
     assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'testo illeggibile');
     const broken = fakeArea({}, true);

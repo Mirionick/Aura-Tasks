@@ -181,6 +181,32 @@ Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 
   - una settimana a cavallo di due mesi: scegliendo oggi, «Oggi» sparisce.
 - Intestazione di Focus a 390×664: 188 px prima e dopo, con 4 card intere.
 
+### P-003, passo 3.3: Motivazione
+La scheda Motivazione diventa quella del passo 3.3 di [P-003](../../docs/proposte/P-003.md): il livello nell'intestazione, «La tua settimana», «I tuoi numeri» e «Completate» chiusa. Vale la proposta; il piano di prima, in «Motivazione: per vedere i progressi», resta per memoria. L'ha scritto Claude Project, come prevede la tabella «Ordine» della proposta.
+
+#### Risultati del passo 3.3 (19 novembre 2026)
+Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 390×844 in Chromium 153 headless, con una settimana piena: 30 completate, minuti di focus, obiettivo 30. «Prima» è la versione pubblicata (v16), «dopo» quella nuova (v17); l'obiettivo e «Completate» chiusa prima non c'erano. WebKit non è stato eseguito: in questo ambiente non c'è.
+
+| Gesto | Chromium, CPU 4 volte più lenta | Chromium a piena velocità |
+|---|---|---|
+| passare a Motivazione | 6 → 4 | 0 → 0 |
+| tornare a Focus | 1 → 1 | 0 → 0 |
+| cambiare l'obiettivo | 0 | 0 |
+| aprire «Completate» | 2 | 0 |
+| chiudere «Completate» | 3 | 0 |
+
+- Passare a Motivazione costa meno di prima, anche con le stelle che si accendono: le card delle completate stanno nella sezione chiusa e non si disegnano finché non la si apre.
+- Aprire e chiudere «Completate» fa scivolare 30 card e il fondo della pagina, come «Completate oggi» in Focus: 2 o 3 fotogrammi persi, solo con la CPU rallentata. A piena velocità nessun gesto perde fotogrammi; la prova vera è quella sull'iPhone.
+- Prove di funzionamento, con Playwright 1.63, a 390×664 nei due temi, a 320×568 e a 1280×800, con «Riduci movimento» e aprendo `index.html` da file (110 controlli, tutti superati; nessun errore nella console né messaggi della CSP; nessuno scorrimento orizzontale):
+  - livello giusto in ogni fascia di punti, da Scintilla ad Aurora 2 (con il bollino e senza «livello N di 7»); i distintivi caricati e Stella disegnata;
+  - il cielo con le stelle, i cerchi e la fascia di oggi; l'obiettivo gira con un tocco (15 → 20 → 30 → 50 → nessuno → 5), resta salvato e il lettore di schermo lo annuncia; con l'obiettivo già superato la costellazione appare con una dissolvenza e il contatore dice «10 stelle» invece di «10 di 5»;
+  - l'avviso «🌌 Obiettivo della settimana raggiunto» parte quando una spunta porta il conto all'obiettivo, e non torna dopo «Annulla» e una nuova spunta; «✨ Livello Stella» quando una spunta fa salire di livello;
+  - «Completate» chiusa con il numero, si apre con un tocco e riapre un'attività dalla spunta; il primo giorno, senza dati, non c'è;
+  - a 320 px nessuna stella può finire sotto «N di M»: le stelle partono da `MOTIVATION.sky.top` (46) e il contatore ha `line-height: 1`, con almeno 2,4 px di margine;
+  - le stelle si accendono solo con `opacity` e `transform`; con «Riduci movimento» nessuna animazione;
+  - contrasto dei testi nuovi tra 5,2 e 17,8 a 1, nei due temi.
+- Intestazione di Focus a 390×664: 188 px prima e dopo, con 4 card intere. In Motivazione l'intestazione cresce di una riga (il livello, 60 px) e il sottotitolo non c'è più.
+
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.
   - Ogni scheda ha icona e testo; aree di tocco ≥ 44 px; margine sotto con `env(safe-area-inset-bottom)`.
@@ -387,8 +413,9 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - `sanitizeStats()` aggiunge `focus: {}` e scarta giorni non validi e minuti non interi o fuori da 1–1440 (`Aura.focus.sanitizeMinutes`).
   - `emptyStats()` parte con `focus: {}`, quindi anche `rebuildStats()`.
   - I backup della v1, v2 e v3 si importano ancora: passano dalle stesse migrazioni.
-- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy }, agendaView }`. Nella fase 4 si aggiungono `weeklyGoal` e `lastBackupAt`.
+- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy }, agendaView, weeklyGoal }`. `lastBackupAt` arriverà con l'invito al backup.
   - `agendaView` (P-003, passo 3.2): `'month'` o `'week'`, la vista del calendario dell'Agenda; un valore diverso torna `'month'`.
+  - `weeklyGoal` (P-003, passo 3.3): l'obiettivo della settimana, 5, 10, 15, 20, 30 o 50 attività, oppure `null` (all'inizio); un valore diverso torna `null`.
   - È senza versione, come `aura-tasks:remote`, e fuori dal backup, come il tema.
   - La scrive e la legge solo `js/storage.js` (`loadPrefs()` e `savePrefs()`). `sanitizePrefs()` pulisce i valori e conserva i campi sconosciuti.
   - `suggest.minutes` è una delle scelte del foglio; `null` vuol dire «120+».
@@ -434,7 +461,7 @@ Tutte le icone dell'interfaccia, nuove comprese, sono SVG disegnati a mano nello
 ## Illustrazioni
 Elenco, flusso e prompt stanno in [illustrazioni.md](illustrazioni.md).
 - Ogni immagine entra con la fase che la usa, nella versione che c'è in quel momento.
-- Nell'app ci sono `suggest-none` ed `empty-focus`, dalla fase 2a.
+- Nell'app ci sono `suggest-none` ed `empty-focus`, dalla fase 2a, e i distintivi dei livelli 1, 2, 3, 5, 6 e 7, dal passo 3.3 di P-003. Stella ha un distintivo disegnato finché `level-4-star` non è rifatta.
 - Dove un'immagine non è ancora entrata, l'app usa le icone (distintivi) o uno stato vuoto di solo testo.
 
 ## Premium
@@ -446,11 +473,10 @@ Le categorie stanno nella tabella di `CLAUDE-GUIDE.md`:
 - **Moduli puri nuovi**:
   - `js/suggest.js` e `js/focus.js` (fase 2);
   - `js/agenda.js` (P-003, passo 3.2, al posto della fase 3);
-  - `js/motivation.js` (fase 4);
-  - `LEVELS` e il calcolo del livello, Aurora 2, 3… compresi, in `js/points.js`.
+  - `js/motivation.js` (P-003, passo 3.3), con `LEVELS` e il calcolo del livello, Aurora 2, 3… compresi: P-003 li mette qui e non in `js/points.js`, che resta com'è.
 - `js/motion.js` (fase 1) tocca la pagina solo per le animazioni. `slideIn()` (fase 2a) fa entrare un blocco intero; da P-003 (passo 3.1) la scheda entra a blocchi con `staggerIn()` e lo sfondo dell'intestazione scivola con `shiftIn()`.
 - Ogni scheda può avere un suo file che tocca la pagina, come `app.js`: così `app.js` non cresce troppo.
   - `js/ui-focus.js` (fase 2a): i fogli «Cosa faccio adesso?» e Focus, il suono di fine e lo schermo acceso. `app.js` gli passa con `Aura.focusUI.init()` quello che gli serve: stato, `commit()`, fogli, avvisi, preferenze.
   - `js/ui-agenda.js` (P-003, passo 3.2): calendario, giorno scelto, «Prossimi giorni», «Da pianificare», gesti e movimenti dell'Agenda. Tiene il giorno scelto; `app.js` gli passa con `Aura.agendaUI.init()` stato, `commit()`, la card (`buildTask()`), avvisi, il foglio «Nuova attività» e le preferenze, e ogni minuto chiama `tick()` per la linea dell'ora. `isVisible()` dice ad `app.js` se un'attività si vede nell'Agenda (dipende dal giorno scelto), `addPreset()` che giorno propone «Nuova attività».
-  - `js/ui-motivation.js` arriva con il passo 3.3 di P-003.
+  - `js/ui-motivation.js` (P-003, passo 3.3): nell'intestazione il livello, poi «La tua settimana» con il cielo e l'obiettivo, «I tuoi numeri» e i movimenti della scheda. `app.js` gli passa con `Aura.motivationUI.init()` stato e preferenze e sapere se la scheda è aperta; disegna lui «Completate». `celebrate()` dice ad `app.js` se un completamento ha fatto salire di livello o raggiungere l'obiettivo, e `app.js` sceglie l'avviso.
 - Ogni file nuovo va in `index.html`, in `tests/index.html` se ha logica pura, e in `APP_FILES` di `sw.js`.

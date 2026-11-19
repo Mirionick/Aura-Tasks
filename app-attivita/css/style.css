@@ -93,6 +93,22 @@
   --points-chip-text: #3a2700;
   --shadow-points-chip: 0 6px 18px rgba(150, 90, 0, .35);
 
+  /* Motivazione (P-003, passo 3.3): distintivo disegnato del livello (uguale nei due temi, come le illustrazioni) e cielo
+     della settimana. Il testo sul cielo (--sky-text, --sky-star) resta oltre 4,5:1 anche sul suo colore più chiaro */
+  --level-face-a: #6a4cf5;
+  --level-face-b: #2b1f7a;
+  --level-rim: #ffd23f;
+  --level-spark: #fff5d6;
+  --shadow-level: 0 6px 14px rgba(20, 8, 50, .35);
+  --sky-top: #231867;
+  --sky-bottom: #3a28a6;
+  --sky-glow: rgba(56, 214, 255, .22);
+  --sky-text: rgba(255, 255, 255, .86);
+  --sky-star: #fff5d6;
+  --sky-line: rgba(255, 245, 214, .4);
+  --sky-ghost: rgba(255, 255, 255, .45);
+  --sky-band: rgba(255, 255, 255, .07);
+
   /* Profondità: nel chiaro ombre morbide */
   --card-border: rgba(23, 21, 43, .04);
   --shadow-card: 0 1px 2px rgba(23, 21, 43, .05), 0 2px 8px rgba(40, 30, 110, .05);
@@ -213,6 +229,20 @@
   --points-chip-bg: #ffcf3d;
   --points-chip-text: #2e1f00;
   --shadow-points-chip: 0 6px 18px rgba(0, 0, 0, .5);
+
+  --level-face-a: #6a4cf5;
+  --level-face-b: #2b1f7a;
+  --level-rim: #ffd23f;
+  --level-spark: #fff5d6;
+  --shadow-level: 0 6px 14px rgba(0, 0, 0, .45);
+  --sky-top: #120d33;
+  --sky-bottom: #271c78;
+  --sky-glow: rgba(56, 214, 255, .14);
+  --sky-text: rgba(255, 255, 255, .86);
+  --sky-star: #fff5d6;
+  --sky-line: rgba(255, 245, 214, .36);
+  --sky-ghost: rgba(255, 255, 255, .4);
+  --sky-band: rgba(255, 255, 255, .06);
 
   --card-border: rgba(255, 255, 255, .06);
   --shadow-card: none;
@@ -415,6 +445,50 @@ button {
 }
 .hero__subtitle { margin-top: 2px; font-size: 15px; font-weight: 600; color: var(--hero-text-2); }
 .hero__tab + .stats--rewards { margin-top: 16px; }
+
+/* Motivazione (P-003, passo 3.3): il livello, con distintivo, nome, barra e quanto manca, sopra serie e punti */
+.lvl { display: flex; align-items: center; gap: 12px; margin: 10px 0 12px; }
+.lvl__badge { position: relative; flex: none; width: 60px; height: 60px; border-radius: 50%; box-shadow: var(--shadow-level); }
+.lvl__img,
+.lvl__drawn { display: block; width: 100%; height: 100%; border-radius: 50%; }
+.lvl__face-a { stop-color: var(--level-face-a); }
+.lvl__face-b { stop-color: var(--level-face-b); }
+.lvl__disc { fill: url(#level-face); stroke: var(--level-rim); stroke-width: 2.5; }
+.lvl__dots { fill: none; stroke: var(--level-rim); stroke-width: 1; stroke-dasharray: 1.5 4.2; opacity: .85; }
+.lvl__star { fill: var(--level-rim); }
+.lvl__spark { fill: var(--level-spark); }
+/* Aurora 2, 3…: il numero sul distintivo di Aurora */
+.lvl__rank {
+  position: absolute;
+  right: -4px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--points-chip-bg);
+  color: var(--points-chip-text);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lvl__text { flex: 1; min-width: 0; }
+.lvl__name { font-size: 19px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+.lvl__step { margin-left: 4px; color: var(--hero-text-2); font-size: 13px; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
+/* La barra verso il prossimo livello: il riempimento cresce con transform (scaleX), il bordo arrotondato lo dà il binario */
+.lvl__bar { display: block; height: 8px; margin: 6px 0 4px; overflow: hidden; border-radius: 4px; background: var(--progress-track); }
+.lvl__fill {
+  display: block;
+  height: 100%;
+  background: var(--progress-fill);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-reward) var(--ease-out);
+}
+.lvl__note { color: var(--hero-text-2); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lvl + .stats--rewards { margin-top: 0; }
 
 /* Focus, intestazione compatta: nella riga del saluto ci sono serie e punti, in due chip */
 .hero__hello {
@@ -922,34 +996,109 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-/* Motivazione (provvisoria, fino alla fase 4): minuti di focus e storico delle completate */
-.focus-minutes {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 24px;
-  padding: 12px 14px;
+/* Motivazione (P-003, passo 3.3): riquadro «La tua settimana», «I tuoi numeri» e «Completate» chiusa */
+.card-block {
+  margin-bottom: 24px;
+  padding: 14px 14px 12px;
   border: 1px solid var(--card-border);
-  border-radius: var(--radius);
+  border-radius: 20px;
   background: var(--surface);
   box-shadow: var(--shadow-card);
-  font-size: 15px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
-.focus-minutes .icon { color: var(--accent-text); }
-
-.history__header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.block__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; margin-bottom: 10px; }
+.block__title { min-width: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+/* L'obiettivo: testo dell'accento, con l'area di tocco piena che sporge un poco nel margine del riquadro */
+.block__action {
+  flex: none;
   min-height: var(--tap);
-  margin-bottom: 6px;
-  padding: 0 4px;
+  margin: -6px -8px -6px 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--dur-color) var(--ease-out);
 }
-.history__header .section__info { flex: 1; }
+.block__action:active { background: var(--accent-soft); }
+@media (hover: hover) {
+  .block__action:hover { background: var(--accent-soft); }
+}
+.block__note { margin-top: 10px; color: var(--text-3); font-size: 13px; line-height: 1.45; }
+
+/* Il cielo della settimana: SVG con le stelle sopra un gradiente notturno, uguale come forma nei due temi */
+.sky__frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 90% at 85% 0%, var(--sky-glow), transparent 60%),
+    linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
+}
+.sky__svg { display: block; width: 100%; height: auto; }
+/* «N di M» sta sopra le stelle: con line-height 1 resta più basso di MOTIVATION.sky.top anche a 320 px */
+.sky__count { position: absolute; top: 8px; left: 12px; color: var(--sky-text); font-size: 13px; font-weight: 600; line-height: 1; pointer-events: none; }
+.sky__count strong { color: var(--sky-star); font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sky__halo-in { stop-color: var(--sky-star); stop-opacity: .55; }
+.sky__halo-out { stop-color: var(--sky-star); stop-opacity: 0; }
+.sky-band { fill: var(--sky-band); }
+.sky-line { fill: none; stroke: var(--sky-line); stroke-width: 1; stroke-linecap: round; }
+.sky-ghost { fill: none; stroke: var(--sky-ghost); stroke-width: 1; stroke-dasharray: 2 2.2; }
+.sky-halo { fill: url(#sky-halo); }
+.sky-dot { fill: var(--sky-star); }
+.sky-star { transform-box: fill-box; transform-origin: center; }
+.sky__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.sky__days b { display: block; color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
+.sky__day.is-today,
+.sky__day.is-today b { color: var(--accent-text); }
+.sky__recap { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 13px; line-height: 1.5; }
+.sky__tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* I tuoi numeri: sei riquadri, tre per riga (due sugli schermi stretti) */
+.nums__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+/* Le etichette lunghe vanno a capo: i valori restano allineati in basso */
+.num {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.num dt { color: var(--text-3); font-size: 12px; font-weight: 700; line-height: 1.25; }
+.num dd { margin: 4px 0 0; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nums__hint { margin-top: 8px; padding: 0 4px; color: var(--text-3); font-size: 13px; line-height: 1.45; }
+@media (max-width: 359px) {
+  .nums__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* «Completate» in Motivazione: dentro la sezione aperta, «Svuota» in alto a destra */
+.history__tools { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
 .btn.history__clear { min-height: var(--tap); } /* «Svuota»: area di tocco piena (più specifico di .btn--small, che viene dopo) */
-.history__empty { padding: 2px 4px 0; color: var(--text-2); }
 
 /* In fondo a Motivazione: dove stanno i dati, e il link al foglio "Backup dei dati" */
 .footnote {
@@ -2459,6 +2608,9 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .mini--points.is-bumping .star { animation: star-spin var(--dur-reward) var(--ease-out); }
 /* Il contatore di «Completate oggi» quando ci arriva una card */
 .badge.is-bumping { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
+/* Motivazione: il distintivo salta quando si sale di livello; le linee della costellazione appaiono piano */
+.lvl__badge.is-leveling { animation: value-pop var(--dur-reward) var(--ease-spring); }
+.sky-line.is-appearing { animation: fade-in var(--dur-celebrate) var(--ease-out); }
 
 /* Focus: l'aurora scorre piano (solo transform e opacity); il primo fotogramma è lo stato di riposo di ogni livello */
 @keyframes aurora-band-1 { to { transform: translateX(33%) rotate(4deg) scale(3, 3.45); opacity: 1; } }

@@ -7,14 +7,15 @@
  * L'assistente (striscia, campo nel foglio «Aura», foglio «Assistente») sta in js/ui-assistant.js, avviato allo stesso modo.
  * La rotella con i fogli «Impostazioni» e «Privacy» sta in js/ui-settings.js, avviato allo stesso modo.
  * L'Agenda a calendario (calendario, giorno scelto, «Prossimi giorni», «Da pianificare») sta in js/ui-agenda.js, avviato
- * allo stesso modo: render() la ridisegna insieme alle altre schede.
+ * allo stesso modo: render() la ridisegna insieme alle altre schede. Così anche Motivazione (livello, «La tua settimana»,
+ * «I tuoi numeri»), in js/ui-motivation.js; «Completate», serie e punti restano qui.
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
   const { utils, tasks: T, nlp, points: P, focus: F, storage, theme, reminders: RM, remote: R, motion: M, settings: Settings,
-    focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI } = Aura;
+    focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI, motivationUI: MotivationUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -41,10 +42,9 @@
     tabMotivation: byId('tab-motivation'),
     suggestButton: byId('suggest-button'),
     emptyAgendaLink: byId('empty-agenda-link'),
-    focusMinutesText: byId('focus-minutes-text'),
+    history: byId('history'),
     historyCount: byId('history-count'),
     historyList: byId('history-list'),
-    historyEmpty: byId('history-empty'),
     greeting: byId('greeting'),
     today: byId('today-label'),
     statOpen: byId('stat-open'),
@@ -56,6 +56,7 @@
     streakRecordText: byId('streak-record-text'),
     streakNote: byId('streak-note'),
     streakProgress: byId('streak-progress'),
+    level: byId('level'),
     rewards: byId('rewards'),
     statPoints: byId('stat-points'),
     pointsValue: byId('points-value'),
@@ -147,11 +148,11 @@
   const DATED_SECTIONS = ['overdue', 'upcoming']; // nelle altre sezioni la data è già nel titolo
   const ERROR_FIELDS = ['title', 'duration', 'energy', 'date', 'time'];
   const FIELD_INPUTS = { title: els.title, duration: els.duration, date: els.dateInput, time: els.timeInput };
-  // Le schede: nome, titolo nell'intestazione (Agenda e Motivazione) e la loro <section>.
+  // Le schede: nome, titolo nell'intestazione (Agenda e Motivazione, che al posto della frase ha il livello) e la loro <section>.
   const TABS = {
     focus: { name: 'Focus', section: els.tabFocus },
     agenda: { name: 'Agenda', title: 'Agenda', subtitle: 'Pianifica i tuoi giorni', section: els.tabAgenda },
-    motivation: { name: 'Motivazione', title: 'Motivazione', subtitle: 'Serie, punti e attività completate', section: els.tabMotivation }
+    motivation: { name: 'Motivazione', title: 'Motivazione', subtitle: '', section: els.tabMotivation }
   };
   const LAST_TAB_MS = 30 * 60 * 1000; // riaprendo Aura entro 30 minuti dall'ultimo uso si riparte dall'ultima scheda
 
@@ -164,6 +165,7 @@
   let assistantCtl = null; // striscia, foglio «Aura» e foglio «Assistente» (js/ui-assistant.js), pronti all'avvio
   let settingsCtl = null; // rotella, foglio «Impostazioni» e foglio «Privacy» (js/ui-settings.js), pronti all'avvio
   let agendaCtl = null;   // scheda Agenda a calendario (js/ui-agenda.js), pronta all'avvio
+  let motivationCtl = null; // livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), pronti all'avvio
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -217,10 +219,12 @@
     const info = TABS[activeTab];
     els.heroFocus.hidden = activeTab !== 'focus';
     els.heroTab.hidden = activeTab === 'focus';
-    els.rewards.hidden = activeTab !== 'motivation'; // serie e punti in grande, fino alla fase 4
+    els.level.hidden = activeTab !== 'motivation';   // livello e, sotto, serie e punti in grande
+    els.rewards.hidden = activeTab !== 'motivation';
     if (info.title) {
       els.heroTitle.textContent = info.title;
       els.heroSubtitle.textContent = info.subtitle;
+      els.heroSubtitle.hidden = !info.subtitle;
     }
     syncHeroCta();
   }
@@ -266,7 +270,11 @@
     M.shiftIn(els.heroBg, heroBefore - els.hero.offsetHeight);
     M.staggerIn(Array.from(TABS[tab].section.children), direction * 24);
     M.slideIn(activeTab === 'focus' ? els.heroFocus : els.heroTab, 0);
-    if (activeTab === 'motivation') M.slideIn(els.rewards, 0);
+    if (activeTab === 'motivation') {
+      M.slideIn(els.level, 0);
+      M.slideIn(els.rewards, 0);
+      if (motivationCtl) motivationCtl.enter(); // le stelle della settimana si accendono una dopo l'altra
+    }
     M.flash(els.tabPill, 'is-moving');
     const button = els.tabButtons.find(item => item.dataset.tab === tab);
     if (button) M.flash(button.querySelector('.icon'), 'is-popping');
@@ -295,8 +303,8 @@
     renderEmpty(focusSections.length === 0, completed.length, agendaCount, today);
     // Agenda: calendario, giorno scelto, Prossimi giorni e Da pianificare (js/ui-agenda.js)
     if (agendaCtl) agendaCtl.render(now);
-    // Motivazione (fino alla fase 4): minuti di focus e storico delle completate
-    renderFocusMinutes(today);
+    // Motivazione: livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), poi «Completate»
+    if (motivationCtl) motivationCtl.render(now);
     renderHistory(completed, now);
     renderedPassed = T.passedCount(state.tasks, now);
 
@@ -421,20 +429,14 @@
     els.completedList.replaceChildren(...completed.map(task => buildTask(task, now)));
   }
 
-  /** Storico in Motivazione: tutte le completate, dalla più recente, con «Svuota». */
+  /**
+   * «Completate» in Motivazione: tutte le completate, dalla più recente, in una sezione chiusa con il numero (si apre con
+   * un tocco, come «Completate oggi» in Focus) e, dentro, «Svuota». Senza completate non c'è.
+   */
   function renderHistory(completed, now) {
-    els.historyCount.textContent = completed.length ? tasksLabel(completed.length) : '';
-    els.clearCompleted.hidden = completed.length === 0;
-    els.historyEmpty.hidden = completed.length > 0;
+    els.history.hidden = completed.length === 0;
+    els.historyCount.textContent = completed.length;
     els.historyList.replaceChildren(...completed.map(task => buildTask(task, now)));
-  }
-
-  /** Minuti di focus di oggi e in tutto (Motivazione). */
-  function renderFocusMinutes(today) {
-    const total = F.totalMinutes(state.stats);
-    els.focusMinutesText.textContent = total
-      ? 'Focus: ' + utils.formatDuration(F.minutesOn(state.stats, today)) + ' oggi · ' + utils.formatDuration(total) + ' in tutto'
-      : 'Minuti di focus: tocca «Inizia focus» in «Cosa faccio adesso?» o nel foglio di un\'attività';
   }
 
   function renderEmpty(isEmpty, completedCount, agendaCount, today) {
@@ -557,10 +559,13 @@
 
   /**
    * Dopo un completamento: avviso con i punti, e festa se la serie si accende o tocca un traguardo.
-   * `focus` ({ minutes, day }): minuti di focus registrati insieme, detti nell'avviso e tolti anche da «Annulla».
+   * L'avviso dice anche il livello nuovo («✨ Livello Stella») e la settimana che diventa una costellazione (una volta per
+   * settimana, vedi js/ui-motivation.js). `focus` ({ minutes, day }): minuti di focus registrati insieme, detti nell'avviso
+   * e tolti anche da «Annulla».
    */
   function celebrate(id, result, firstToday, focus) {
     const milestone = result.reached.length ? Math.max(...result.reached) : 0;
+    const progress = motivationCtl ? motivationCtl.celebrate(result) : { level: null, reached: false };
     const targets = rewardTargets();
     if (firstToday && targets) M.flash(targets.streak, 'is-igniting');
     if (milestone) {
@@ -577,12 +582,15 @@
     const points = '+' + result.points + ' punti';
     let message = 'Completata · ' + points;
     if (milestone) message = '🎉 ' + daysLabel(milestone) + ' di fila! · ' + points;
+    else if (progress.level) message = '✨ Livello ' + progress.level.name + ' · ' + points;
+    else if (progress.reached) message = '🌌 Obiettivo della settimana raggiunto · ' + points;
     else if (firstToday) message = (result.streak === 1 ? '🔥 Serie iniziata · ' : '🔥 ' + daysLabel(result.streak) + ' di fila · ') + points;
     if (focus) message += ' · ' + utils.formatDuration(focus.minutes) + ' di focus';
+    const special = Boolean(milestone || progress.level || progress.reached);
 
     showToast(message, {
       action: 'Annulla',
-      duration: milestone ? 6500 : undefined,
+      duration: special ? 6500 : undefined,
       onAction: () => {
         const undo = P.setDone(state, id, false, Date.now());
         commit(undo.tasks, focus ? F.recordMinutes(undo.stats, focus.day, -focus.minutes) : undo.stats);
@@ -1157,10 +1165,15 @@
     return TABS[activeTab].section.querySelector('.task[data-id="' + CSS.escape(id) + '"]');
   }
 
-  /** Porta in vista la card appena aggiunta o modificata, dopo la chiusura del foglio. */
+  /**
+   * Porta in vista la card appena aggiunta o modificata, dopo la chiusura del foglio. Se sta in una sezione chiusa
+   * («Completate oggi» in Focus, «Completate» in Motivazione), prima la apre.
+   */
   function revealTask(id) {
     const node = cardOf(id);
     if (!node) return;
+    const closed = node.closest('details:not([open])');
+    if (closed) closed.open = true;
     later(M.ms('move'), () => node.scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' }));
   }
 
@@ -2018,12 +2031,15 @@
   els.miniRewards.addEventListener('click', () => showTab('motivation'));
   els.emptyAgendaLink.addEventListener('click', () => showTab('agenda'));
 
-  // «Completate» si apre e si chiude morbida: il suo contenuto entra (o esce) come un blocco unico e il fondo pagina scivola.
-  els.completed.querySelector('summary').addEventListener('click', event => {
-    event.preventDefault();
-    const before = M.snapshot(els.main);
-    els.completed.open = !els.completed.open;
-    M.play(els.main, before, { enterFrom: 'above', exit: 'up', toCollapsed: false });
+  // «Completate oggi» (Focus) e «Completate» (Motivazione) si aprono e si chiudono morbide: il contenuto entra (o esce)
+  // come un blocco unico e il fondo pagina scivola.
+  [els.completed, els.history].forEach(details => {
+    details.querySelector('summary').addEventListener('click', event => {
+      event.preventDefault();
+      const before = M.snapshot(els.main);
+      details.open = !details.open;
+      M.play(els.main, before, { enterFrom: 'above', exit: 'up', toCollapsed: false });
+    });
   });
 
   els.clearCompleted.addEventListener('click', onClearCompleted);
@@ -2266,6 +2282,14 @@
     setPrefs,
     setEdited: id => { editedId = id; },
     isActive: () => activeTab === 'agenda'
+  });
+
+  // Motivazione: livello, «La tua settimana» con l'obiettivo salvato (prefs.weeklyGoal) e «I tuoi numeri», a ogni render().
+  motivationCtl = MotivationUI.init({
+    getState: () => state,
+    getPrefs: () => prefs,
+    setPrefs,
+    isActive: () => activeTab === 'motivation'
   });
 
   syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti
