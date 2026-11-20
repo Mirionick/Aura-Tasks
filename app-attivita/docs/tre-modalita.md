@@ -437,8 +437,8 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
 - **Frase del giorno**: una frase incoraggiante da un elenco locale, scelta in base al giorno e uguale per tutto il giorno.
 - **Mai sensi di colpa**: a serie interrotta niente "hai perso", ma un invito a ripartire, con l'illustrazione `streak-restart`: "Ogni giorno è buono per ricominciare: completa un'attività e la fiamma si riaccende".
 - In fondo: "I dati restano solo su questo dispositivo" e «Backup dei dati».
-- **Invito al backup**: «Esporta» salva la data dell'ultimo backup (`lastBackupAt` nelle preferenze). Se sono passati 30 giorni, o se un backup non c'è mai stato, Motivazione mostra un invito gentile a farne uno.
-- La logica pura sta in `js/motivation.js`: obiettivo, calendario, minuti, frase del giorno, invito al backup.
+- **Invito al backup**: non si fa. Il Product Owner, il 20 novembre 2026, ha scelto che i dati passino da un telefono all'altro con l'account Google o un account di Aura (vedi [P-005](../../docs/proposte/P-005.md), «Decisioni di prodotto»).
+- La logica pura sta in `js/motivation.js`: obiettivo, calendario, minuti, frase del giorno.
 
 ## Dati
 - **Minuti di focus**: `stats.focus = { 'YYYY-MM-DD': minuti }`, una mappa del registro separata da `days`. Così le regole della serie non cambiano, e i minuti finiscono anche nel backup.
@@ -446,7 +446,7 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - `sanitizeStats()` aggiunge `focus: {}` e scarta giorni non validi e minuti non interi o fuori da 1–1440 (`Aura.focus.sanitizeMinutes`).
   - `emptyStats()` parte con `focus: {}`, quindi anche `rebuildStats()`.
   - I backup della v1, v2 e v3 si importano ancora: passano dalle stesse migrazioni.
-- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy }, agendaView, weeklyGoal }`. `lastBackupAt` arriverà con l'invito al backup.
+- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy }, agendaView, weeklyGoal }`.
   - `agendaView` (P-003, passo 3.2): `'month'` o `'week'`, la vista del calendario dell'Agenda; un valore diverso torna `'month'`.
   - `weeklyGoal` (P-003, passo 3.3): l'obiettivo della settimana, 5, 10, 15, 20, 30 o 50 attività, oppure `null` (all'inizio); un valore diverso torna `null`.
   - È senza versione, come `aura-tasks:remote`, e fuori dal backup, come il tema.
