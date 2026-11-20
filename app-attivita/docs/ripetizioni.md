@@ -43,7 +43,7 @@ Logica pura in `js/repeat.js` (`Aura.repeat`): le regole, il giorno della prossi
 - Solo sulle attività da fare: in «Completate» non c'è.
 
 ## Nella frase e con Siri
-- In «Scrivi in una frase» e nelle frasi di Siri: «ogni giorno» e «tutti i giorni», «ogni lunedì» (anche «ogni lunedì e giovedì», «ogni lun, mer e ven»), «ogni settimana» (nel giorno della data, o di oggi), «ogni mese» (nel giorno della data, o di oggi). Esempio: «palestra ogni lunedì e giovedì alle 18» compila giovedì, le 18:00 e la regola. Vedi [linguaggio-naturale.md](linguaggio-naturale.md).
+- In «Scrivi in una frase» e nelle frasi di Siri: «ogni giorno» e «tutti i giorni», «ogni lunedì» (anche «ogni lunedì e giovedì», «ogni lun, mer e ven»), «ogni settimana» (nel giorno della data, o di oggi), «ogni mese» (nel giorno della data, o di oggi). Esempio: «palestra ogni lunedì e giovedì alle 18» compila il primo lunedì o giovedì da oggi in poi (oggi compreso, se non sono ancora le 18), le 18:00 e la regola. Vedi [linguaggio-naturale.md](linguaggio-naturale.md).
 - Il riepilogo della frase lo dice: «Capito: Domani · ogni lunedì e giovedì · alle 18:00».
 - **L'assistente** non sa ancora creare ripetizioni: con l'assistente acceso, una frase di Siri con «ogni …» si apre in «Nuova attività», dove la frase si capisce, invece di passare da lui.
 
