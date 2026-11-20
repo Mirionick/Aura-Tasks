@@ -958,6 +958,7 @@
   let focusAfterEdit = null; // card che riceve il focus quando il foglio si è chiuso dopo una modifica
   let repeatRule = null;    // «Si ripete»: la regola scelta nel foglio, oppure null («Mai»)
   let repeatFollows = true; // true se la regola prende il giorno dalla data: cambiando data, cambia anche lei
+  let repeatKept = false;   // una volta completata: il campo non si vede e la regola resta quella salvata
 
   /** Svuota il foglio. In modifica cambiano titolo e pulsante, e spariscono la frase libera e la riga di Siri. */
   function resetAddSheet(editing) {
@@ -976,6 +977,7 @@
     els.phraseSummary.textContent = PHRASE_HINT;
     repeatRule = null;
     repeatFollows = true;
+    repeatKept = false;
     els.repeatField.hidden = false;
   }
 
@@ -1012,6 +1014,7 @@
     if (!task || busy.has(id)) return; // card in animazione (completamento o eliminazione)
     resetAddSheet(true);
     editingId = id;
+    repeatKept = task.done; // prima di writeFields(), che passa da syncDate()
     const fields = T.editableFields(task);
     // Un'attività in ritardo tiene il suo giorno: il calendario non deve escluderlo.
     if (fields.date && fields.date < els.dateInput.min) els.dateInput.min = fields.date;
@@ -1110,7 +1113,8 @@
       energy: els.form.elements.energy.value,
       date: els.dateInput.value,
       time: els.timeInput.value,
-      repeat: repeatRule
+      // Una volta completata tiene la regola salvata; senza giorno, però, non si ripete (una regola vuole un giorno).
+      repeat: repeatKept && !utils.isISODate(els.dateInput.value) ? null : repeatRule
     };
   }
 
@@ -1190,8 +1194,12 @@
     els.timeField.disabled = !valid;
     if (!valid) els.timeInput.value = '';
     syncTime();
-    // Anche la ripetizione: senza giorno torna «Mai»; cambiando giorno, una regola che lo segue si sposta con lui.
-    if (!valid) {
+    // Anche la ripetizione: senza giorno torna «Mai»; cambiando giorno, una regola che lo segue si sposta con lui. Non
+    // per una volta completata (repeatKept): la sua regola, che il foglio non mostra, resta quella salvata, così se torna
+    // da fare riparte con la regola giusta (vedi readFields()).
+    if (repeatKept) {
+      // niente da cambiare
+    } else if (!valid) {
       repeatRule = null;
     } else if (repeatRule && repeatFollows) {
       const derived = RP.fromKind(repeatRule.every, value);

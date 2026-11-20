@@ -22,7 +22,7 @@ Logica pura in `js/repeat.js` (`Aura.repeat`): le regole, il giorno della prossi
 - **I giorni seguono la data** finché ce n'è uno solo acceso: cambiando la data da mercoledì a giovedì, il giorno acceso diventa giovedì. Con due o più giorni scelti a mano, cambiare la data non li cambia. «Ogni mese» segue il giorno del mese della data, allo stesso modo.
 - Sotto, una riga dice la regola e il giorno dopo questa: «Ogni lunedì e giovedì · dopo questa, giovedì 26 novembre». È una regione «live» (`aria-live="polite"`), sempre nella pagina e vuota con «Mai», così il lettore di schermo la annuncia quando cambia; si riscrive solo se il testo cambia.
 - **«Salta questa volta»** c'è solo nel foglio di modifica di una ripetizione da fare.
-- Per un'attività completata il campo non si vede; salvandola, la sua regola resta.
+- Per un'attività completata il campo non si vede: salvandola, anche con un altro giorno, la sua regola resta quella di prima (le serve se torna da fare). Senza giorno, invece, non si ripete più, perché una regola vuole un giorno.
 
 ## Completare
 - Punti, serie, festa e «Annulla» sono quelli di sempre: ogni volta completata è un'attività completata e resta in «Completate» con i suoi punti.
@@ -64,7 +64,7 @@ La prossima entra come ogni card nuova, con la tecnica FLIP di `js/motion.js`. I
 
 ## Risultati del passo 5.1
 - **Prove**: 324 test dell'app in Chromium headless con il fuso di Roma, New York, Auckland, San Paolo e UTC; 70 del server.
-- **Nel browser** (Chromium 153 con Playwright 1.63, contesto «iPhone 13» e larghezze da 320 a 1440 px, orologio finto): 59 controlli del passo (foglio, giorni, frase, card, avvisi, «Annulla», «Salta questa volta», due temi, axe-core 4.10.2 con WCAG 2.0, 2.1, 2.2 A e AA e best practice, «Riduci movimento», nessun errore e nessun messaggio della CSP).
+- **Nel browser** (Chromium 153 con Playwright 1.63, contesto «iPhone 13» e larghezze da 320 a 1440 px, orologio finto): 61 controlli del passo (foglio, giorni, frase, card, avvisi, «Annulla», «Salta questa volta», le completate che tengono la loro regola, due temi, axe-core 4.10.2 con WCAG 2.0, 2.1, 2.2 A e AA e best practice, «Riduci movimento», nessun errore e nessun messaggio della CSP).
 - **Skill accessibility** (19 controlli): ordine con la tastiera (Mai, Ogni giorno, Ogni settimana, Ogni mese, poi i sette giorni, poi «Salta questa volta»), contorno visibile e non coperto, Spazio e Invio, Esc che riporta il focus su «+ Nuova attività», la riga della regola «live», spaziatura del testo WCAG 1.4.12 da 320 a 430 px senza niente di tagliato, aree di tocco di 44 px.
 - **Skill browser-qa**: con attività che non si ripetono, Focus, Agenda, Motivazione e la parte alta del foglio sono identiche pixel per pixel alla base senza il passo, nei due temi. Velocità uguale alla base (mediana di 5 prove alternate): LCP 124 contro 124 ms e INP 32 contro 32 ms; con la CPU 4 volte più lenta LCP 412 contro 400 ms, INP 88 contro 104 ms; completare una ripetizione 32 ms e 3 fotogrammi persi contro 32 ms e 5 per un'attività normale nella base; CLS 0.
 - **Skill make-interfaces-feel-better**, prima e dopo:
