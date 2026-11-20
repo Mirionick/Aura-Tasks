@@ -8,16 +8,17 @@
  * La rotella con i fogli «Impostazioni» e «Privacy» sta in js/ui-settings.js, avviato allo stesso modo.
  * L'Agenda a calendario (calendario, giorno scelto, «Prossimi giorni», «Da pianificare») sta in js/ui-agenda.js, avviato
  * allo stesso modo: render() la ridisegna insieme alle altre schede. Così anche Motivazione (livello, «La tua settimana»,
- * «I tuoi numeri»), in js/ui-motivation.js, e i suoi premi («I tuoi premi» e il foglio del premio), in js/ui-rewards.js;
- * «Completate», serie e punti restano qui.
+ * «I tuoi numeri»), in js/ui-motivation.js, i suoi premi («I tuoi premi» e il foglio del premio), in js/ui-rewards.js, e
+ * il negozio (la card e il foglio «Negozio»), in js/ui-shop.js; «Completate», serie e punti restano qui. Quello che è in uso
+ * dal negozio (colori dell'aurora, forma dei coriandoli) si applica qui: data-aurora su <html> e i coriandoli.
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, focus: F, rewards: RW, storage, theme, reminders: RM, remote: R, motion: M,
-    settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
-    motivationUI: MotivationUI, rewardsUI: RewardsUI } = Aura;
+  const { utils, repeat: RP, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
+    motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
+    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI, swipeUI: SwipeUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -97,6 +98,11 @@
     timeInput: byId('task-time'),
     timeLabel: byId('time-label'),
     timeClear: byId('time-clear'),
+    repeatField: byId('repeat-field'),
+    repeatChips: byId('repeat-chips'),
+    repeatDays: byId('repeat-days'),
+    repeatHint: byId('repeat-hint'),
+    repeatSkip: byId('repeat-skip'),
     timeHint: byId('time-hint'),
     inboxNote: byId('inbox-note'),
     inboxNoteText: byId('inbox-note-text'),
@@ -144,11 +150,13 @@
     toast: byId('toast'),
     toastText: byId('toast-text'),
     toastAction: byId('toast-action'),
-    taskTemplate: byId('task-template')
+    taskTemplate: byId('task-template'),
+    // Dove va il colore dell'aurora in uso (applyLook): l'aurora del focus a tutto schermo e il bagliore della scheda Focus
+    auroraTargets: [document.querySelector('.focus__aura'), document.querySelector('.hero__tint--focus')].filter(Boolean)
   };
 
   const DATED_SECTIONS = ['overdue', 'upcoming']; // nelle altre sezioni la data è già nel titolo
-  const ERROR_FIELDS = ['title', 'duration', 'energy', 'date', 'time'];
+  const ERROR_FIELDS = ['title', 'duration', 'energy', 'date', 'time', 'repeat'];
   const FIELD_INPUTS = { title: els.title, duration: els.duration, date: els.dateInput, time: els.timeInput };
   // Le schede: nome, titolo nell'intestazione (Agenda e Motivazione, che al posto della frase ha il livello) e la loro <section>.
   const TABS = {
@@ -169,6 +177,8 @@
   let agendaCtl = null;   // scheda Agenda a calendario (js/ui-agenda.js), pronta all'avvio
   let motivationCtl = null; // livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), pronti all'avvio
   let rewardsCtl = null;    // «I tuoi premi» e il foglio del premio (js/ui-rewards.js), pronti all'avvio
+  let shopCtl = null;       // «Negozio»: la card e il foglio (js/ui-shop.js), pronti all'avvio
+  let musicCtl = null;      // musica nel focus: avviso o carosello, riga «Musica», «🎧» (js/ui-music.js), pronti all'avvio
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -309,6 +319,8 @@
     if (assistantCtl) assistantCtl.renderStrip({ focusCount: focusSections.length });
     else els.suggestButton.hidden = focusSections.length === 0;
     syncHeroCta();
+    // Sotto la striscia, l'avviso o il carosello della musica (js/ui-music.js): solo quando la striscia si vede
+    if (musicCtl) musicCtl.render(!els.suggestButton.hidden);
     renderSections(els.sections, focusSections, now);
     renderCompletedToday(T.completedOn(state.tasks, today), now);
     renderEmpty(focusSections.length === 0, completed.length, agendaCount, today);
@@ -318,6 +330,8 @@
     // poi «Completate»
     if (motivationCtl) motivationCtl.render(now);
     if (rewardsCtl) rewardsCtl.render(now);
+    if (shopCtl) shopCtl.render(now);
+    applyLook();
     renderHistory(completed, now);
     renderedPassed = T.passedCount(state.tasks, now);
 
@@ -341,13 +355,30 @@
 
   const daysLabel = count => (count === 1 ? '1 giorno' : count + ' giorni');
 
+  /** La serie in corso, con i giorni riparati nel negozio («Ripara la serie», js/shop.js). */
+  const streakOf = (stats, today) => P.currentStreak(stats.days, today, P.repairedDays(stats));
+
+  /**
+   * Quello che è in uso dal negozio: il colore dell'aurora va, come data-aurora, sui due elementi che lo usano, l'aurora del
+   * focus a tutto schermo e il bagliore della scheda Focus (vedi css/style.css). Non su <html>: lì un cambio ricalcolerebbe
+   * lo stile di tutta la pagina, proprio mentre partono i coriandoli dell'acquisto. La forma dei coriandoli la legge
+   * burstConfetti().
+   */
+  function applyLook() {
+    const aurora = (state.look && state.look.aurora) || SH.defaultLook().aurora;
+    els.auroraTargets.forEach(node => {
+      if (node.dataset.aurora !== aurora) node.dataset.aurora = aurora;
+    });
+  }
+
   /**
    * Serie (accesa se oggi c'è già un completamento) e punti: in piccolo nell'intestazione di Focus,
-   * in grande in quella di Motivazione, con record, nota e barra del traguardo.
+   * in grande in quella di Motivazione, con record, nota e barra del traguardo. Quando la serie si può riparare nel
+   * negozio, la nota lo dice.
    */
   function renderRewards(today, todayTotals) {
     const { stats } = state;
-    const streak = P.currentStreak(stats.days, today);
+    const streak = streakOf(stats, today);
     const lit = todayTotals.done > 0;
     const next = P.nextMilestone(streak);
     const isRecord = streak >= 3 && streak >= stats.bestStreak;
@@ -361,7 +392,8 @@
     els.streakRecord.hidden = !isRecord && !(stats.bestStreak > streak && stats.bestStreak >= 2);
     els.streakRecordText.textContent = isRecord ? 'record!' : 'record ' + stats.bestStreak;
     els.streakProgress.style.transform = 'scaleX(' + (next ? streak / next : 1) + ')';
-    if (!lit) els.streakNote.textContent = streak > 0 ? 'Tienila accesa oggi' : 'Accendila oggi';
+    if (SH.repairOffer(stats, today)) els.streakNote.textContent = 'Puoi ripararla nel negozio';
+    else if (!lit) els.streakNote.textContent = streak > 0 ? 'Tienila accesa oggi' : 'Accendila oggi';
     else els.streakNote.textContent = next ? 'Traguardo: ' + daysLabel(next) : 'Tutti i traguardi!';
 
     els.pointsToday.textContent = '+' + utils.formatNumber(todayTotals.points) + ' oggi';
@@ -456,7 +488,7 @@
     els.empty.hidden = !isEmpty;
     if (!isEmpty) return;
     const allDone = completedCount > 0;
-    const streak = P.currentStreak(state.stats.days, today);
+    const streak = streakOf(state.stats, today);
     const lit = P.dayTotals(state.stats, today).done > 0;
     const upcoming = agendaCount === 1 ? 'Hai 1 attività nei prossimi giorni.' : 'Hai ' + agendaCount + ' attività nei prossimi giorni.';
     els.emptyAgendaLink.hidden = agendaCount === 0;
@@ -505,6 +537,10 @@
     } else {
       atMeta.remove();
     }
+    // ↻ accanto all'ora, solo sulla ripetizione da fare: il lettore di schermo legge la regola (P-005, passo 5.1).
+    const repeatMeta = node.querySelector('.meta--repeat');
+    if (!task.done && task.repeat) repeatMeta.querySelector('.sr-only').textContent = RP.spokenLabel(task.repeat);
+    else repeatMeta.remove();
     node.querySelector('.meta__time').textContent = utils.formatDuration(task.duration);
 
     const pill = node.querySelector('.pill');
@@ -601,16 +637,32 @@
     else if (ready) message = RW.readyText(ready) + ' · ' + points;
     else if (firstToday) message = (result.streak === 1 ? '🔥 Serie iniziata · ' : '🔥 ' + daysLabel(result.streak) + ' di fila · ') + points;
     if (focus) message += ' · ' + utils.formatDuration(focus.minutes) + ' di focus';
+    // Una ripetizione: l'avviso dice quando torna (P-005, passo 5.1).
+    if (result.next) message += ' · torna ' + RP.returnLabel(result.next.date, utils.todayISO());
     const special = Boolean(milestone || progress.level || progress.reached || ready);
 
     showToast(message, {
       action: 'Annulla',
       duration: special ? 6500 : undefined,
       onAction: () => {
-        const undo = P.setDone(state, id, false, Date.now());
+        // Prima esce la prossima volta, se è ancora da fare: così questa torna da fare con la sua regola.
+        const next = result.next && state.tasks.find(t => t.id === result.next.id && !t.done);
+        const tasks = next ? T.removeTask(state.tasks, next.id).tasks : state.tasks;
+        const undo = P.setDone({ ...state, tasks }, id, false, Date.now());
         commit(undo.tasks, focus ? F.recordMinutes(undo.stats, focus.day, -focus.minutes) : undo.stats);
       }
     });
+  }
+
+  /**
+   * Dopo «Ripara la serie» (js/ui-shop.js): la fiamma si riaccende; se la serie riparata tocca un traguardo, il riquadro
+   * fa la festa dei traguardi. Solo dove serie e punti si vedono.
+   */
+  function celebrateRepair(reached) {
+    const targets = rewardTargets();
+    if (!targets) return;
+    M.flash(targets.streak, reached.length ? 'is-celebrating' : 'is-igniting');
+    if (reached.length && targets.glow) M.flash(targets.glow, 'is-celebrating');
   }
 
   /**
@@ -679,15 +731,20 @@
 
   const CONFETTI_PIECES = 28;
 
-  /** Pioggia di coriandoli per i traguardi: dura poco più di un secondo, poi sparisce. */
-  function burstConfetti(x, y) {
+  /**
+   * Pioggia di coriandoli per i traguardi: dura poco più di un secondo, poi sparisce. La forma è quella in uso dal negozio
+   * (data-shape; «classic» = rettangoli e cerchi). `host` è un foglio aperto, se i coriandoli partono da lì: un foglio
+   * copre la pagina, quindi vanno dentro il foglio (restano fissi sullo schermo, come nella pagina).
+   */
+  function burstConfetti(x, y, host) {
     if (!M.canAnimate()) return;
     const layer = document.createElement('div');
     layer.className = 'confetti';
     layer.setAttribute('aria-hidden', 'true');
+    layer.dataset.shape = (state.look && state.look.confetti) || SH.defaultLook().confetti;
     layer.style.left = x + 'px';
     layer.style.top = y + 'px';
-    document.body.appendChild(layer);
+    (host && host.open ? host : document.body).appendChild(layer);
 
     const animations = [];
     for (let i = 0; i < CONFETTI_PIECES; i++) {
@@ -716,15 +773,20 @@
     setTimeout(cleanup, M.ms('celebrate') * 2); // rete di sicurezza
   }
 
-  /** Elimina subito: la card esce scivolando a destra mentre le altre salgono al suo posto (Aura.motion, in commit()). */
-  function onDelete(id) {
-    if (busy.has(id)) return; // sta finendo di completarsi
+  /**
+   * Elimina subito: la card esce scivolando a destra mentre le altre salgono al suo posto (Aura.motion, in commit()).
+   * `slideX`: px dello scivolamento, quando la card è stata fatta scorrere verso sinistra (js/ui-swipe.js), così continua
+   * il gesto. Restituisce true se l'ha eliminata.
+   */
+  function onDelete(id, slideX) {
+    if (busy.has(id)) return false; // sta finendo di completarsi
     const { tasks: next, removed, index } = T.removeTask(state.tasks, id);
-    if (!removed || !commit(next, undefined, { slide: 'task:' + id })) return;
+    if (!removed || !commit(next, undefined, { slide: 'task:' + id, slideX })) return false;
     showToast('Attività eliminata', {
       action: 'Annulla',
       onAction: () => commit(T.restoreTask(state.tasks, removed, index))
     });
+    return true;
   }
 
   function onClearCompleted() {
@@ -745,7 +807,22 @@
   let announceTimer = null; // riscrittura del testo per i lettori di schermo
   let toastHandler = null;
 
+  /**
+   * L'avviso sta nella pagina oppure dentro `host`, un foglio aperto: un foglio copre la pagina e la rende inerte, quindi
+   * l'avviso si vede (e il lettore di schermo lo legge) solo se è dentro il foglio. js/ui-shop.js ce lo porta appena apre
+   * il suo foglio, così la regione live (role="status") c'è già prima del primo messaggio.
+   */
+  function hostToast(host) {
+    const target = host && host.open ? host : document.body;
+    if (els.toast.parentNode !== target) target.appendChild(els.toast);
+  }
+
+  /**
+   * `options`: `action` e `onAction` (il pulsante, per esempio «Annulla»), `duration` (ms) e `host`, un foglio aperto
+   * (vedi hostToast). Quando il foglio comincia a chiudersi, l'avviso torna nella pagina (closeSheet).
+   */
   function showToast(message, options = {}) {
+    hostToast(options.host);
     const action = options.action || null;
     const duration = options.duration || (action ? 5000 : 2600);
     clearTimeout(toastTimer);
@@ -811,6 +888,9 @@
     const onEnd = event => {
       if (event.target === dialog) finish();
     };
+    // Un avviso dentro il foglio torna subito nella pagina: resta fermo al suo posto mentre il foglio scende (dentro il
+    // foglio scenderebbe con lui e poi ricomparirebbe più in alto)
+    if (els.toast.parentNode === dialog) hostToast(null);
     dialog.classList.add('is-closing');
     dialog.addEventListener('animationend', onEnd);
     timer = setTimeout(finish, M.ms('exit') + M.ms('quick')); // rete di sicurezza se animationend non arriva
@@ -876,6 +956,9 @@
 
   let editingId = null; // attività che si sta modificando; null = nuova attività. Si imposta a ogni apertura.
   let focusAfterEdit = null; // card che riceve il focus quando il foglio si è chiuso dopo una modifica
+  let repeatRule = null;    // «Si ripete»: la regola scelta nel foglio, oppure null («Mai»)
+  let repeatFollows = true; // true se la regola prende il giorno dalla data: cambiando data, cambia anche lei
+  let repeatKept = false;   // una volta completata: il campo non si vede e la regola resta quella salvata
 
   /** Svuota il foglio. In modifica cambiano titolo e pulsante, e spariscono la frase libera e la riga di Siri. */
   function resetAddSheet(editing) {
@@ -892,6 +975,10 @@
     els.dateInput.min = utils.todayISO();
     phraseBase = null;
     els.phraseSummary.textContent = PHRASE_HINT;
+    repeatRule = null;
+    repeatFollows = true;
+    repeatKept = false;
+    els.repeatField.hidden = false;
   }
 
   /**
@@ -927,6 +1014,7 @@
     if (!task || busy.has(id)) return; // card in animazione (completamento o eliminazione)
     resetAddSheet(true);
     editingId = id;
+    repeatKept = task.done; // prima di writeFields(), che passa da syncDate()
     const fields = T.editableFields(task);
     // Un'attività in ritardo tiene il suo giorno: il calendario non deve escluderlo.
     if (fields.date && fields.date < els.dateInput.min) els.dateInput.min = fields.date;
@@ -935,8 +1023,12 @@
       duration: String(fields.duration),
       energy: fields.energy,
       date: fields.date || '',
-      time: fields.time || ''
+      time: fields.time || '',
+      repeat: fields.repeat
     });
+    // Una volta completata tiene la sua regola, ma la regola vive in quella da fare: qui «Si ripete» non si vede.
+    els.repeatField.hidden = task.done;
+    syncRepeat();
     if (task.done) {
       const points = task.pointsAwarded || 0;
       els.editNoteText.textContent = 'Completata · ' + (points === 1 ? 'il suo punto non cambia' : 'i suoi ' + utils.formatNumber(points) + ' punti non cambiano');
@@ -970,6 +1062,45 @@
     focusCtl.startFocus(id); // dentro il tocco: sblocca anche il suono di fine
   }
 
+  /**
+   * «Salta questa volta» nel foglio di modifica (P-005, passo 5.1): salva le modifiche fatte (se sono valide), poi la
+   * ripetizione passa al giorno di Aura.repeat.afterSkip(), senza punti. «Annulla» la rimette nel suo giorno.
+   */
+  function onSkipFromEdit() {
+    const id = editingId;
+    if (!id) return;
+    const { value, errors } = T.validateInput(readFields());
+    setErrors(errors);
+    const firstError = ERROR_FIELDS.find(field => errors[field]);
+    if (firstError) {
+      if (FIELD_INPUTS[firstError]) FIELD_INPUTS[firstError].focus();
+      return;
+    }
+    const today = utils.todayISO();
+    const edited = T.updateTask(state.tasks, id, value);
+    const skipped = T.skipOccurrence(edited.tasks, id, today);
+    if (!skipped.previous) {
+      closeSheet(els.addSheet);
+      return;
+    }
+    editedId = id;
+    const saved = commit(skipped.tasks, undefined, { delay: M.ms('exit') });
+    focusAfterEdit = saved ? id : null;
+    closeSheet(els.addSheet);
+    if (!saved) return;
+    const previousDate = skipped.previous.date;
+    const moved = state.tasks.find(t => t.id === id);
+    const where = moved && !isVisibleIn(moved, activeTab, today) ? ' · ora in ' + TABS[T.tabOf(moved, today)].name : '';
+    showToast('Spostata a ' + RP.dayLabel(skipped.date, today) + where, {
+      action: 'Annulla',
+      onAction: () => {
+        const task = state.tasks.find(t => t.id === id);
+        if (task && !task.done && task.date === skipped.date) commit(state.tasks.map(t => (t.id === id ? { ...t, date: previousDate } : t)));
+      }
+    });
+    revealTask(id);
+  }
+
   /* ---------- Frase libera ---------- */
 
   const PHRASE_HINT = 'Giorno, ora, durata ed energia: i campi sotto si compilano da soli.';
@@ -981,7 +1112,9 @@
       duration: els.duration.value,
       energy: els.form.elements.energy.value,
       date: els.dateInput.value,
-      time: els.timeInput.value
+      time: els.timeInput.value,
+      // Una volta completata tiene la regola salvata; senza giorno, però, non si ripete (una regola vuole un giorno).
+      repeat: repeatKept && !utils.isISODate(els.dateInput.value) ? null : repeatRule
     };
   }
 
@@ -992,9 +1125,11 @@
     if (radio) radio.checked = true;
     els.dateInput.value = values.date;
     els.timeInput.value = values.time;
+    repeatRule = values.repeat || null;
+    repeatFollows = followsDate(repeatRule, values.date);
     syncDuration();
     syncEnergyHint();
-    syncDate(); // abilita l'ora solo se c'è un giorno
+    syncDate(); // abilita l'ora solo se c'è un giorno; senza giorno «Si ripete» torna «Mai»
   }
 
   function applyPhrase() {
@@ -1006,6 +1141,7 @@
     if (parsed.energy) next.energy = parsed.energy;
     if (parsed.date) next.date = parsed.date;
     if (parsed.time) next.time = parsed.time;
+    if (parsed.repeat) next.repeat = parsed.repeat;
     writeFields(next);
     setErrors({});
     els.phraseSummary.textContent = phraseSummary(parsed);
@@ -1016,6 +1152,7 @@
     if (!els.phrase.value.trim()) return PHRASE_HINT;
     const parts = [];
     if (parsed.date) parts.push(utils.formatDateLabel(parsed.date, utils.todayISO()));
+    if (parsed.repeat) parts.push(RP.label(parsed.repeat).toLowerCase());
     if (parsed.time) parts.push('alle ' + parsed.time);
     if (parsed.duration) parts.push(utils.formatDuration(parsed.duration));
     if (parsed.energy) parts.push('energia ' + T.ENERGY[parsed.energy].label.toLowerCase());
@@ -1057,6 +1194,81 @@
     els.timeField.disabled = !valid;
     if (!valid) els.timeInput.value = '';
     syncTime();
+    // Anche la ripetizione: senza giorno torna «Mai»; cambiando giorno, una regola che lo segue si sposta con lui. Non
+    // per una volta completata (repeatKept): la sua regola, che il foglio non mostra, resta quella salvata, così se torna
+    // da fare riparte con la regola giusta (vedi readFields()).
+    if (repeatKept) {
+      // niente da cambiare
+    } else if (!valid) {
+      repeatRule = null;
+    } else if (repeatRule && repeatFollows) {
+      const derived = RP.fromKind(repeatRule.every, value);
+      if (!RP.same(derived, repeatRule)) repeatRule = derived; // uguale: resta quella di prima, con i suoi campi
+    }
+    syncRepeat();
+  }
+
+  /* ---------- «Si ripete» (P-005, passo 5.1) ---------- */
+
+  /** true se la regola è quella che la data darebbe da sola (un solo giorno della settimana, o il giorno del mese). */
+  function followsDate(rule, date) {
+    if (!rule || !utils.isISODate(date)) return true;
+    return rule.every === 'day' || RP.same(rule, RP.fromKind(rule.every, date));
+  }
+
+  function syncRepeat() {
+    const kind = repeatRule ? repeatRule.every : 'none';
+    els.repeatChips.querySelectorAll('[data-repeat]').forEach(chip => {
+      chip.setAttribute('aria-pressed', String(chip.dataset.repeat === kind));
+    });
+    const weekly = kind === 'week';
+    els.repeatDays.hidden = !weekly;
+    els.repeatDays.querySelectorAll('[data-day]').forEach(button => {
+      button.setAttribute('aria-pressed', String(weekly && repeatRule.days.includes(Number(button.dataset.day))));
+    });
+    const date = els.dateInput.value;
+    const today = utils.todayISO();
+    const hint = repeatRule && utils.isISODate(date)
+      ? RP.label(repeatRule) + ' · dopo questa, ' + RP.dayLabel(RP.afterDone(repeatRule, date, today), today)
+      : '';
+    // Solo se cambia: la riga è una regione «live», e riscriverla uguale (a ogni lettera della frase) la ripeterebbe
+    if (els.repeatHint.textContent !== hint) els.repeatHint.textContent = hint;
+    const task = editingId ? state.tasks.find(t => t.id === editingId) : null;
+    els.repeatSkip.hidden = !(task && !task.done && repeatRule);
+  }
+
+  /** Una chip di «Si ripete». Senza un giorno, la data diventa il primo giorno giusto da oggi (oggi compreso). */
+  function pickRepeat(kind) {
+    phraseBase = null; // una scelta fatta a mano: la frase non la riporta indietro
+    setError('repeat', null);
+    if (kind === 'none') {
+      repeatRule = null;
+      syncRepeat();
+      return;
+    }
+    if (repeatRule && repeatRule.every === kind) return;
+    const date = els.dateInput.value;
+    if (utils.isISODate(date)) {
+      repeatRule = RP.fromKind(kind, date);
+    } else {
+      const today = utils.todayISO();
+      repeatRule = RP.fromKind(kind, today);
+      els.dateInput.value = RP.onOrAfter(repeatRule, today);
+    }
+    repeatFollows = true;
+    syncDate();
+  }
+
+  /** Un giorno della settimana acceso o spento; almeno uno resta acceso. */
+  function toggleRepeatDay(day) {
+    if (!repeatRule || repeatRule.every !== 'week') return;
+    phraseBase = null;
+    const on = repeatRule.days.includes(day);
+    if (on && repeatRule.days.length === 1) return;
+    const days = on ? repeatRule.days.filter(d => d !== day) : repeatRule.days.concat(day);
+    repeatRule = RP.clean({ ...repeatRule, days });
+    repeatFollows = followsDate(repeatRule, els.dateInput.value);
+    syncRepeat();
   }
 
   function syncTime() {
@@ -1093,13 +1305,7 @@
 
   function onSubmit(event) {
     event.preventDefault();
-    const { value, errors } = T.validateInput({
-      title: els.title.value,
-      duration: els.duration.value,
-      energy: els.form.elements.energy.value,
-      date: els.dateInput.value,
-      time: els.timeInput.value
-    });
+    const { value, errors } = T.validateInput(readFields());
     setErrors(errors);
     const firstError = ERROR_FIELDS.find(field => errors[field]);
     if (firstError) {
@@ -1200,14 +1406,14 @@
       title: 'Importare questo backup?',
       source: 'Nel file',
       when: 'Esportato: ',
-      text: 'Attività, punti, serie e premi di adesso verranno sostituiti. Prima ne salvo una copia su questo dispositivo.',
+      text: 'Attività, punti, serie, premi e acquisti del negozio di adesso verranno sostituiti. Prima ne salvo una copia su questo dispositivo.',
       ok: 'Sostituisci'
     },
     restore: {
       title: 'Ripristinare i dati di prima dell\'importazione?',
       source: 'Nella copia',
       when: 'Salvata: ',
-      text: 'Attività, punti, serie e premi di adesso verranno sostituiti da quelli della copia.',
+      text: 'Attività, punti, serie, premi e acquisti del negozio di adesso verranno sostituiti da quelli della copia.',
       ok: 'Ripristina'
     }
   };
@@ -1218,9 +1424,11 @@
   const tasksLabel = count => count + ' attività';
   const pointsLabel = points => (points === 1 ? '1 punto' : utils.formatNumber(points) + ' punti');
   const prizesLabel = count => (count === 1 ? '1 premio' : count + ' premi');
-  // «12 attività · 1240 punti», più « · 3 premi» se ce ne sono
+  const purchasesLabel = count => (count === 1 ? '1 acquisto' : count + ' acquisti');
+  // «12 attività · 1240 punti», più « · 3 premi» e « · 2 acquisti» (nel negozio) se ce ne sono
   const dataLabel = data => tasksLabel(data.tasks.length) + ' · ' + pointsLabel(data.stats.totalPoints) +
-    (data.rewards && data.rewards.length ? ' · ' + prizesLabel(data.rewards.length) : '');
+    (data.rewards && data.rewards.length ? ' · ' + prizesLabel(data.rewards.length) : '') +
+    (data.stats.shop && data.stats.shop.length ? ' · ' + purchasesLabel(data.stats.shop.length) : '');
   const momentLabel = ms => (ms ? utils.formatMoment(ms, utils.todayISO()) : 'data sconosciuta');
 
   /** Il foglio riparte sempre dallo stato normale: una scelta lasciata a metà si perde (non si conta sull'evento close). */
@@ -1804,6 +2012,10 @@
   function showNextInboxItem() {
     if (inboxShowing || !remote.inbox.length || document.querySelector('dialog[open]')) return;
     if (assistantCtl && assistantCtl.takesSiri()) {
+      // Una frase con «ogni …» si apre nel foglio, dove la ripetizione si capisce: l'assistente non sa ancora crearle (P-005).
+      remote.inbox.forEach(item => {
+        if (!inboxForSheet.has(item.id) && nlp.parseTaskText(item.text, new Date()).repeat) inboxForSheet.add(item.id);
+      });
       const items = remote.inbox.filter(item => !inboxForSheet.has(item.id));
       if (items.length && document.readyState !== 'complete') {
         // Le richieste all'IA partono dopo il caricamento: il primo disegno resta senza attese.
@@ -1845,13 +2057,17 @@
    * Dopo una modifica, il focus torna sulla card (utile da tastiera e con il lettore di schermo).
    */
   function onSheetClosed(dialog) {
+    if (els.toast.parentNode === dialog) document.body.appendChild(els.toast); // l'avviso resta, nella pagina
     if (assistantCtl) assistantCtl.sheetClosed(dialog);
     if (settingsCtl) settingsCtl.sync(); // tornando a «Impostazioni» da un altro foglio, le righe sono aggiornate
     if (dialog === els.addSheet && focusAfterEdit) {
       const card = cardOf(focusAfterEdit);
       const button = card && card.querySelector('.task__edit');
       focusAfterEdit = null;
-      if (button) button.focus({ preventScroll: true });
+      // Finita in un'altra scheda (per esempio saltata a lunedì, da Focus): il focus resta nella pagina, all'inizio,
+      // invece di perdersi; l'avviso dice dove è andata
+      if (button && button.getClientRects().length) button.focus({ preventScroll: true });
+      else els.main.focus({ preventScroll: true });
     }
     if (dialog === els.addSheet && inboxShowing && inboxShowing !== ASSISTANT_BUSY) {
       const id = inboxShowing;
@@ -2038,6 +2254,15 @@
   });
   els.editFocus.addEventListener('pointerdown', () => focusCtl.prepareAudio()); // l'audio si prepara mentre il dito è ancora giù
   els.editFocus.addEventListener('click', onFocusFromEdit);
+  els.repeatSkip.addEventListener('click', onSkipFromEdit);
+  els.repeatChips.addEventListener('click', event => {
+    const chip = event.target.closest('[data-repeat]');
+    if (chip) pickRepeat(chip.dataset.repeat);
+  });
+  els.repeatDays.addEventListener('click', event => {
+    const button = event.target.closest('[data-day]');
+    if (button) toggleRepeatDay(Number(button.dataset.day));
+  });
 
   // Barra delle schede: un tocco sulla scheda già aperta torna in cima.
   els.tabbar.addEventListener('click', event => {
@@ -2288,6 +2513,18 @@
     openBackup: openBackupSheet,
     disconnect: disconnectDevice
   });
+  // La musica nel focus, senza account: l'avviso o il carosello in Focus, il foglio «Quando te lo ricordo?», la riga
+  // «Musica» nelle Impostazioni e «🎧» nel focus a tutto schermo. Tutto nelle preferenze (prefs.music), fuori dal backup.
+  musicCtl = MusicUI.init({
+    getPrefs: () => prefs,
+    setPrefs,
+    openSheet,
+    closeSheet,
+    setupSheet,
+    setAutofocus,
+    showToast,
+    openSettings: options => settingsCtl.open(options)
+  });
 
   // L'Agenda a calendario: legge la vista salvata (mese o settimana) e scrive la scheda a ogni render().
   agendaCtl = AgendaUI.init({
@@ -2321,6 +2558,37 @@
     burstConfetti,
     vibrate,
     isActive: () => activeTab === 'motivation'
+  });
+  // «Negozio»: la card in Motivazione e il foglio. Acquisti, riparazioni e oggetti in uso passano da commitState().
+  shopCtl = ShopUI.init({
+    getState: () => state,
+    commitState,
+    showToast,
+    hostToast,
+    openSheet,
+    setupSheet,
+    setAutofocus,
+    burstConfetti,
+    vibrate,
+    celebrateRepair,
+    isActive: () => activeTab === 'motivation'
+  });
+
+  // Scorrimento sulle card da fare (P-005, passo 5.2): verso destra come la spunta, verso sinistra come il cestino.
+  SwipeUI.init({
+    root: els.main,
+    canSwipe: id => {
+      const task = state.tasks.find(t => t.id === id);
+      return Boolean(task) && !task.done && !busy.has(id) && !pendingDone.has(id);
+    },
+    onDone: (id, node) => {
+      const card = node.isConnected ? node : cardOf(id); // la lista può essersi ridisegnata mentre la card tornava
+      if (!card) return;
+      card.querySelector('.check__input').checked = true;
+      onToggle(id, true, card);
+    },
+    onDelete,
+    vibrate
   });
 
   syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti

@@ -52,12 +52,16 @@
     els.privacyNow.dataset.tone = rows.privacy.tone;
   }
 
-  function open() {
+  /**
+   * Apre il foglio dall'inizio. Con `part` (un gruppo del foglio) parte da quel gruppo, e `focus` è l'elemento che riceve
+   * il focus: serve all'avviso della musica in Focus, che apre il foglio sulla riga «Musica» (js/ui-music.js).
+   */
+  function open({ part = null, focus = null } = {}) {
     setStatus(null);
     sync();
-    ctx.setAutofocus(els.sheet, els.heading);
+    ctx.setAutofocus(els.sheet, focus || els.heading);
     ctx.openSheet(els.sheet);
-    ctx.showPart(els.sheet, null);
+    ctx.showPart(els.sheet, part);
   }
 
   function openPrivacy() {
@@ -131,7 +135,7 @@
     ctx.setupSheet(els.privacySheet);
     copyPrivacyTexts();
 
-    els.button.addEventListener('click', open);
+    els.button.addEventListener('click', () => open());
     els.assistant.addEventListener('click', () => ctx.openAssistant());
     els.log.addEventListener('click', () => ctx.openAssistant('log'));
     els.reminders.addEventListener('click', () => ctx.openRemote());
