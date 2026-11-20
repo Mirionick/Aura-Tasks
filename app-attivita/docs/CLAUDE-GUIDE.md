@@ -481,7 +481,7 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 | [docs/assistente.md](assistente.md) | Assistente con l'IA: scrivere o parlare ad Aura, permessi, memoria breve, frasi di Siri, server e limiti | in corso: passi 0 (prova tecnica) e 1 (assistente scritto) pubblicati, da provare sull'iPhone |
 | [docs/impostazioni.md](impostazioni.md) | Rotella e foglio «Impostazioni»: indice con lo stato di ogni funzione, tema nella riga, foglio «Privacy», «Scollega questo dispositivo» con «Annulla» | realizzata, da provare sull'iPhone |
 | [docs/musica.md](musica.md) | Musica nel focus: servizio scelto nelle Impostazioni, avviso con «Quando te lo ricordo?», carosello «Musica per concentrarti», «🎧» nel focus a tutto schermo | passo 4.2 di P-004 (senza account) fatto, da provare sull'iPhone; 4.3 (Spotify collegato) e 4.4 (suoni) da fare |
-| [docs/funzioni-future.md](funzioni-future.md) | Web Share Target e scorciatoie (Android), promemoria `.ics`, altre idee | da fare |
+| [docs/funzioni-future.md](funzioni-future.md) | Web Share Target e scorciatoie (Android), altre idee; le idee passate a una proposta o scartate | da fare |
 | [docs/premium.md](premium.md) | Licenza premium: verifica offline, interfaccia e dati | da fare |
 
 ### Tre modalità, in breve
@@ -550,7 +550,7 @@ Come funzionerà la licenza (verifica offline, interfaccia e dati): vedi [docs/p
 Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati, animazioni più fluide, barra delle schede e Focus con «Cosa faccio adesso?» e il timer (schema v4), Agenda a calendario, Motivazione con livelli, settimana e premi (schema v5).
 1. ~~**Linguaggio naturale con orario** e aggiunta con il link `?add=testo`~~: fatto.
 2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
-3. ~~**Promemoria con notifiche Web Push**~~: fatto. Resta, facoltativa, l'esportazione `.ics`.
+3. ~~**Promemoria con notifiche Web Push**~~: fatto. L'esportazione `.ics` non si fa: il calendario è l'Agenda (decisione del Product Owner del 20 novembre 2026).
 4. **«Tre modalità»**: Focus (con «Cosa faccio adesso?» e la modalità focus), Agenda e Motivazione, in quattro fasi (vedi [docs/tre-modalita.md](tre-modalita.md)).
 5. **Assistente con l'IA**: scrivere o parlare ad Aura, che propone, aggiunge e sposta secondo i permessi dell'utente. Quattro passi, a partire da una prova tecnica (vedi [docs/assistente.md](assistente.md)). Fatti i passi 0 (prova tecnica) e 1 (assistente scritto); restano la voce (passo 2) e l'organizzazione della giornata (passo 3).
 

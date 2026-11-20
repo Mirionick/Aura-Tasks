@@ -21,6 +21,7 @@ Una voce sta in una sola sezione e, quando cambia stato, si sposta. Il resto non
 | **P-002 v2: finire l'app del telefono** | Ordine, contenuti, condizioni tecniche e decisioni di prodotto 1–5 in [proposte/P-002.md](proposte/P-002.md). Approvata con il merge della PR che la introduce. | 16 novembre 2026 |
 | **P-003 v3: Agenda a calendario, Motivazione, animazioni** | Ordine, contenuti e decisioni di prodotto 1–5 in [proposte/P-003.md](proposte/P-003.md); sostituisce le fasi 3 e 4 di [tre-modalita.md](../app-attivita/docs/tre-modalita.md). Approvata con il merge della PR che la introduce. Il Product Owner ha tenuto tutte e tre le idee di Motivazione: «La tua settimana», «I tuoi premi», «Sfide di oggi». | 18 novembre 2026 |
 | **Test dell'app nel browser** | I test dell'app si eseguono in un browser reale, aprendo `app-attivita/tests/index.html`. | 13 novembre 2026 |
+| **Tutto dentro Aura** | Il Product Owner: «voglio un sistema centralizzato non che faccia affidamento a cose esterne». Quindi niente esportazione `.ics` nel Calendario del telefono, perché il calendario è l'Agenda; niente promemoria del backup, perché i dati passeranno da un telefono all'altro con l'account Google o un account di Aura. Sì alle attività che si ripetono e allo scorrimento sulle card, in [proposte/P-005.md](proposte/P-005.md). | 20 novembre 2026 |
 
 Le decisioni prese prima di questo registro restano scritte nelle specifiche delle funzioni.
 
@@ -70,7 +71,7 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 | Assistente, passo 2: voce | [assistente.md](../app-attivita/docs/assistente.md) | |
 | Assistente, passo 3: organizzare la giornata | [assistente.md](../app-attivita/docs/assistente.md) | Da specificare prima |
 | Web Share Target e scorciatoie (Android) | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
-| Promemoria nel calendario (`.ics`) | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
+| Attività che si ripetono; scorrimento sulle card per completare o eliminare; prossime ripetizioni in Agenda (facoltativo) | [proposte/P-005.md](proposte/P-005.md), passi 5.1, 5.2 e 5.3 | Proposta in revisione: si costruisce dopo l'approvazione. Il passo 5.1 porta una versione nuova dello schema |
 | Altre idee, non prioritarie | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
 | Licenza premium | [premium.md](../app-attivita/docs/premium.md) | |
 | Login facoltativo con Google e sincronizzazione | [proposte/P-002.md](proposte/P-002.md), passi 5a e 5b | 5b richiede prima una specifica testabile |
