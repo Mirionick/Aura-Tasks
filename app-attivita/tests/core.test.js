@@ -246,13 +246,14 @@
 
   /* ---------- Salvataggio ---------- */
 
-  test('storage.parse: nessun dato → elenco vuoto, nessun premio e registro vuoto', () => {
-    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats() };
+  test('storage.parse: nessun dato → elenco vuoto, nessun premio, registro vuoto e i colori di partenza', () => {
+    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats(), look: { aurora: 'aurora', confetti: 'classic', at: 0 } };
     assertEqual(storage.parse(null), empty);
     assertEqual(storage.parse(''), empty);
-    assertEqual(storage.SCHEMA_VERSION, 5);
+    assertEqual(storage.SCHEMA_VERSION, 6);
     assertEqual(P.emptyStats().focus, {}, 'registro vuoto con i minuti di focus');
     assertEqual(P.emptyStats().spent, [], 'registro vuoto con i riscatti dei premi');
+    assertEqual(P.emptyStats().shop, [], 'registro vuoto con gli acquisti del negozio');
   });
 
   test('storage.parse: testo illeggibile o formato sbagliato → errore', () => {
@@ -356,8 +357,10 @@
       rewards: [{ id: 'r', title: 'Gelato', emoji: '🍦', cost: 20, createdAt: 3 }],
       stats: {
         totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } }, focus: { '1970-01-01': 25 },
-        spent: [{ id: 's', rewardId: 'r', title: 'Gelato', cost: 20, at: 10 }]
-      }
+        spent: [{ id: 's', rewardId: 'r', title: 'Gelato', cost: 20, at: 10 }],
+        shop: [{ id: 'k', item: 'aurora:sunset', cost: 400, at: 11 }, { id: 'q', item: 'repair', cost: 150, at: 12, day: '1970-01-02' }]
+      },
+      look: { aurora: 'sunset', confetti: 'classic', at: 13 }
     };
     assertEqual(storage.parse(storage.serialize(state)), state);
   });
@@ -417,7 +420,7 @@
     });
     const state = storage.parse(raw);
     assertEqual(state.version, storage.SCHEMA_VERSION);
-    assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'registro identico, più i minuti di focus (v4) e i riscatti (v5) vuoti');
+    assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'registro identico, più i minuti di focus (v4), i riscatti (v5) e gli acquisti (v6) vuoti');
     assertEqual(state.tasks.map(t => [t.time, t.pointsAwarded]), [[null, 24], [null, null]]);
     assertEqual([state.future, state.tasks[0].extra], ['ok', 1]);
   });
@@ -433,7 +436,7 @@
     const state = storage.parse(JSON.stringify({ version: 3, future: 'ok', stats, tasks }));
     assertEqual(state.version, storage.SCHEMA_VERSION);
     assertEqual(state.tasks, tasks, 'attività identiche');
-    assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'punti, serie e campi sconosciuti intatti');
+    assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'punti, serie e campi sconosciuti intatti');
     assertEqual(state.future, 'ok');
   });
 

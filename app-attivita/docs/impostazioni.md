@@ -17,7 +17,7 @@ Un indice a gruppi. Ogni riga ha icona, nome, **stato di adesso** e freccia, e a
 | Promemoria | «Attivi · 10 minuti prima» (l'anticipo scelto), «Spenti», oppure perché non si possono attivare: «Spenti · serve Aura sulla schermata Home», «Non supportati da questo browser», «Spenti · notifiche bloccate» | foglio «Promemoria e Siri», dall'inizio |
 | Comando Rapido di Siri | «Codice creato» oppure «Da configurare» | foglio «Promemoria e Siri», dal riquadro del Comando Rapido |
 | Tema | il tema scelto e che cosa fa: «Automatico: segue le impostazioni del telefono», «Chiaro: luminoso, ideale di giorno», «Scuro: riposante per gli occhi, perfetto la sera» | nessun foglio: le tre scelte sono nella riga |
-| Backup dei dati | quante attività e quanti punti ci sono, e quanti premi se ce ne sono: «12 attività · 340 punti · 3 premi» | foglio «Backup dei dati» |
+| Backup dei dati | quante attività e quanti punti ci sono, e quanti premi e acquisti del negozio se ce ne sono: «12 attività · 340 punti · 3 premi · 2 acquisti» | foglio «Backup dei dati» |
 | Privacy | in breve, che cosa va al server: «I dati restano solo su questo dispositivo», «Al server: solo promemoria e frasi di Siri», «Al server: promemoria, Siri e messaggi all'assistente» | foglio «Privacy» |
 
 - Lo stato è verde quando la funzione è in uso (assistente acceso, promemoria attivi, codice di Siri creato). La riga «Privacy» è verde solo quando al server non arriva niente.
@@ -38,7 +38,7 @@ Un indice a gruppi. Ogni riga ha icona, nome, **stato di adesso** e freccia, e a
 ## Foglio «Privacy»
 In un posto solo, ciò che prima era scritto qua e là.
 - In cima la frase di adesso, la stessa che sta in fondo a Motivazione (`privacyLine`): «I dati restano solo su questo dispositivo.» in verde, oppure che cosa arriva al server.
-- «Sul telefono»: attività, punti, serie, premi, minuti di focus e impostazioni restano nella memoria del browser; non c'è nessun account; se i dati del browser vengono cancellati si perdono, e un backup ne tiene una copia.
+- «Sul telefono»: attività, punti, serie, premi, acquisti del negozio, minuti di focus e impostazioni restano nella memoria del browser; non c'è nessun account; se i dati del browser vengono cancellati si perdono, e un backup ne tiene una copia.
 - Promemoria, Comando Rapido di Siri e assistente sono facoltativi: finché non si attivano, al server non arriva niente.
 - Poi un riquadro per «Promemoria», «Comando Rapido di Siri», «Assistente: che cosa viene inviato» e «Backup». Il testo di ognuno è una **copia** delle note scritte accanto alla funzione, segnate con `data-privacy="reminders"`, `"siri"`, `"assistant"` e `"backup"`. `ui-settings.js` le copia all'avvio, con `textContent`.
   - Così una nota si cambia in un posto solo, e i due posti non possono dire cose diverse.

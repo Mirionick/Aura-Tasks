@@ -20,6 +20,7 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario | fatto con la v16; da provare sull'iPhone (vedi "Agenda: per pianificare" e "P-003, passo 3.2") |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.3: Motivazione con livello, «La tua settimana» e «I tuoi numeri» | fatto con la v17; da provare sull'iPhone (vedi "P-003, passo 3.3") |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.4: «I tuoi premi» | fatto con la v18; da provare sull'iPhone (vedi "P-003, passo 3.4") |
+| — | [P-004](../../docs/proposte/P-004.md), passo 4.1: negozio | fatto con la v19; da provare sull'iPhone (vedi "P-004, passo 4.1") |
 
 ### Fase 1: animazioni più fluide
 - **Token**: durate (`--dur-*`) e curve (`--ease-*`) stanno solo in `:root`. Il JavaScript le legge con `Aura.motion` (`js/motion.js`): nessuna durata scritta a mano.
@@ -240,6 +241,35 @@ Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 
   - contrasto dei testi nuovi tra 4,7 e 17,8 a 1, nei due temi.
 - Intestazione di Focus a 390×664: 188 px prima e dopo, con 4 card intere.
 
+### P-004, passo 4.1: negozio
+In Motivazione, dopo «I tuoi premi», la card «Negozio» del passo 4.1 di [P-004](../../docs/proposte/P-004.md): si paga con il saldo da spendere dei premi e si comprano «Ripara la serie», quattro colori dell'aurora e quattro forme dei coriandoli; i pacchetti di punti si vedono, con «Presto». Le regole stanno in [punti-e-serie.md](punti-e-serie.md), «Negozio»; i dati in «Dati», qui sotto. L'ha scritto Claude Project, come prevede la tabella «Ordine» della proposta.
+
+In più rispetto alla proposta, piccoli aiuti che non cambiano le regole: nel foglio la riga «Ripara la serie» resta sempre e dice quando si usa, oppure che le riparazioni sono finite per ora; scegliendo una forma di coriandoli già comprata, una piccola festa la fa vedere; il riepilogo del backup conta anche gli acquisti («· 3 acquisti») e dice che anche loro verranno sostituiti.
+
+#### Risultati del passo 4.1 (20 novembre 2026)
+Fotogrammi persi, mediana di 20 prove, a 390×664 in Chromium 153 headless, in tema chiaro, con una serie interrotta ieri, 1.360 punti e un premio. «Prima» è la versione pubblicata (v18), «dopo» quella nuova (v19). Il foglio e l'acquisto si confrontano con i gesti dei premi della v18: aprire il foglio di un premio nuovo e riscattare un premio. WebKit non è stato eseguito: in questo ambiente non c'è.
+
+| Gesto | Chromium, CPU 4 volte più lenta | Chromium a piena velocità |
+|---|---|---|
+| passare a Motivazione | 4 → 4 | 0 → 0 |
+| aprire il foglio (prima quello di un premio, dopo il negozio) | 1 → 1 | 0 → 0 |
+| comprare un colore, con coriandoli e avviso (prima: riscattare un premio) | 2 → 2 | 0 → 0 |
+
+- La prima versione, con la CPU rallentata, perdeva 2 fotogrammi in più comprando un colore. La causa: il colore in uso stava su `<html>`, e lì un cambio ricalcolava lo stile di tutta la pagina (circa 17 ms con la CPU 4 volte più lenta, contro meno di 1 ms sull'elemento). Ora il colore va solo sui due elementi che lo usano, l'aurora del focus a tutto schermo e il bagliore della scheda Focus; in più gli oggetti del foglio si aggiornano sul posto invece di essere ridisegnati.
+- Passare a Motivazione cambia da una serie all'altra (mediane tra 4 e 6, per le due versioni). In tre serie da 20 la media è sempre un po' più alta dopo, da 0,1 a 0,8 fotogrammi: è il disegno della card in più, solo con la CPU rallentata. A piena velocità nessun gesto perde fotogrammi; la prova vera è quella sull'iPhone.
+- Prove di funzionamento, con Playwright 1.63, a 390×664 e a 320×568 nei due temi e a 1280×800, con «Riduci movimento» e aprendo `index.html` da file (118 controlli, tutti superati; nessun errore nella console né messaggi della CSP; nessuno scorrimento orizzontale):
+  - i dati della v5 arrivano alla v6 con il registro degli acquisti vuoto e «Aurora» e «Classici» in uso; attività, premi e punti restano intatti;
+  - la card sta tra «I tuoi premi» e «I tuoi numeri», con lo stesso saldo dei premi; con la serie interrotta ieri il riquadro della serie dice «Puoi ripararla nel negozio» e la card «Ieri è saltato un giorno»;
+  - «Ripara»: la serie torna a 7 giorni, con il record, il traguardo dei 7, i coriandoli e l'avviso «🎉 Serie riparata…» con «Annulla», che rimette serie, saldo e record (il traguardo già festeggiato resta); l'altro ieri si ripara se ieri c'è una spunta; con 2 riparazioni negli ultimi 30 giorni il foglio dice «Riparazioni finite, per ora»; con il saldo che non basta il pulsante è grigio e un tocco dice quanto manca;
+  - il foglio: focus sul titolo, quattro gruppi, cinque colori e cinque forme con il prezzo oppure «In uso», i tre pacchetti con «Presto», che dicono che arriveranno e non comprano niente; «Esc» lo chiude e il focus torna su «Apri il negozio»;
+  - comprare Tramonto: il saldo scende nelle due card, il colore è subito in uso sul bagliore di Focus e sull'aurora del focus (niente su `<html>`), avviso e coriandoli stanno dentro il foglio, il focus resta sull'oggetto; un doppio tocco compra una volta sola; «Annulla» toglie l'acquisto e rimette il colore di prima; usare un colore o una forma già comprati non costa niente;
+  - livello e riquadro Punti uguali dopo ogni acquisto; dopo il ricaricamento acquisti, saldo e colori restano;
+  - un acquisto che questa versione non conosce resta e conta nel saldo; un colore in uso che non risulta comprato torna «Aurora»;
+  - backup dal foglio: il file ha la v6, gli acquisti e i colori in uso; il riepilogo conta gli acquisti; importare un backup della v5 li toglie e ripristinare li rimette; la riga delle Impostazioni li conta;
+  - aree di tocco di almeno 44 px, nomi interi anche a 320 px, contrasto dei testi del negozio di almeno 4,7 a 1 nei due temi;
+  - coriandoli solo con `opacity` e `transform`; con «Riduci movimento» niente coriandoli né animazioni, ma acquisti e avvisi sì.
+- Intestazione di Focus a 390×664: 188 px prima e dopo, con 3 card intere, nei due temi.
+
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.
   - Ogni scheda ha icona e testo; aree di tocco ≥ 44 px; margine sotto con `env(safe-area-inset-bottom)`.
@@ -458,6 +488,10 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - **Schema v5**: `migrate()` cambia solo il numero di versione; `fromData()` aggiunge `rewards: []` e `sanitizeStats()` aggiunge `spent: []`, puliti da `Aura.rewards.sanitizeRewards()` e `sanitizeSpent()`.
   - Il saldo da spendere si calcola, non si salva: `totalPoints` meno i riscatti, mai sotto zero.
   - I backup di tutte le versioni di prima si importano ancora; premi e riscatti finiscono nel backup.
+- **Negozio** (P-004, passo 4.1; regole in [punti-e-serie.md](punti-e-serie.md), «Negozio»): gli acquisti in `stats.shop` e quello che è in uso in `look`, accanto a `tasks` e `rewards`.
+  - **Schema v6**: `migrate()` cambia solo il numero di versione; `sanitizeStats()` aggiunge `shop: []` e `fromData()` aggiunge `look` con «Aurora» e «Classici», puliti da `Aura.shop.sanitizeShop()` e `sanitizeLook()`.
+  - Il saldo da spendere toglie anche gli acquisti; i giorni riparati contano per la serie, il record e i traguardi, non per i punti.
+  - I backup di tutte le versioni di prima si importano ancora; acquisti e `look` finiscono nel backup.
 
 ## Collegamenti e notifiche
 - `?add=`, casella di Siri, promemoria, modifica e backup restano come oggi. Il foglio "Nuova attività" si apre sopra la scheda in cui si è.
