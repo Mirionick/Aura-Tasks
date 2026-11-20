@@ -13,17 +13,17 @@
   /* ---------- Esempi della tabella di docs/linguaggio-naturale.md ---------- */
 
   test('nlp: gli esempi di docs/linguaggio-naturale.md', () => {
-    assertEqual(parse('domani chiamare il dentista 10 min'), { title: 'Chiamare il dentista', duration: 10, energy: null, date: '2026-10-30', time: null });
-    assertEqual(parse('palestra 1h energia alta venerdì'), { title: 'Palestra', duration: 60, energy: 'high', date: '2026-10-30', time: null });
-    assertEqual(parse('rispondere alle email mezz\'ora facile'), { title: 'Rispondere alle email', duration: 30, energy: 'low', date: null, time: null });
-    assertEqual(parse('studiare storia un\'ora e mezza il 15/11'), { title: 'Studiare storia', duration: 90, energy: null, date: '2026-11-15', time: null });
-    assertEqual(parse('comprare il pane'), { title: 'Comprare il pane', duration: null, energy: null, date: null, time: null });
+    assertEqual(parse('domani chiamare il dentista 10 min'), { title: 'Chiamare il dentista', duration: 10, energy: null, date: '2026-10-30', time: null, repeat: null });
+    assertEqual(parse('palestra 1h energia alta venerdì'), { title: 'Palestra', duration: 60, energy: 'high', date: '2026-10-30', time: null, repeat: null });
+    assertEqual(parse('rispondere alle email mezz\'ora facile'), { title: 'Rispondere alle email', duration: 30, energy: 'low', date: null, time: null, repeat: null });
+    assertEqual(parse('studiare storia un\'ora e mezza il 15/11'), { title: 'Studiare storia', duration: 90, energy: null, date: '2026-11-15', time: null, repeat: null });
+    assertEqual(parse('comprare il pane'), { title: 'Comprare il pane', duration: null, energy: null, date: null, time: null, repeat: null });
   });
 
   /* ---------- Orari ---------- */
 
   test('nlp: "domani alle 10 dentista"', () => {
-    assertEqual(parse('domani alle 10 dentista'), { title: 'Dentista', duration: null, energy: null, date: '2026-10-30', time: '10:00' });
+    assertEqual(parse('domani alle 10 dentista'), { title: 'Dentista', duration: null, energy: null, date: '2026-10-30', time: '10:00', repeat: null });
   });
 
   test('nlp: dalle 1 alle 7 senza "mattina" si intende il pomeriggio', () => {
@@ -65,7 +65,7 @@
   });
 
   test('nlp: un numero che fa parte del titolo non è una durata', () => {
-    assertEqual(parse('leggere 2 capitoli'), { title: 'Leggere 2 capitoli', duration: null, energy: null, date: null, time: null });
+    assertEqual(parse('leggere 2 capitoli'), { title: 'Leggere 2 capitoli', duration: null, energy: null, date: null, time: null, repeat: null });
   });
 
   test('nlp: con più durate vale la prima', () => {
@@ -109,10 +109,38 @@
   });
 
   test('nlp: testo vuoto e accenti nel titolo', () => {
-    assertEqual(parse(''), { title: '', duration: null, energy: null, date: null, time: null });
-    assertEqual(parse('   '), { title: '', duration: null, energy: null, date: null, time: null });
+    assertEqual(parse(''), { title: '', duration: null, energy: null, date: null, time: null, repeat: null });
+    assertEqual(parse('   '), { title: '', duration: null, energy: null, date: null, time: null, repeat: null });
     assertEqual(pick('comprare caffè e però domani', ['title', 'date']), ['Comprare caffè e però', '2026-10-30']);
     assertEqual(pick('Città: prenotare hôtel venerdì', ['title']), ['Città: prenotare hôtel']);
+  });
+
+  /* ---------- Ripetizioni (P-005, passo 5.1) ---------- */
+
+  test('nlp: «ogni …» e «tutti i giorni» danno la regola; il primo giorno è il primo della regola da oggi', () => {
+    // Adesso è giovedì 29/10/2026 alle 9:00.
+    assertEqual(parse('palestra ogni lunedì e giovedì alle 18'),
+      { title: 'Palestra', duration: null, energy: null, date: '2026-10-29', time: '18:00', repeat: { every: 'week', days: [1, 4] } },
+      'l\'esempio di P-005: oggi è giovedì e le 18 non sono passate');
+    assertEqual(pick('meditare ogni giorno alle 7 di mattina', ['title', 'date', 'time', 'repeat']),
+      ['Meditare', '2026-10-30', '07:00', { every: 'day' }], 'le 7 sono passate: da domani');
+    assertEqual(pick('tutti i giorni leggere 20 min', ['title', 'duration', 'date', 'repeat']), ['Leggere', 20, '2026-10-29', { every: 'day' }]);
+    assertEqual(pick('ogni lun, mer e ven corsa', ['title', 'date', 'repeat']), ['Corsa', '2026-10-30', { every: 'week', days: [1, 3, 5] }]);
+    assertEqual(pick('ogni sabato e domenica giardino', ['title', 'date', 'repeat']), ['Giardino', '2026-10-31', { every: 'week', days: [6, 7] }]);
+  });
+
+  test('nlp: «ogni settimana» e «ogni mese» prendono il giorno dalla data della frase, o da oggi', () => {
+    assertEqual(pick('ogni settimana spesa grande', ['title', 'date', 'repeat']), ['Spesa grande', '2026-10-29', { every: 'week', days: [4] }]);
+    assertEqual(pick('pulizie ogni settimana venerdì', ['title', 'date', 'repeat']), ['Pulizie', '2026-10-30', { every: 'week', days: [5] }]);
+    assertEqual(pick('pagare le bollette ogni mese il 15', ['title', 'date', 'repeat']), ['Pagare le bollette', '2026-11-15', { every: 'month', day: 15 }]);
+    assertEqual(pick('ogni mese affitto', ['title', 'date', 'repeat']), ['Affitto', '2026-10-29', { every: 'month', day: 29 }]);
+  });
+
+  test('nlp: senza «ogni» non si ripete; «ogni tanto» resta nel titolo', () => {
+    assertEqual(pick('lunedì palestra', ['date', 'repeat']), ['2026-11-02', null]);
+    assertEqual(pick('ogni tanto chiamare la nonna', ['title', 'repeat']), ['Ogni tanto chiamare la nonna', null]);
+    const details = nlp.parseDetails('ogni lunedì palestra', NOW);
+    assertEqual([details.date, details.dateSaid, details.repeat], ['2026-11-02', false, { every: 'week', days: [1] }], 'il giorno della regola non è «detto»');
   });
 
   test('nlp.parseDetails: dice se la frase nomina un giorno (per l\'assistente)', () => {

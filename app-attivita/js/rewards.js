@@ -2,7 +2,8 @@
  * Aura Tasks — «I tuoi premi» (P-003, passo 3.4; vedi docs/punti-e-serie.md, «Premi»).
  * Solo funzioni pure: i premi (state.rewards), i riscatti nel registro (stats.spent), il saldo da spendere, i limiti,
  * la pulizia dei dati letti e le frasi. Spendere non toglie niente a stats.totalPoints: il livello e il riquadro Punti
- * contano tutti i punti guadagnati. Niente DOM, niente localStorage: l'interfaccia sta in js/ui-rewards.js.
+ * contano tutti i punti guadagnati. Il saldo da spendere è uno solo, per i premi e per il negozio (P-004, js/shop.js).
+ * Niente DOM, niente localStorage: l'interfaccia sta in js/ui-rewards.js.
  */
 (function (Aura) {
   'use strict';
@@ -138,12 +139,19 @@
     return spentOf(stats).reduce((sum, entry) => sum + entry.cost, 0);
   }
 
+  /** I punti spesi nel negozio (stats.shop, P-004, passo 4.1): colori, coriandoli e serie riparate. */
+  function shopPoints(stats) {
+    const shop = stats && Array.isArray(stats.shop) ? stats.shop : [];
+    return shop.reduce((sum, entry) => sum + entry.cost, 0);
+  }
+
   /**
-   * Il saldo da spendere: punti guadagnati meno punti spesi, mai sotto zero. Annullando un completamento dopo un riscatto
-   * il saldo può restare a zero finché quei punti non si guadagnano di nuovo.
+   * Il saldo da spendere, uno solo per premi e negozio: punti guadagnati meno punti spesi nei premi e nel negozio, mai
+   * sotto zero. Annullando un completamento dopo una spesa il saldo può restare a zero finché quei punti non si guadagnano
+   * di nuovo.
    */
   function balance(stats) {
-    return Math.max(0, stats.totalPoints - spentPoints(stats));
+    return Math.max(0, stats.totalPoints - spentPoints(stats) - shopPoints(stats));
   }
 
   /** Quante volte è stato riscattato un premio. */
@@ -331,6 +339,7 @@
     sanitizeRewards,
     sanitizeSpent,
     spentPoints,
+    shopPoints,
     balance,
     redeemedCount,
     redeem,
