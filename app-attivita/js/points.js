@@ -95,10 +95,11 @@
 
   /**
    * Completa (done = true) o rimette da fare (done = false) un'attività, aggiornando punti e registro.
-   * Restituisce { tasks, stats, points, streak, reached }:
+   * Restituisce { tasks, stats, points, streak, reached, next }:
    * - points: i punti dati, o tolti, in questo passaggio;
    * - streak: la serie in corso dopo la modifica;
-   * - reached: i traguardi raggiunti adesso per la prima volta (da festeggiare).
+   * - reached: i traguardi raggiunti adesso per la prima volta (da festeggiare);
+   * - next: completando una ripetizione, la sua prossima volta (Aura.tasks.toggleDone, P-005), altrimenti null.
    * Se non c'è niente da cambiare, `tasks` e `stats` sono gli stessi oggetti ricevuti.
    */
   function setDone(state, id, done, now) {
@@ -106,18 +107,18 @@
     const task = state.tasks.find(t => t.id === id);
     const repaired = repairedDays(state.stats);
     if (!task || task.done === done) {
-      return { tasks: state.tasks, stats: state.stats, points: 0, streak: currentStreak(state.stats.days, today, repaired), reached: [] };
+      return { tasks: state.tasks, stats: state.stats, points: 0, streak: currentStreak(state.stats.days, today, repaired), reached: [], next: null };
     }
     // Annullando si toglie esattamente quanto era stato dato, dal giorno in cui era stato dato.
     const points = done ? pointsFor(task) : task.pointsAwarded || 0;
     const day = done ? today : utils.todayISO(task.completedAt);
-    const tasks = T.setDone(state.tasks, id, done, now, done ? points : null);
+    const { tasks, next } = T.toggleDone(state.tasks, id, done, now, done ? points : null);
 
     const changed = changeDay(state.stats, day, done ? 1 : -1, done ? points : -points);
     const streak = currentStreak(changed.days, today, repaired);
     const reached = done ? POINTS.milestones.filter(m => streak >= m && !changed.milestones.includes(m)) : [];
     const stats = { ...changed, bestStreak: longestStreak(changed.days, repaired), milestones: changed.milestones.concat(reached) };
-    return { tasks, stats, points, streak, reached };
+    return { tasks, stats, points, streak, reached, next };
   }
 
   /**

@@ -245,7 +245,7 @@
     const tasks = [{ id: 'a', title: 'Fatta', duration: 30, energy: 'medium', date: '2026-11-18', time: null, done: true, createdAt: 1, completedAt: 5, pointsAwarded: 24 }];
     const state = storage.parse(JSON.stringify({ version: 4, future: 'ok', tasks, stats }));
     assertEqual(state.version, storage.SCHEMA_VERSION);
-    assertEqual([state.tasks, state.rewards, state.future], [tasks, [], 'ok']);
+    assertEqual([state.tasks, state.rewards, state.future], [tasks.map(task => ({ ...task, repeat: null, seriesId: null })), [], 'ok']);
     assertEqual(state.stats, { ...stats, spent: [], shop: [] }, 'registro identico, più i riscatti e gli acquisti vuoti');
     assertEqual(storage.parse(JSON.stringify({ version: 1, tasks: [] })).rewards, [], 'anche dalla v1');
   });

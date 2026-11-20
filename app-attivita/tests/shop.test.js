@@ -290,13 +290,13 @@
 
   /* ---------- Dati: migrazione e backup ---------- */
 
-  test('migrazione: i dati della v5 arrivano alla v6 con il negozio vuoto e i colori di partenza; il resto è intatto', () => {
+  test('migrazione: i dati della v5 arrivano all\'ultima versione con il negozio vuoto e i colori di partenza; il resto è intatto', () => {
     const stats = { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-19': { done: 1, points: 24 } }, focus: {}, spent: [], level: 2 };
     const tasks = [{ id: 'a', title: 'Fatta', duration: 30, energy: 'medium', date: '2026-11-19', time: null, done: true, createdAt: 1, completedAt: 5, pointsAwarded: 24 }];
     const rewards = [{ id: 'p', title: 'Pizza', emoji: '🍕', cost: 400, createdAt: 1 }];
     const state = storage.parse(JSON.stringify({ version: 5, future: 'ok', tasks, rewards, stats }));
-    assertEqual([state.version, storage.SCHEMA_VERSION], [6, 6]);
-    assertEqual([state.tasks, state.rewards, state.future, state.look], [tasks, rewards, 'ok', LOOK]);
+    assertEqual(state.version, storage.SCHEMA_VERSION);
+    assertEqual([state.tasks, state.rewards, state.future, state.look], [tasks.map(task => ({ ...task, repeat: null, seriesId: null })), rewards, 'ok', LOOK]);
     assertEqual(state.stats, { ...stats, shop: [] }, 'registro identico, più gli acquisti vuoti');
     assertEqual(storage.parse(JSON.stringify({ version: 1, tasks: [] })).look, LOOK, 'anche dalla v1');
   });
@@ -332,11 +332,11 @@
   test('readBackup: dati di una versione più nuova, con oggetti che il catalogo non conosce, si leggono senza perdere niente', () => {
     const rain = { id: 'u1', item: 'sound:rain', cost: 300, at: NOW };
     const data = {
-      version: 7, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 500, shop: [repaired(-1), rain] },
+      version: 8, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 500, shop: [repaired(-1), rain] },
       look: { aurora: 'aurora', confetti: 'classic', sound: 'rain', at: NOW }
     };
     const { state } = storage.readBackup(JSON.stringify({ format: storage.BACKUP_FORMAT, exportedAt: NOW, data }));
-    assertEqual([state.version, state.stats.shop, state.look], [7, [repaired(-1), rain], data.look]);
+    assertEqual([state.version, state.stats.shop, state.look], [8, [repaired(-1), rain], data.look]);
     assertEqual(R.balance(state.stats), 50, '500 − 150 − 300: niente rimborsato');
   });
 })();

@@ -22,6 +22,7 @@
   <!-- Il tema va applicato prima che la pagina appaia: per questo theme.js non ha "defer". -->
   <script src="js/theme.js"></script>
   <script src="js/utils.js" defer></script>
+  <script src="js/repeat.js" defer></script>
   <script src="js/tasks.js" defer></script>
   <script src="js/nlp.js" defer></script>
   <script src="js/points.js" defer></script>
@@ -56,6 +57,8 @@
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3.5 3.5L17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/></symbol>
+    <symbol id="i-skip" viewBox="0 0 24 24"><path d="M4.5 16.5a7.5 7.5 0 0 1 15 0"/><path d="M16.5 14l3 3 3-3"/><circle cx="12" cy="18.5" r=".8"/></symbol>
     <symbol id="i-alarm" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 1.5M5 4.5L2.5 7M19 4.5L21.5 7"/></symbol>
     <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3.5l1.9 5 5 1.9-5 1.9-1.9 5-1.9-5-5-1.9 5-1.9zM19 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
@@ -645,6 +648,33 @@
           </div>
           <p class="field__hint" id="time-hint">Prima scegli un giorno.</p>
           <p class="field__error" id="err-time" hidden></p>
+        </fieldset>
+
+        <!-- «Si ripete» (P-005, passo 5.1): senza un giorno, sceglierla mette il primo giorno giusto da oggi -->
+        <fieldset class="field field--repeat" id="repeat-field">
+          <legend class="field__label">Si ripete</legend>
+          <div class="chips" id="repeat-chips">
+            <button class="chip" type="button" data-repeat="none" aria-pressed="true">Mai</button>
+            <button class="chip" type="button" data-repeat="day" aria-pressed="false">Ogni giorno</button>
+            <button class="chip" type="button" data-repeat="week" aria-pressed="false">Ogni settimana</button>
+            <button class="chip" type="button" data-repeat="month" aria-pressed="false">Ogni mese</button>
+          </div>
+          <div class="weekdays" id="repeat-days" role="group" aria-label="Giorni della settimana" hidden>
+            <button class="weekday" type="button" data-day="1" aria-pressed="false" aria-label="Lunedì">L</button>
+            <button class="weekday" type="button" data-day="2" aria-pressed="false" aria-label="Martedì">M</button>
+            <button class="weekday" type="button" data-day="3" aria-pressed="false" aria-label="Mercoledì">M</button>
+            <button class="weekday" type="button" data-day="4" aria-pressed="false" aria-label="Giovedì">G</button>
+            <button class="weekday" type="button" data-day="5" aria-pressed="false" aria-label="Venerdì">V</button>
+            <button class="weekday" type="button" data-day="6" aria-pressed="false" aria-label="Sabato">S</button>
+            <button class="weekday" type="button" data-day="7" aria-pressed="false" aria-label="Domenica">D</button>
+          </div>
+          <p class="field__hint" id="repeat-hint" hidden></p>
+          <p class="field__error" id="err-repeat" hidden></p>
+          <!-- Solo modificando una ripetizione da fare: questa volta non si fa, senza punti -->
+          <button class="btn btn--soft repeat-skip" id="repeat-skip" type="button" hidden>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-skip"></use></svg>
+            Salta questa volta
+          </button>
         </fieldset>
       </div>
 
@@ -1483,6 +1513,10 @@
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-alarm"></use></svg>
             <span class="sr-only">Alle</span>
             <span class="meta__at"></span>
+          </span>
+          <span class="meta meta--repeat">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-repeat"></use></svg>
+            <span class="sr-only"></span>
           </span>
           <span class="meta">
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg>

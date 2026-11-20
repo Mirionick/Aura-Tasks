@@ -44,7 +44,7 @@
   const momentOf = ms => ({ date: utils.todayISO(ms), time: utils.formatTime(new Date(ms)) });
 
   function sameFields(a, b) {
-    return Boolean(a && b) && T.EDITABLE_FIELDS.every(field => (a[field] == null ? null : a[field]) === (b[field] == null ? null : b[field]));
+    return T.sameFields(a, b); // anche la regola delle ripetizioni, che è un oggetto (P-005)
   }
 
   /** Fascia della giornata, come il saluto: mattina (5–12), pomeriggio (12–18), sera. */
@@ -368,7 +368,10 @@
         // Togliere il giorno (date: null) non è un giorno letto in un altro modo: la domanda resta quella del modello.
         next.date = action.date || null;
       }
-      if (!next.date) next.time = null;
+      if (!next.date) {
+        next.time = null;
+        next.repeat = null; // senza giorno non si ripete, come nel foglio (P-005)
+      }
     }
     if ('time' in action) next.time = action.time || null;
     // Un'ora diversa da quella letta dalle regole: l'app chiede, e nella domanda propone la sua (vedi agreedTime).

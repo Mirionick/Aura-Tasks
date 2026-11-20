@@ -1132,6 +1132,7 @@ button {
 .meta .icon { width: 15px; height: 15px; }
 .meta--overdue { color: var(--danger); font-weight: 600; }
 .meta--at { color: var(--accent-text); font-weight: 700; }
+.meta--repeat { color: var(--accent-text); } /* ↻ accanto all'ora: si ripete (P-005); la regola la legge il lettore di schermo */
 .meta--at.meta--overdue { color: var(--danger); } /* oggi, con l'ora già passata: rossa come «Ieri» */
 
 .pill {
@@ -2006,7 +2007,7 @@ button {
   color: var(--text-2);
 }
 .field__optional { font-weight: 500; color: var(--text-3); }
-.field__hint { margin: 8px 2px 0; font-size: 13.5px; color: var(--text-2); }
+.field__hint { margin: 8px 2px 0; font-size: 13.5px; color: var(--text-2); text-wrap: pretty; }
 .field__error { margin: 8px 2px 0; font-size: 13.5px; font-weight: 600; color: var(--danger); }
 
 .input {
@@ -2214,6 +2215,34 @@ button {
 .time-row .date-picker { margin-top: 0; }
 .field--time:disabled .time-row { opacity: .5; }
 .field--time:disabled .date-picker__input { cursor: not-allowed; }
+
+/* «Si ripete» (P-005, passo 5.1): i giorni della settimana in una fila di sette, larghi quanto il campo */
+/* Sette cerchi da 44 px, allineati ai bordi del campo: da 375 px ci stanno sempre interi; sotto si stringono un po' */
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 44px));
+  justify-content: space-between;
+  column-gap: 3px;
+  margin-top: 12px;
+}
+.weekday {
+  min-width: 0;
+  height: 44px;
+  padding: 0;
+  border: 1.5px solid var(--field-border);
+  border-radius: 999px;
+  background: var(--field-bg);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+  transition: background-color var(--dur-color) var(--ease-out), border-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.weekday:active { transform: scale(.93); }
+.weekday[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
+@media (hover: hover) {
+  .weekday:hover:not([aria-pressed="true"]) { border-color: var(--border-strong); }
+}
+.repeat-skip { margin-top: 12px; }
 
 /* Riga sopra il modulo: frase arrivata dalla casella di Siri, oppure attività già completata che si sta modificando */
 .sheet-note {
