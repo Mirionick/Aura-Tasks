@@ -4,7 +4,7 @@ Fotografia breve di dove siamo, per chi comincia un intervento. La aggiorna chi 
 
 Non ripete gli altri documenti: decisioni, funzioni e verifiche sono in [decisioni.md](decisioni.md), le regole in [AGENTS.md](../AGENTS.md).
 
-**Aggiornato il** 20 novembre 2026, con la PR della proposta P-004 (negozio delle stelle e musica nel focus).
+**Aggiornato il** 20 novembre 2026, con la PR della proposta P-004 (negozio e musica nel focus).
 
 ## Pubblicato su `main`
 - **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più i passi 0b e 1 di P-002 (il focus a tutto schermo resta fermo; la rotella apre le Impostazioni) e i passi 3.1 (cambio di scheda e aurora nel focus), 3.2 (Agenda a calendario) 3.3 (Motivazione) e 3.4 («I tuoi premi») di P-003. Cache `aura-tasks-v18` (20 novembre 2026); dati alla versione 5 dello schema.
@@ -27,7 +27,7 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 - **PR 11 — passo 3.4 di P-003** (20 novembre 2026, `97f9301`): «I tuoi premi» in Motivazione, con il saldo da spendere, il riscatto con coriandoli e «Annulla»; spendere non fa mai scendere di livello. Dati alla versione 5 dello schema. **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «P-003, passo 3.4»).
 
 ## In lavorazione
-- **P-004 v1** (livello A, autore Claude Project, revisione di ChatGPT / Codex): negozio delle stelle e musica nel focus, in [proposte/P-004.md](proposte/P-004.md). Quattro passi: 4.1 negozio delle stelle (con «Ripara la serie» e i pacchetti di stelle «Presto»), 4.2 musica senza account, 4.3 Spotify collegato, 4.4 suoni del focus. Il Product Owner ha già deciso che le stelle a pagamento arrivano con la versione per altri, e che il negozio si costruisce subito.
+- **P-004 v2** (livello A, autore Claude Project, revisione di ChatGPT / Codex): negozio e musica nel focus, in [proposte/P-004.md](proposte/P-004.md). Quattro passi: 4.1 negozio (pagato con i punti ★, con lo stesso saldo dei premi, con «Ripara la serie» e i pacchetti di punti «Presto»), 4.2 musica senza account, 4.3 Spotify collegato, 4.4 suoni del focus. Il Product Owner ha già deciso che le stelle a pagamento arrivano con la versione per altri, e che il negozio si costruisce subito.
 
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.
@@ -40,4 +40,4 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 ## Prossimi passi
 - **P-002**: 0a e passo 2 (Aura con un volto) toccano a ChatGPT / Codex e aspettano che il Product Owner crei l'ambiente di Codex. I passi 3 e 4 aspettano le prove sull'iPhone.
 - **P-003**: resta il passo 3.5 («Sfide di oggi», ChatGPT / Codex), nell'ordine di [proposte/P-003.md](proposte/P-003.md), senza aspettare il passo 2 di P-002, perché tocca altre parti. Se arriva dopo il passo 4.1 di P-004, porterà i dati alla versione 7.
-- **P-004**: dopo l'approvazione, il passo 4.1 (negozio delle stelle, dati alla versione 6).
+- **P-004**: dopo l'approvazione, il passo 4.1 (negozio, dati alla versione 6).
