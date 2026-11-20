@@ -110,6 +110,7 @@
   --shadow-card: 0 1px 2px rgba(23, 21, 43, .05), 0 2px 8px rgba(40, 30, 110, .05);
   --shadow-card-hover: 0 2px 4px rgba(23, 21, 43, .06), 0 8px 22px rgba(40, 30, 110, .09);
   --shadow-sheet: 0 -12px 40px rgba(23, 21, 43, .16);
+  --preview-edge: rgba(0, 0, 0, .1); /* contorno delle anteprime dei colori: neutro, così il bordo non si perde */
   --shadow-dialog: 0 24px 64px rgba(23, 21, 43, .22);
   --shadow-fab: 0 10px 26px rgba(90, 62, 230, .38), 0 3px 8px rgba(90, 62, 230, .22);
   --shadow-toast: 0 10px 30px rgba(23, 21, 43, .28);
@@ -244,6 +245,7 @@
   --shadow-card: none;
   --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, .06);
   --shadow-sheet: 0 -12px 40px rgba(0, 0, 0, .5);
+  --preview-edge: rgba(255, 255, 255, .1); /* nel buio la parte alta delle anteprime ha quasi il colore della superficie */
   --shadow-dialog: 0 24px 64px rgba(0, 0, 0, .6);
   --shadow-fab: 0 10px 28px rgba(112, 88, 246, .32), inset 0 1px 0 rgba(255, 255, 255, .14);
   --shadow-toast: 0 10px 30px rgba(0, 0, 0, .5);
@@ -1294,7 +1296,7 @@ button {
   gap: 10px 12px;
   margin: 0 0 6px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 20px; /* concentrico con l'icona e «Ripara» (12 + 10 di spazio ≈ 22), ma non più tondo della card (20) */
   background: var(--field-bg);
 }
 .shop-repair.is-ready { background: var(--medium-soft); }
@@ -1312,8 +1314,8 @@ button {
 .shop-repair.is-ready .flame__outer { fill: var(--flame-outer); }
 .shop-repair.is-ready .flame__core { fill: var(--flame-core); }
 .shop-repair__text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
-.shop-repair__title { font-size: 15px; font-weight: 750; line-height: 1.3; }
-.shop-repair__note { color: var(--text-2); font-size: 13px; line-height: 1.4; }
+.shop-repair__title { font-size: 15px; font-weight: 750; line-height: 1.3; text-wrap: balance; }
+.shop-repair__note { color: var(--text-2); font-size: 13px; line-height: 1.4; text-wrap: pretty; }
 .shop-repair__btn {
   grid-column: 1 / -1;
   min-height: var(--tap);
@@ -1361,8 +1363,8 @@ button {
   border-radius: 50%;
 }
 .shop-open__text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
-.shop-open__title { font-size: 16px; font-weight: 750; line-height: 1.25; }
-.shop-open__note { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; }
+.shop-open__title { font-size: 16px; font-weight: 750; line-height: 1.25; text-wrap: balance; }
+.shop-open__note { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; text-wrap: pretty; }
 .shop-open__chevron { flex: none; color: var(--text-3); transform: rotate(-90deg); }
 @media (hover: hover) {
   .shop-open:hover .shop-open__title { color: var(--accent-text); }
@@ -1376,6 +1378,7 @@ button {
     radial-gradient(70% 60% at 52% 108%, var(--aurora-3), transparent 75%),
     radial-gradient(40% 40% at 64% 26%, var(--aurora-4), transparent 80%),
     linear-gradient(180deg, var(--hero-top), var(--hero-bottom));
+  box-shadow: inset 0 0 0 1px var(--preview-edge); /* dentro il bordo: nei cerchi resta lo stacco tra un colore e l'altro */
 }
 
 /* Il foglio: il saldo accanto al titolo (sotto, su un telefono stretto), poi i quattro gruppi */
@@ -1386,8 +1389,8 @@ button {
   .shop-sheet__balance { order: 3; }
 }
 .shop-group + .shop-group { margin-top: 20px; }
-.shop-group__title { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
-.shop-group__note { margin: 0 0 10px; color: var(--text-3); font-size: 13px; line-height: 1.45; }
+.shop-group__title { margin: 0 0 4px; font-size: 15px; font-weight: 800; text-wrap: balance; }
+.shop-group__note { margin: 0 0 10px; color: var(--text-3); font-size: 13px; line-height: 1.45; text-wrap: pretty; }
 .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .shop-grid--packs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 @media (min-width: 480px) {
@@ -1396,6 +1399,7 @@ button {
 /* Un oggetto: anteprima, nome e quello che fa un tocco («In uso», «Usa» o il prezzo) */
 .shop-item {
   display: grid;
+  grid-template-rows: auto 1fr auto; /* lo stato sta in fondo: in una riga di oggetti i prezzi restano allineati */
   align-content: start;
   gap: 6px;
   width: 100%;
@@ -1411,9 +1415,9 @@ button {
 .shop-item:active { transform: scale(.97); }
 .shop-item.is-used { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .shop-item[aria-disabled="true"] { cursor: default; }
-.shop-item__preview { position: relative; display: block; height: 56px; overflow: hidden; border-radius: 10px; }
+.shop-item__preview { position: relative; display: block; height: 56px; overflow: hidden; border-radius: 7px; } /* 16 − 1 − 8: concentrico */
 .shop-item__preview--confetti { background: var(--field-bg); }
-.shop-item__name { font-size: 15px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.shop-item__name { align-self: start; font-size: 15px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
 .shop-item__status {
   display: inline-flex;
   align-items: center;
@@ -1444,6 +1448,7 @@ button {
   justify-content: center;
   gap: 2px;
   height: 44px;
+  border-radius: 9px; /* 16 − 1 − 6: concentrico con il pacchetto */
   background: var(--medium-soft);
   color: var(--medium);
   font-size: 18px;
@@ -1452,6 +1457,7 @@ button {
 /* Sugli schermi da 320 px un poco più di spazio per i nomi e per «Ripara» */
 @media (max-width: 359px) {
   .shop-item__name { font-size: 14px; }
+  .shop-item--pack .shop-item__name { font-size: 13px; } /* «2000 punti» su una riga anche nelle tre colonne strette */
   .shop-repair { column-gap: 10px; padding: 10px; }
   .shop-repair__icon { width: 36px; height: 36px; }
   .shop-open { gap: 10px; }
@@ -2878,6 +2884,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .toast__text:only-child { padding-right: 10px; }
 
 .toast__action {
+  position: relative;
   min-height: 36px;
   padding: 0 12px;
   border: 0;
@@ -2887,6 +2894,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
   font-size: 15px;
   font-weight: 800;
 }
+/* L'area di tocco arriva al bordo dell'avviso: 48 px di altezza, oltre i 44 di Apple, con lo stesso aspetto */
+.toast__action::before { content: ""; position: absolute; inset: -6px; }
 @media (hover: hover) {
   .toast__action:hover { background: var(--glass-hover); }
 }

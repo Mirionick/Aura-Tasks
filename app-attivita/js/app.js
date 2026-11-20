@@ -786,12 +786,21 @@
   let toastHandler = null;
 
   /**
-   * `options`: `action` e `onAction` (il pulsante, per esempio «Annulla»), `duration` (ms) e `host`, un foglio aperto:
-   * un foglio copre la pagina, quindi l'avviso va dentro il foglio (js/ui-shop.js). Chiuso il foglio, torna nella pagina.
+   * L'avviso sta nella pagina oppure dentro `host`, un foglio aperto: un foglio copre la pagina e la rende inerte, quindi
+   * l'avviso si vede (e il lettore di schermo lo legge) solo se è dentro il foglio. js/ui-shop.js ce lo porta appena apre
+   * il suo foglio, così la regione live (role="status") c'è già prima del primo messaggio.
+   */
+  function hostToast(host) {
+    const target = host && host.open ? host : document.body;
+    if (els.toast.parentNode !== target) target.appendChild(els.toast);
+  }
+
+  /**
+   * `options`: `action` e `onAction` (il pulsante, per esempio «Annulla»), `duration` (ms) e `host`, un foglio aperto
+   * (vedi hostToast). Quando il foglio comincia a chiudersi, l'avviso torna nella pagina (closeSheet).
    */
   function showToast(message, options = {}) {
-    const host = options.host && options.host.open ? options.host : document.body;
-    if (els.toast.parentNode !== host) host.appendChild(els.toast);
+    hostToast(options.host);
     const action = options.action || null;
     const duration = options.duration || (action ? 5000 : 2600);
     clearTimeout(toastTimer);
@@ -857,6 +866,9 @@
     const onEnd = event => {
       if (event.target === dialog) finish();
     };
+    // Un avviso dentro il foglio torna subito nella pagina: resta fermo al suo posto mentre il foglio scende (dentro il
+    // foglio scenderebbe con lui e poi ricomparirebbe più in alto)
+    if (els.toast.parentNode === dialog) hostToast(null);
     dialog.classList.add('is-closing');
     dialog.addEventListener('animationend', onEnd);
     timer = setTimeout(finish, M.ms('exit') + M.ms('quick')); // rete di sicurezza se animationend non arriva
@@ -2376,6 +2388,7 @@
     getState: () => state,
     commitState,
     showToast,
+    hostToast,
     openSheet,
     setupSheet,
     setAutofocus,

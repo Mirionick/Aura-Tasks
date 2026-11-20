@@ -257,7 +257,7 @@ Fotogrammi persi, mediana di 20 prove, a 390×664 in Chromium 153 headless, in t
 
 - La prima versione, con la CPU rallentata, perdeva 2 fotogrammi in più comprando un colore. La causa: il colore in uso stava su `<html>`, e lì un cambio ricalcolava lo stile di tutta la pagina (circa 17 ms con la CPU 4 volte più lenta, contro meno di 1 ms sull'elemento). Ora il colore va solo sui due elementi che lo usano, l'aurora del focus a tutto schermo e il bagliore della scheda Focus; in più gli oggetti del foglio si aggiornano sul posto invece di essere ridisegnati.
 - Passare a Motivazione cambia da una serie all'altra (mediane tra 4 e 6, per le due versioni). In tre serie da 20 la media è sempre un po' più alta dopo, da 0,1 a 0,8 fotogrammi: è il disegno della card in più, solo con la CPU rallentata. A piena velocità nessun gesto perde fotogrammi; la prova vera è quella sull'iPhone.
-- Prove di funzionamento, con Playwright 1.63, a 390×664 e a 320×568 nei due temi e a 1280×800, con «Riduci movimento» e aprendo `index.html` da file (118 controlli, tutti superati; nessun errore nella console né messaggi della CSP; nessuno scorrimento orizzontale):
+- Prove di funzionamento, con Playwright 1.63, a 390×664 e a 320×568 nei due temi e a 1280×800, con «Riduci movimento» e aprendo `index.html` da file (120 controlli, tutti superati; nessun errore nella console né messaggi della CSP; nessuno scorrimento orizzontale):
   - i dati della v5 arrivano alla v6 con il registro degli acquisti vuoto e «Aurora» e «Classici» in uso; attività, premi e punti restano intatti;
   - la card sta tra «I tuoi premi» e «I tuoi numeri», con lo stesso saldo dei premi; con la serie interrotta ieri il riquadro della serie dice «Puoi ripararla nel negozio» e la card «Ieri è saltato un giorno»;
   - «Ripara»: la serie torna a 7 giorni, con il record, il traguardo dei 7, i coriandoli e l'avviso «🎉 Serie riparata…» con «Annulla», che rimette serie, saldo e record (il traguardo già festeggiato resta); l'altro ieri si ripara se ieri c'è una spunta; con 2 riparazioni negli ultimi 30 giorni il foglio dice «Riparazioni finite, per ora»; con il saldo che non basta il pulsante è grigio e un tocco dice quanto manca;
@@ -269,6 +269,36 @@ Fotogrammi persi, mediana di 20 prove, a 390×664 in Chromium 153 headless, in t
   - aree di tocco di almeno 44 px, nomi interi anche a 320 px, contrasto dei testi del negozio di almeno 4,7 a 1 nei due temi;
   - coriandoli solo con `opacity` e `transform`; con «Riduci movimento» niente coriandoli né animazioni, ma acquisti e avvisi sì.
 - Intestazione di Focus a 390×664: 188 px prima e dopo, con 3 card intere, nei due temi.
+
+#### Ripasso con tre skill (20 novembre 2026)
+Dopo l'apertura della PR il negozio è stato ripassato con le liste di tre skill che usa il PO: **browser-qa** (prove nel browser), **accessibility** (WCAG 2.2) e **make-interfaces-feel-better** (rifiniture). Strumenti: Playwright 1.63 con Chromium 153 headless, axe-core 4.10.2 con le regole WCAG 2.0, 2.1 e 2.2 di livello A e AA, misure a pixel con Pillow. 63 controlli, tutti superati dopo le correzioni (prima 57). «v18» è la versione pubblicata.
+
+| Misura, contesto «iPhone 13», mediana di 5 prove | v18 | v19 | v18, CPU 4 volte più lenta | v19, CPU 4 volte più lenta |
+|---|---|---|---|---|
+| LCP all'apertura (soglia 2,5 s) | 120 ms | 132 ms | 340 ms | 368 ms |
+| CLS, apertura e gesti (soglia 0,1) | 0 | 0 | 0 | 0 |
+| INP, il gesto più lento (soglia 200 ms) | 48 ms | 48 ms | 160 ms | 144 ms |
+| comprare un colore (v18: riscattare un premio) | 24 ms | 32 ms | 88 ms | 80 ms |
+
+- La tabella è l'ultima di tre serie, con il codice finale. Da una serie all'altra, con la CPU rallentata, LCP cambia fino a 160 ms e i gesti fino a 40 ms: comprare un colore ha richiesto 80, 112 e 120 ms, riscattare un premio sulla v18 80, 88 e 96. Tutto resta sotto le soglie di web.dev, e i fotogrammi persi non cambiano. Rifatti dopo le correzioni contro la v18 (mediana di 20 prove, CPU 4 volte più lenta; la macchina era più carica, quindi tutti i numeri sono più alti della tabella sopra, per le due versioni): passare a Motivazione 6 → 6, aprire il foglio 2 → 2, comprare un colore 2,5 → 3. Contro il negozio di prima delle correzioni, in 30 prove alternate, comprare un colore perde 3 fotogrammi con tutte e due le versioni (media 3,6 prima e 3,3 dopo).
+- Nessun errore in console, in rete o della CSP, da telefono e da computer. A 375, 768 e 1440 px nei due temi niente esce dallo schermo. La scheda Focus e la parte di Motivazione sopra il negozio sono identiche alla v18, pixel per pixel, nei due temi, a 375 e a 1440 px; «I tuoi numeri» scende solo dell'altezza della card nuova.
+- axe-core: nessuna violazione nella card, nel foglio e dopo un acquisto, e nessuna nuova in Motivazione rispetto alla v18. axe non sa misurare il contrasto di «Ripara» sul fondo sfumato: misurato a mano, il bianco ha almeno 4,76 a 1 sul colore più chiaro della sfumatura nel tema scuro e 5,30 nel chiaro.
+- Tastiera: nella card «Ripara» e poi «Apri il negozio»; Invio apre il foglio con il focus sul titolo; Tab segue l'ordine di lettura (chiudi, «Ripara», i cinque colori, le cinque forme, i tre pacchetti) e non esce dal foglio; ogni elemento ha il contorno del focus (contrasto 6,4 a 1 nel chiaro, 7,7 nello scuro) e non resta coperto, nemmeno dall'avviso; Invio e Spazio comprano e il focus resta sull'oggetto; «Esc» chiude e il focus torna su «Apri il negozio». Con la spaziatura del testo più larga (WCAG 1.4.12) a 320 e 390 px niente si taglia.
+- Senza WebKit qui, restano per l'iPhone: VoiceOver che legge «Comprato: …» e il contorno nuovo delle anteprime.
+
+Cosa è cambiato:
+
+| Regola | Prima | Dopo |
+|---|---|---|
+| Regione live dell'avviso | l'avviso (`role="status"`) entrava nel foglio insieme al primo messaggio: VoiceOver può non leggere una regione live che compare già piena | entra nel foglio appena si apre (`hostToast`), prima dei messaggi |
+| Avviso mentre il foglio si chiude | dentro il foglio scendeva con lui e poi ricompariva 124 px più in alto | torna subito nella pagina e resta fermo al suo posto |
+| Area di tocco di «Annulla» nell'avviso | 81 × 36 px | 93 × 48 px con uno pseudo-elemento, stesso aspetto; vale per tutti gli avvisi |
+| Angoli concentrici | anteprima con raggio 10 in un oggetto da 16, a 9 px dal bordo; «Ripara la serie» con raggio 14 intorno a icona e pulsante da 12, a 10 px | anteprima 7 (pacchetti 9); il riquadro 20, come la card che lo contiene (il valore esatto sarebbe 22) |
+| Testi a capo | una parola sola sull'ultima riga: «Focus.» a 375 e 390 px, «fila.» a 360 e 375, «serie»», «acquisti.» e «punti» dei pacchetti a 320 | `text-wrap: balance` sui titoli e `pretty` sulle note; nomi dei pacchetti a 13 px sotto i 360 px: nessuna da 320 a 414 px |
+| Prezzi in una riga di oggetti | con un nome su due righe, il prezzo di quell'oggetto scendeva più degli altri | lo stato sta in fondo all'oggetto (`grid-template-rows: auto 1fr auto`): prezzi allineati |
+| Contorno delle anteprime dei colori | nel tema scuro la parte alta aveva un contrasto di 1,03–1,08 a 1 con l'oggetto, e il bordo si perdeva | contorno neutro di 1 px dentro il bordo (`--preview-edge`, nero o bianco al 10%), anche sui cinque cerchi della card |
+
+Controllati e lasciati come erano: cifre tabellari su saldo, prezzi e «Ripara · 150 ★»; icone centrate (fiamma e freccia entro mezzo pixel); niente `transition: all` né `will-change: all`.
 
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.

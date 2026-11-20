@@ -3,7 +3,8 @@
  * La card: il saldo da spendere (lo stesso di «I tuoi premi»), «Ripara la serie» quando si può e «Apri il negozio».
  * Il foglio: «Ripara la serie», i colori dell'aurora, le forme dei coriandoli e i pacchetti di punti, che si vedono ma non
  * si comprano ancora («Presto»). Tocca la pagina come app.js, che con init() gli passa quello che serve: stato,
- * salvataggio (commitState), avvisi, fogli e coriandoli. La logica sta in js/shop.js; qui solo disegno e gesti.
+ * salvataggio (commitState), avvisi (anche dentro il foglio, hostToast), fogli e coriandoli. La logica sta in
+ * js/shop.js; qui solo disegno e gesti.
  */
 (function (Aura) {
   'use strict';
@@ -257,11 +258,15 @@
     });
   }
 
-  /** Apre il foglio del negozio, dall'inizio. */
+  /**
+   * Apre il foglio del negozio, dall'inizio. L'avviso entra subito nel foglio: la sua regione live (role="status") c'è
+   * già prima del primo «Comprato», che così il lettore di schermo legge anche su iPhone.
+   */
   function openShop() {
     els.sheet.querySelector('.sheet__body').scrollTop = 0;
     ctx.setAutofocus(els.sheet, els.heading);
     ctx.openSheet(els.sheet);
+    ctx.hostToast(els.sheet);
   }
 
   /* ---------- Avvio ---------- */
