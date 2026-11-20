@@ -482,6 +482,7 @@ Note per i controlli automatici con Edge headless:
   - il contrasto del testo sugli sfondi sfumati o a livelli (intestazione, focus a tutto schermo, pulsanti con il gradiente) si misura sui pixel, perché axe non vede lo sfondo: almeno 4,5:1 nel punto più chiaro dietro il testo. Per questo `--hero-text-2` è al 92% nel tema chiaro e «Esci» del focus sta sul vetro (`--glass`), come gli altri comandi;
   - dentro un riquadro (`.panel`) il pulsante principale ha l'ombra corta: quella piena arrivava sulla nota sotto e la rendeva meno leggibile;
   - un foglio di solo testo che scorre (Privacy) ha `tabindex="0"` e `role="region"` sul corpo, così scorre anche con la tastiera; il contorno del focus sta dentro il riquadro.
+- **Etichette mai accorciate** (20 novembre 2026, rifiniture per gli schermi piccoli): un'etichetta che diventa «T…» non dice più niente. Dove una riga non basta, il riquadro va su due righe. Nell'intestazione di Focus lo fa `fitStats()` in `app.js` per «Da fare», «Tempo» e «Fatte oggi» (`.stats--inline.is-stacked`), misurando con un `ResizeObserver`: vedi [tre-modalita.md](tre-modalita.md), «Intestazione di Focus compatta».
 
 ---
 

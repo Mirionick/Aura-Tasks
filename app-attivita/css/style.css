@@ -687,6 +687,12 @@ button {
 .stats--inline .stat { display: flex; flex: 1 1 auto; align-items: baseline; gap: 6px; padding: 6px 10px; border-radius: 12px; line-height: 1.25; }
 .stats--inline .stat__label { flex: 0 1 auto; min-width: 0; }
 .stats--inline .stat__value { flex: none; margin: 0; font-size: 16px; white-space: nowrap; }
+/* Dove in una riga non ci starebbero interi (schermi stretti, numeri lunghi), i tre riquadri vanno su due righe:
+   etichetta sopra e valore sotto, come Serie e Punti. Lo decide fitStats() in app.js, che misura; column-gap resta 6px
+   perché la misura lo usa in tutti e due i modi. Se neanche così c'è posto (320 px con il testo spaziato), l'etichetta
+   va a capo tra le parole: un riquadro non diventa più stretto della sua parola più lunga o del suo numero. */
+.stats--inline.is-stacked .stat { flex-direction: column; align-items: flex-start; row-gap: 1px; min-width: auto; }
+.stats--inline.is-stacked .stat__label { max-width: 100%; white-space: normal; }
 /* «stimato»: nascosto alla vista dove non c'è spazio (resta per il lettore di schermo), visibile sugli schermi larghi */
 .stat__more { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (min-width: 430px) {
