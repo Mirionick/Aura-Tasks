@@ -32,6 +32,7 @@
   <script src="js/motivation.js" defer></script>
   <script src="js/rewards.js" defer></script>
   <script src="js/shop.js" defer></script>
+  <script src="js/music.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/reminders.js" defer></script>
   <script src="js/remote.js" defer></script>
@@ -44,6 +45,7 @@
   <script src="js/ui-motivation.js" defer></script>
   <script src="js/ui-rewards.js" defer></script>
   <script src="js/ui-shop.js" defer></script>
+  <script src="js/ui-music.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -78,6 +80,9 @@
     <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
     <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3.5 7h3.3c2 0 3.1.9 4.2 2.6l2.4 3.9c1.1 1.7 2.2 2.5 4.2 2.5h2.9M3.5 17h3.3c1.3 0 2.2-.4 3-1.2M13.6 8.2c.8-.8 1.7-1.2 3-1.2h2.9M17.5 4.5L20 7l-2.5 2.5M17.5 14.5L20 17l-2.5 2.5"/></symbol>
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M9 5.5l6.5 6.5L9 18.5"/></symbol>
+    <!-- Musica nel focus: cuffie (riga «Musica» delle Impostazioni) e freccia che esce (la playlist si apre in un'altra app) -->
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M4.5 15.5v-3.2a7.5 7.5 0 0 1 15 0v3.2"/><rect x="3.5" y="14" width="4.5" height="6.5" rx="1.8"/><rect x="16" y="14" width="4.5" height="6.5" rx="1.8"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M8 16L16.5 7.5M9.5 7.5h7v7"/></symbol>
     <!-- Assistente: invio del messaggio (freccia in su), impostazioni (ingranaggio) -->
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19.5v-15M5.5 11L12 4.5 18.5 11"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/><circle cx="12" cy="12" r="6.6"/></symbol>
@@ -237,6 +242,31 @@
         </span>
         <svg class="icon suggest-cta__go" aria-hidden="true" focusable="false"><use href="#i-arrow-right"></use></svg>
       </button>
+
+      <!-- Musica nel focus (P-004, passo 4.2; js/ui-music.js, specifica in docs/musica.md). Senza un servizio scelto,
+           l'avviso: tutta la riga sceglie il servizio, la × chiede quando ricordarlo. Con un servizio, il carosello degli
+           umori, che si riduce a una riga. Si vedono solo quando c'è la striscia qui sopra. -->
+      <div class="music-note" id="music-note" data-flip="music-note" hidden>
+        <button class="music-note__main" id="music-note-choose" type="button" aria-haspopup="dialog">
+          <span class="music-note__icon" aria-hidden="true">🎧</span>
+          <span class="music-note__text">
+            <span class="music-note__kicker">Musica mentre ti concentri?</span>
+            <span class="music-note__title">Scegli il tuo servizio</span>
+          </span>
+        </button>
+        <button class="icon-btn music-note__close" id="music-note-close" type="button" aria-haspopup="dialog" aria-label="Non ora: scegli quando ricordarmelo">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+        </button>
+      </div>
+
+      <section class="music" id="music" aria-labelledby="music-title" data-flip="music" hidden>
+        <div class="music__head">
+          <h2 class="section__title music__title" id="music-title">Musica per concentrarti</h2>
+          <button class="music__fold" id="music-fold" type="button" aria-expanded="true" aria-controls="music-list">Nascondi</button>
+        </div>
+        <!-- Le card degli umori: le scrive js/ui-music.js con textContent. Ogni card è un link normale, senza dati di Aura -->
+        <ul class="music__list" id="music-list" data-flip="music-list"></ul>
+      </section>
 
       <div id="sections"></div>
 
@@ -830,6 +860,40 @@
           </div>
         </div>
 
+        <!-- Musica nel focus (js/ui-music.js): il servizio si sceglie qui, come il tema. La riga dice quello di adesso -->
+        <div class="settings settings--music" id="setting-music" role="radiogroup" aria-labelledby="setting-music-name" aria-describedby="setting-music-state">
+          <div class="setting setting--plain">
+            <svg class="icon setting__icon" aria-hidden="true" focusable="false"><use href="#i-music"></use></svg>
+            <span class="setting__text">
+              <span class="setting__name" id="setting-music-name">Musica</span>
+              <span class="setting__state" id="setting-music-state">Da scegliere: le playlist si aprono nell'app del servizio</span>
+            </span>
+          </div>
+          <div class="choice-options">
+            <label class="choice-option">
+              <input type="radio" name="music-service" value="spotify">
+              <span class="choice-option__name">Spotify</span>
+              <svg class="icon choice-option__check" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+            </label>
+            <label class="choice-option">
+              <input type="radio" name="music-service" value="apple">
+              <span class="choice-option__name">Apple Music</span>
+              <svg class="icon choice-option__check" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+            </label>
+            <label class="choice-option">
+              <input type="radio" name="music-service" value="amazon">
+              <span class="choice-option__name">Amazon Music</span>
+              <svg class="icon choice-option__check" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+            </label>
+            <label class="choice-option">
+              <input type="radio" name="music-service" value="none">
+              <span class="choice-option__name">Nessuno</span>
+              <svg class="icon choice-option__check" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+            </label>
+          </div>
+          <p class="setting-note">Aura apre solo il link della playlist, nell'app del servizio: non collega il tuo account e non manda niente di tuo.</p>
+        </div>
+
         <ul class="settings" aria-label="Dati">
           <li>
             <button class="setting" id="setting-backup" type="button" aria-haspopup="dialog">
@@ -931,6 +995,22 @@
   </dialog>
 
   <!-- Foglio "Promemoria e Siri": usa il server di Aura (cartella server/) e funziona nell'app pubblicata (https) -->
+  <!-- «Quando te lo ricordo?»: lo apre la × dell'avviso della musica in Focus (js/ui-music.js) -->
+  <dialog class="sheet sheet--small" id="music-later-sheet" aria-labelledby="music-later-title">
+    <div class="sheet__panel">
+      <header class="sheet__header">
+        <h2 class="sheet__title" id="music-later-title" tabindex="-1">Quando te lo ricordo?</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Chiudi">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+      <div class="sheet__body">
+        <p class="sheet-intro">La musica per concentrarti si sceglie quando vuoi, nelle Impostazioni, riga «Musica».</p>
+        <ul class="settings later-list" id="music-later-list" aria-labelledby="music-later-title"></ul>
+      </div>
+    </div>
+  </dialog>
+
   <dialog class="sheet sheet--small" id="remote-sheet" aria-labelledby="remote-sheet-title">
     <div class="sheet__panel">
       <header class="sheet__header">
@@ -1342,6 +1422,12 @@
         </div>
         <span class="aurora__bloom" id="aurora-bloom"></span>
       </div>
+
+      <!-- Musica (P-004, passo 4.2): apre la playlist dell'ultimo umore scelto nell'app del servizio. Solo con un servizio
+           scelto (js/ui-music.js). Il focus continua a contare: il tempo viene dagli istanti di inizio e di pausa -->
+      <a class="focus__music" id="focus-music" href="#" target="_blank" rel="noopener noreferrer" hidden>
+        <span aria-hidden="true">🎧</span>
+      </a>
 
       <header class="focus__head">
         <p class="focus__label">

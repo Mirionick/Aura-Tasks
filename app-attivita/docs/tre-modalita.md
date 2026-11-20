@@ -21,6 +21,7 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.3: Motivazione con livello, «La tua settimana» e «I tuoi numeri» | fatto con la v17; da provare sull'iPhone (vedi "P-003, passo 3.3") |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.4: «I tuoi premi» | fatto con la v18; da provare sull'iPhone (vedi "P-003, passo 3.4") |
 | — | [P-004](../../docs/proposte/P-004.md), passo 4.1: negozio | fatto con la v19; da provare sull'iPhone (vedi "P-004, passo 4.1") |
+| — | [P-004](../../docs/proposte/P-004.md), passo 4.2: musica nel focus, senza account | fatto con la v20; da provare sull'iPhone (vedi "P-004, passo 4.2" e [musica.md](musica.md)) |
 
 ### Fase 1: animazioni più fluide
 - **Token**: durate (`--dur-*`) e curve (`--ease-*`) stanno solo in `:root`. Il JavaScript le legge con `Aura.motion` (`js/motion.js`): nessuna durata scritta a mano.
@@ -300,6 +301,47 @@ Cosa è cambiato:
 
 Controllati e lasciati come erano: cifre tabellari su saldo, prezzi e «Ripara · 150 ★»; icone centrate (fiamma e freccia entro mezzo pixel); niente `transition: all` né `will-change: all`.
 
+### P-004, passo 4.2: musica senza account
+In Focus, sotto «Cosa faccio adesso?», l'avviso «Musica mentre ti concentri?» oppure il carosello «Musica per concentrarti»; nelle Impostazioni la riga «Musica»; nel focus a tutto schermo il pulsante «🎧». È il passo 4.2 di [P-004](../../docs/proposte/P-004.md) e le regole stanno in [musica.md](musica.md). L'ha scritto Claude Project, come prevede la tabella «Ordine» della proposta.
+
+Una lettura da segnalare: la proposta dice «una riga … con «Scegli» e ×». Qui «Scegli» è tutta la riga, con il titolo «Scegli il tuo servizio», come la striscia «Cosa faccio adesso?», perché un pulsante in più a 320 px tagliava il testo. Il comportamento è quello della proposta.
+
+#### Risultati del passo 4.2 (20 novembre 2026)
+Fotogrammi persi, mediana di 10 prove, contesto «iPhone 13» in Chromium 153 headless, tema chiaro, con le attività di prova. «main» è la versione pubblicata (v18); «avviso» e «carosello» sono la v20, senza un servizio scelto e con Spotify. WebKit non è stato eseguito: in questo ambiente non c'è.
+
+| Gesto | CPU 4 volte più lenta: main · avviso · carosello | Piena velocità: main · avviso · carosello |
+|---|---|---|
+| completare la prima attività in Focus | 7,5 · 7 · 9 | 0 · 0 · 0 |
+| passare ad Agenda e tornare a Focus | 7 · 7 · 9 | 1 · 1 · 0 |
+| aprire le Impostazioni | 3 · 3,5 · 4 | 0 · 1 · 1 |
+| la × dell'avviso, che apre «Quando te lo ricordo?» | — · 2 · — | — · 0 · — |
+| «Tra 3 giorni»: l'avviso esce e le card salgono | — · 2,5 · — | — · 0 · — |
+| «Nascondi», poi «Mostra» | — · — · 1 e 1 | — · — · 0 e 0 |
+
+- In questa serie il carosello, con la CPU rallentata, perdeva 1,5 o 2 fotogrammi in più completando e cambiando scheda. Per cercarne la causa, una seconda serie, con 12 prove alternate per variante (completare, poi cambiare scheda): main 7 e 7; carosello 6 e 6,5; senza emoji 8 e 6; con la lista che non scorre 7 e 6; con `contain` sul carosello 8 e 7; senza card 8 e 6; ridotto 6 e 6. In questa seconda serie nessuna variante si stacca da main. Una terza serie, di 20 prove alternate: main 6 e 5, avviso 6 e 7, carosello 8 e 7. La traccia di Chromium spiega da dove viene la differenza, quando c'è: dopo una spunta il numero dei punti conta per 600 ms, e a ogni fotogramma la pagina si ricalcola tutta. Il carosello aperto aggiunge circa 75 elementi da ricalcolare (510 invece di 435), quindi ogni fotogramma costa un po' di più: con la CPU rallentata il calcolo della pagina passa da 0,76 a 0,93 ms a fotogramma, e il lavoro del thread principale in tutto il gesto da 544 a 580 ms (mediana di 5 tracce). Con il carosello ridotto non cambia niente (546 ms); senza le emoji costa come con le emoji. Con la CPU rallentata vale da 0 a 2 fotogrammi persi in più, secondo la serie; a piena velocità meno di 0,2 ms a fotogramma. Un miglioramento possibile, fuori da questo passo: far contare i punti senza ricalcolare tutta la pagina a ogni fotogramma.
+- A piena velocità nessun gesto perde più di un fotogramma, con le tre versioni. La prova vera è quella sull'iPhone.
+- Prove di funzionamento, con Playwright 1.63 e l'orologio finto, a 390×664 nei due temi, da 320 a 1440 px, con «Riduci movimento» e aprendo `index.html` da file (134 controlli, tutti superati; nessun errore nella console né messaggi della CSP; nessuno scorrimento di lato):
+  - l'avviso alla prima apertura, solo con la striscia: niente senza attività, in Agenda, in Motivazione e nel focus a tutto schermo;
+  - «Quando te lo ricordo?» con le quattro date giuste e il focus sul titolo; Esc chiude senza cambiare niente e il focus torna sulla ×; «Tra una settimana» con l'avviso in basso, «Annulla» e il focus sulla striscia; «Annulla» rimette l'avviso; il rimando resta dopo una ricarica; l'avviso torna il giorno del rimando e dopo, non prima, e mai con «Non ricordarmelo più»;
+  - la riga dell'avviso apre le Impostazioni sulla riga «Musica», in vista, con il focus sulla prima scelta; frecce e tocchi cambiano servizio e frase; il carosello ha le cinque playlist giuste per ognuno dei tre servizi, https e senza parametri, con il nome e `rel`; «Nessuno» toglie avviso, carosello e «🎧», anche dopo una ricarica;
+  - «Nascondi» e «Mostra» con `aria-expanded`, la scelta che resta dopo una ricarica e il focus sul pulsante; la card Jazz apre la sua playlist in un'altra scheda e «🎧» la ricorda («Musica: Jazz nell'app Spotify»), con 44 px e senza coprire il titolo;
+  - tastiera: dopo la striscia la riga e poi la ×; nel carosello «Nascondi» e le cinque card in ordine; ogni anello del focus intero e ogni card dentro lo schermo;
+  - nove larghezze (320, 375, 390, 402, 414, 430, 768, 1024 e 1440 px), con l'avviso e con i tre servizi: aree di tocco di almeno 44 px, testi interi, contrasto dei testi di almeno 4,73 a 1 nel tema chiaro e 4,8 nello scuro;
+  - con «Riduci movimento» niente si muove; da `file://` tutto funziona; il file del backup non contiene la musica, che resta nelle preferenze; CSP uguale a main.
+- Intestazione di Focus a 390×664: 188 px in tutti i casi, come main. Card intere sopra la barra: 3, come main, con l'avviso, con il carosello ridotto e con «Nessuno»; 2 con il carosello aperto.
+- Prima di aprire la PR, ripasso con le liste delle tre skill del PO: **browser-qa**, **accessibility** e **make-interfaces-feel-better**. axe-core 4.10.2 (WCAG 2.0, 2.1 e 2.2, A e AA, e best practice) non trova violazioni su Focus con l'avviso, «Quando te lo ricordo?», Impostazioni prima e dopo la scelta, carosello aperto e ridotto, focus a tutto schermo con «🎧», nei due temi.
+
+Cosa è cambiato durante il ripasso:
+
+| Regola | Prima | Dopo |
+|---|---|---|
+| Titolo del carosello a 320 px | «Musica per concentrarti» si tagliava | va su due righe, dentro i 44 px della riga |
+| «Amazon Music» nella card | si tagliava, accanto alla freccia del link | la freccia sta in alto a destra nella card e il nome è intero |
+| La fila che continua | a 414 px non si vedeva che la fila continua e si può scorrere | le card si adattano allo schermo (da 120 a 160 px): due intere e metà della terza a ogni larghezza |
+| Oltre 640 px | le card si tagliavano a metà pagina | cinque in fila, larghe quanto la lista delle attività |
+| Anello del focus delle card | tagliato di 2 px in alto dalla lista che scorre | la lista ha 4 px sopra e sotto |
+| Tastiera nel carosello | la terza card, col focus, restava a metà fuori dallo schermo | la card col focus scorre tutta dentro lo schermo |
+
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.
   - Ogni scheda ha icona e testo; aree di tocco ≥ 44 px; margine sotto con `env(safe-area-inset-bottom)`.
@@ -318,6 +360,7 @@ Controllati e lasciati come erano: cifre tabellari su saldo, prezzi e «Ripara �
 - **In cima**, «Cosa faccio adesso?». Poi **In ritardo**, **Oggi** (in ordine d'ora) e **Senza data**. In fondo, «Completate oggi», chiusa.
 - **Intestazione**, compatta (sotto i 220 px su iPhone 13): saluto, data e i riquadri "Da fare", "Tempo" e "Fatte oggi" in una riga sola, con etichetta e valore affiancati.
 - **Serie e punti** restano visibili in piccolo, in due chip nella riga del saluto (fiamma con i giorni, stella con i punti), con gli effetti di sempre. Un tocco porta a Motivazione.
+- **Musica** (P-004, passo 4.2; vedi [musica.md](musica.md)): sotto «Cosa faccio adesso?», senza un servizio scelto, l'avviso «Musica mentre ti concentri?», che si rimanda; con un servizio, il carosello «Musica per concentrarti», che si riduce a una riga. Solo quando c'è la striscia.
 - **Niente ▶ sulle card**: toglierebbe spazio al titolo. Il focus si avvia dal foglio «Modifica attività» o dalla proposta di «Cosa faccio adesso?».
 - Nelle card di oggi l'ora già passata è in rosso, come «Ieri».
 
@@ -355,6 +398,7 @@ Controllati e lasciati come erano: cifre tabellari su saldo, prezzi e «Ripara �
 - **Avvio**: "Inizia focus" dal foglio «Modifica attività» (solo per le attività da fare; prima salva le modifiche) oppure dalla proposta.
 - **Interfaccia**: foglio a tutto schermo con il titolo dell'attività, un anello SVG che fa il conto alla rovescia partendo dalla durata stimata e il tempo grande (mm:ss). Comandi: Pausa/Riprendi, +5 min, Completa, Esci.
 - **Una sessione per volta**. Se l'attività del focus viene completata o eliminata, la sessione si chiude e i suoi minuti restano.
+- **«🎧»** (P-004, passo 4.2): con un servizio scelto, in alto a destra, apre la playlist dell'ultimo umore (vedi [musica.md](musica.md)). Il tempo continua a contare nell'altra app.
 - **Uscita**: Esc, il gesto "indietro" ed "Esci" chiudono la sessione. L'avviso "Focus terminato · 12 min" ha "Annulla", che la riapre com'era e toglie i minuti.
 - **Sfondo: l'aurora** (da [P-003](../../docs/proposte/P-003.md), passo 3.1; prima erano due bagliori che respiravano): quattro fasce di luce (verde acqua, ciano, rosa, lilla) che scorrono piano, ognuna con la sua durata (da 13 a 29 secondi), e due livelli di stelline che brillano. Si muovono solo con `transform` e `opacity`.
   - **Sale con il tempo**: all'inizio sta in basso (16% dello schermo), alla fine riempie lo schermo. Lo spostamento lo calcola `Aura.focus.auroraRise()` e si aggiorna una volta al secondo, insieme all'anello, a passi che a occhio non si vedono. Con «+5 min» scende un poco.
@@ -506,9 +550,10 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - `sanitizeStats()` aggiunge `focus: {}` e scarta giorni non validi e minuti non interi o fuori da 1–1440 (`Aura.focus.sanitizeMinutes`).
   - `emptyStats()` parte con `focus: {}`, quindi anche `rebuildStats()`.
   - I backup della v1, v2 e v3 si importano ancora: passano dalle stesse migrazioni.
-- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy }, agendaView, weeklyGoal }`. `lastBackupAt` arriverà con l'invito al backup.
+- **Preferenze**: `aura-tasks:prefs = { lastTab, lastTabAt, suggest: { minutes, energy }, agendaView, weeklyGoal, music }`. `lastBackupAt` arriverà con l'invito al backup.
   - `agendaView` (P-003, passo 3.2): `'month'` o `'week'`, la vista del calendario dell'Agenda; un valore diverso torna `'month'`.
   - `weeklyGoal` (P-003, passo 3.3): l'obiettivo della settimana, 5, 10, 15, 20, 30 o 50 attività, oppure `null` (all'inizio); un valore diverso torna `null`.
+  - `music` (P-004, passo 4.2): `{ service, remind, mood, folded }`, il servizio scelto, il rimando dell'avviso, l'ultimo umore e il carosello ridotto (vedi [musica.md](musica.md), «Dati»).
   - È senza versione, come `aura-tasks:remote`, e fuori dal backup, come il tema.
   - La scrive e la legge solo `js/storage.js` (`loadPrefs()` e `savePrefs()`). `sanitizePrefs()` pulisce i valori e conserva i campi sconosciuti.
   - `suggest.minutes` è una delle scelte del foglio; `null` vuol dire «120+».

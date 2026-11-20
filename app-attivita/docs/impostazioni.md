@@ -17,6 +17,7 @@ Un indice a gruppi. Ogni riga ha icona, nome, **stato di adesso** e freccia, e a
 | Promemoria | «Attivi · 10 minuti prima» (l'anticipo scelto), «Spenti», oppure perché non si possono attivare: «Spenti · serve Aura sulla schermata Home», «Non supportati da questo browser», «Spenti · notifiche bloccate» | foglio «Promemoria e Siri», dall'inizio |
 | Comando Rapido di Siri | «Codice creato» oppure «Da configurare» | foglio «Promemoria e Siri», dal riquadro del Comando Rapido |
 | Tema | il tema scelto e che cosa fa: «Automatico: segue le impostazioni del telefono», «Chiaro: luminoso, ideale di giorno», «Scuro: riposante per gli occhi, perfetto la sera» | nessun foglio: le tre scelte sono nella riga |
+| Musica (P-004, passo 4.2) | il servizio scelto e dove si aprono le playlist: «Spotify: le playlist si aprono nell'app Spotify», «Nessuno: niente musica in Focus», all'inizio «Da scegliere: le playlist si aprono nell'app del servizio» | nessun foglio: le quattro scelte (Spotify, Apple Music, Amazon Music, Nessuno) sono nella riga |
 | Backup dei dati | quante attività e quanti punti ci sono, e quanti premi e acquisti del negozio se ce ne sono: «12 attività · 340 punti · 3 premi · 2 acquisti» | foglio «Backup dei dati» |
 | Privacy | in breve, che cosa va al server: «I dati restano solo su questo dispositivo», «Al server: solo promemoria e frasi di Siri», «Al server: promemoria, Siri e messaggi all'assistente» | foglio «Privacy» |
 
@@ -34,6 +35,14 @@ Un indice a gruppi. Ogni riga ha icona, nome, **stato di adesso** e freccia, e a
 - Toccandone una il tema cambia subito (`Aura.theme.setMode`) e il foglio resta aperto. La riga dice il nuovo tema, e la sua icona lo segue.
 - Per la tastiera e i lettori di schermo è un gruppo di scelte (`role="radiogroup"`) che si chiama «Tema» e ha come descrizione lo stato della riga.
 - Il foglio «Tema» e il suo pulsante non ci sono più: la scelta ha cambiato posto, non è sparita (regola 2 di [AGENTS.md](../../AGENTS.md)). Il tema resta in `aura-tasks:theme`, fuori dal backup.
+
+## Musica
+Passo 4.2 di [P-004](../../docs/proposte/P-004.md); la specifica intera è in [musica.md](musica.md).
+- Dopo «Tema», quattro scelte in due colonne: Spotify, Apple Music, Amazon Music e Nessuno. Quella di adesso ha il bordo dell'accento e la spunta; toccandone una vale subito e il foglio resta aperto.
+- Sotto, la nota: «Aura apre solo il link della playlist, nell'app del servizio: non collega il tuo account e non manda niente di tuo.»
+- Per la tastiera e i lettori di schermo è un gruppo di scelte (`role="radiogroup"`) che si chiama «Musica» e ha come descrizione lo stato della riga.
+- L'avviso della musica in Focus apre le Impostazioni proprio qui, con il focus sulla scelta di adesso (o sulla prima): `open({ part, focus })`, che `Aura.settingsUI.init()` restituisce insieme a `sync()`. La rotella lo chiama senza niente e il foglio parte dall'inizio, con il focus sul titolo.
+- La scelta resta in `aura-tasks:prefs` (`music`), fuori dal backup.
 
 ## Foglio «Privacy»
 In un posto solo, ciò che prima era scritto qua e là.
@@ -86,4 +95,5 @@ In un posto solo, ciò che prima era scritto qua e là.
   1. la rotella sotto la barra di stato, nell'app installata;
   2. un foglio aperto sopra l'altro (Impostazioni, poi Promemoria e Siri), e la chiusura con la X o toccando lo sfondo;
   3. il cambio tema dalle Impostazioni;
-  4. «Scollega» dalle Impostazioni: l'avviso con «Annulla» si vede e funziona.
+  4. «Scollega» dalle Impostazioni: l'avviso con «Annulla» si vede e funziona;
+  5. la riga «Musica» (passo 4.2 di P-004): le quattro scelte, e l'avviso di Focus che apre il foglio proprio lì.

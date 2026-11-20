@@ -18,7 +18,7 @@
 
   const { utils, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
     motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
-    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI } = Aura;
+    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -173,6 +173,7 @@
   let motivationCtl = null; // livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), pronti all'avvio
   let rewardsCtl = null;    // «I tuoi premi» e il foglio del premio (js/ui-rewards.js), pronti all'avvio
   let shopCtl = null;       // «Negozio»: la card e il foglio (js/ui-shop.js), pronti all'avvio
+  let musicCtl = null;      // musica nel focus: avviso o carosello, riga «Musica», «🎧» (js/ui-music.js), pronti all'avvio
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -313,6 +314,8 @@
     if (assistantCtl) assistantCtl.renderStrip({ focusCount: focusSections.length });
     else els.suggestButton.hidden = focusSections.length === 0;
     syncHeroCta();
+    // Sotto la striscia, l'avviso o il carosello della musica (js/ui-music.js): solo quando la striscia si vede
+    if (musicCtl) musicCtl.render(!els.suggestButton.hidden);
     renderSections(els.sections, focusSections, now);
     renderCompletedToday(T.completedOn(state.tasks, today), now);
     renderEmpty(focusSections.length === 0, completed.length, agendaCount, today);
@@ -2348,6 +2351,18 @@
     openRemote: openRemoteSheet,
     openBackup: openBackupSheet,
     disconnect: disconnectDevice
+  });
+  // La musica nel focus, senza account: l'avviso o il carosello in Focus, il foglio «Quando te lo ricordo?», la riga
+  // «Musica» nelle Impostazioni e «🎧» nel focus a tutto schermo. Tutto nelle preferenze (prefs.music), fuori dal backup.
+  musicCtl = MusicUI.init({
+    getPrefs: () => prefs,
+    setPrefs,
+    openSheet,
+    closeSheet,
+    setupSheet,
+    setAutofocus,
+    showToast,
+    openSettings: options => settingsCtl.open(options)
   });
 
   // L'Agenda a calendario: legge la vista salvata (mese o settimana) e scrive la scheda a ogni render().
