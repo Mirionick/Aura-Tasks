@@ -61,17 +61,13 @@
   --tint-agenda-2: rgba(124, 140, 255, .48);
   --tint-motivation-1: rgba(255, 210, 63, .36);
   --tint-motivation-2: rgba(255, 112, 190, .46);
-  /* Aurora del focus a tutto schermo: uguale nei due temi, perché il fondo del focus è sempre viola */
-  --aurora-1: rgba(82, 211, 168, .7);
-  --aurora-2: rgba(56, 214, 255, .62);
-  --aurora-3: rgba(255, 112, 190, .56);
-  --aurora-4: rgba(195, 181, 255, .56);
-  --aurora-deep: rgba(106, 76, 245, .28);
+  /* Aurora del focus a tutto schermo: uguale nei due temi, perché il fondo del focus è sempre viola. I suoi colori
+     (--aurora-1…4, --aurora-deep) stanno più sotto, con quelli del negozio (P-004) */
   --aurora-star: rgba(255, 255, 255, .9);
   --aurora-bloom: rgba(255, 245, 214, .6);
   --aurora-bloom-2: rgba(255, 210, 63, .2);
   --hero-text: #ffffff;
-  --hero-text-2: rgba(255, 255, 255, .86);
+  --hero-text-2: rgba(255, 255, 255, .92); /* almeno 4,5:1 anche sul punto più chiaro del bagliore (era .86: 4,4:1 in Agenda) */
   --glass: rgba(22, 10, 70, .2);
   --glass-border: rgba(255, 255, 255, .18);
   --glass-hover: rgba(255, 255, 255, .14);
@@ -114,6 +110,7 @@
   --shadow-card: 0 1px 2px rgba(23, 21, 43, .05), 0 2px 8px rgba(40, 30, 110, .05);
   --shadow-card-hover: 0 2px 4px rgba(23, 21, 43, .06), 0 8px 22px rgba(40, 30, 110, .09);
   --shadow-sheet: 0 -12px 40px rgba(23, 21, 43, .16);
+  --preview-edge: rgba(0, 0, 0, .1); /* contorno delle anteprime dei colori: neutro, così il bordo non si perde */
   --shadow-dialog: 0 24px 64px rgba(23, 21, 43, .22);
   --shadow-fab: 0 10px 26px rgba(90, 62, 230, .38), 0 3px 8px rgba(90, 62, 230, .22);
   --shadow-toast: 0 10px 30px rgba(23, 21, 43, .28);
@@ -130,6 +127,14 @@
   --switch-off: #87829f;
   --switch-knob: #ffffff;
   --shadow-switch-knob: 0 1px 3px rgba(0, 0, 0, .25);
+
+  /* Card degli umori in «Musica per concentrarti» (P-004, passo 4.2): fondo tenue e inchiostro del nome del servizio,
+     almeno 4,5:1 sul suo fondo */
+  --mood-lofi: #eeeafe;    --mood-lofi-ink: #5a3ee6;
+  --mood-piano: #e4edfd;   --mood-piano-ink: #2557b8;
+  --mood-ambient: #ddf2f4; --mood-ambient-ink: #0b6770;
+  --mood-jazz: #fcefd6;    --mood-jazz-ink: #8a4d00;
+  --mood-nature: #e0f4ec;  --mood-nature-ink: #08704f;
 
   /* Anteprime nella riga «Tema» delle Impostazioni: rappresentano i due temi, quindi sono uguali in entrambi */
   --preview-light-bg: #f4f3fa;
@@ -248,6 +253,7 @@
   --shadow-card: none;
   --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, .06);
   --shadow-sheet: 0 -12px 40px rgba(0, 0, 0, .5);
+  --preview-edge: rgba(255, 255, 255, .1); /* nel buio la parte alta delle anteprime ha quasi il colore della superficie */
   --shadow-dialog: 0 24px 64px rgba(0, 0, 0, .6);
   --shadow-fab: 0 10px 28px rgba(112, 88, 246, .32), inset 0 1px 0 rgba(255, 255, 255, .14);
   --shadow-toast: 0 10px 30px rgba(0, 0, 0, .5);
@@ -262,6 +268,76 @@
   --switch-off: #75709a; /* su #211f30: 3,4:1 */
   --switch-knob: #ffffff;
   --shadow-switch-knob: 0 1px 3px rgba(0, 0, 0, .4);
+
+  --mood-lofi: rgba(124, 102, 255, .17);  --mood-lofi-ink: #b4a6ff;
+  --mood-piano: rgba(96, 150, 255, .16);  --mood-piano-ink: #9dbdff;
+  --mood-ambient: rgba(64, 200, 210, .14); --mood-ambient-ink: #74d7df;
+  --mood-jazz: rgba(246, 194, 95, .13);   --mood-jazz-ink: #f6c25f;
+  --mood-nature: rgba(82, 211, 168, .13); --mood-nature-ink: #5fd8ae;
+}
+
+/* Colori dell'aurora (P-004, passo 4.1), comprati nel negozio. Il colore in uso va come data-aurora sui due elementi che
+   lo usano (js/app.js, applyLook): l'aurora del focus a tutto schermo (.focus__aura), uguale nei due temi perché il suo
+   fondo è sempre viola, e il bagliore della scheda Focus (.hero__tint--focus, con --hero-glow-* che cambia con il tema).
+   Non su <html>, perché lì un cambio ricalcolerebbe lo stile di tutta la pagina. Agenda e Motivazione tengono i loro
+   colori. Le stesse regole colorano le anteprime del negozio, che hanno il loro data-aurora. «aurora» è quello di
+   partenza e deve restare la prima regola. */
+:root,
+[data-aurora="aurora"] {
+  --aurora-1: rgba(82, 211, 168, .7);
+  --aurora-2: rgba(56, 214, 255, .62);
+  --aurora-3: rgba(255, 112, 190, .56);
+  --aurora-4: rgba(195, 181, 255, .56);
+  --aurora-deep: rgba(106, 76, 245, .28);
+}
+/* Tramonto: arancio e rosa */
+[data-aurora="sunset"] {
+  --aurora-1: rgba(255, 159, 67, .7);
+  --aurora-2: rgba(255, 99, 146, .62);
+  --aurora-3: rgba(255, 206, 84, .5);
+  --aurora-4: rgba(255, 170, 205, .55);
+  --aurora-deep: rgba(176, 48, 120, .28);
+}
+/* Foresta: verde e acqua */
+[data-aurora="forest"] {
+  --aurora-1: rgba(74, 222, 128, .68);
+  --aurora-2: rgba(45, 212, 191, .62);
+  --aurora-3: rgba(163, 230, 53, .48);
+  --aurora-4: rgba(167, 243, 208, .5);
+  --aurora-deep: rgba(15, 118, 110, .3);
+}
+/* Oceano: blu e turchese */
+[data-aurora="ocean"] {
+  --aurora-1: rgba(34, 211, 238, .68);
+  --aurora-2: rgba(59, 130, 246, .62);
+  --aurora-3: rgba(14, 165, 233, .55);
+  --aurora-4: rgba(165, 243, 252, .5);
+  --aurora-deep: rgba(30, 58, 138, .32);
+}
+/* Notte polare: viola e indaco */
+[data-aurora="night"] {
+  --aurora-1: rgba(167, 139, 250, .7);
+  --aurora-2: rgba(129, 140, 248, .62);
+  --aurora-3: rgba(232, 121, 249, .45);
+  --aurora-4: rgba(224, 231, 255, .5);
+  --aurora-deep: rgba(49, 46, 129, .36);
+}
+/* Il bagliore della scheda Focus, nei due temi (il testo bianco dell'intestazione resta ≥ 4,5:1) */
+.hero__tint--focus[data-aurora="sunset"] { --hero-glow-1: rgba(255, 159, 67, .38); --hero-glow-2: rgba(255, 99, 146, .42); }
+.hero__tint--focus[data-aurora="forest"] { --hero-glow-1: rgba(45, 212, 191, .38); --hero-glow-2: rgba(132, 204, 22, .36); }
+.hero__tint--focus[data-aurora="ocean"] { --hero-glow-1: rgba(34, 211, 238, .38); --hero-glow-2: rgba(59, 130, 246, .44); }
+.hero__tint--focus[data-aurora="night"] { --hero-glow-1: rgba(167, 139, 250, .4); --hero-glow-2: rgba(99, 102, 241, .46); }
+:root[data-theme="dark"] .hero__tint--focus[data-aurora="sunset"] { --hero-glow-1: rgba(255, 159, 67, .2); --hero-glow-2: rgba(255, 99, 146, .26); }
+:root[data-theme="dark"] .hero__tint--focus[data-aurora="forest"] { --hero-glow-1: rgba(45, 212, 191, .2); --hero-glow-2: rgba(132, 204, 22, .2); }
+:root[data-theme="dark"] .hero__tint--focus[data-aurora="ocean"] { --hero-glow-1: rgba(34, 211, 238, .2); --hero-glow-2: rgba(59, 130, 246, .28); }
+:root[data-theme="dark"] .hero__tint--focus[data-aurora="night"] { --hero-glow-1: rgba(167, 139, 250, .22); --hero-glow-2: rgba(99, 102, 241, .3); }
+
+/* Colori dei coriandoli del negozio (P-004, passo 4.1): uguali nei due temi, come quelli di sempre */
+:root {
+  --shape-stars-1: #ffcc33; --shape-stars-2: #f5b301; --shape-stars-3: #ff9f1c; --shape-stars-4: #ffe27a;
+  --shape-hearts-1: #ff4d8d; --shape-hearts-2: #e11d48; --shape-hearts-3: #ff8fb3; --shape-hearts-4: #fb7185; --shape-hearts-5: #c026d3;
+  --shape-leaves-1: #22c55e; --shape-leaves-2: #65a30d; --shape-leaves-3: #f59e0b; --shape-leaves-4: #ea580c; --shape-leaves-5: #84cc16;
+  --shape-snow-1: #7cc4ff; --shape-snow-2: #b9e2ff; --shape-snow-3: #5aa9f0; --shape-snow-4: #dbeafe; --shape-snow-5: #93c5fd;
 }
 
 /* ---------- 2. Base ---------- */
@@ -295,6 +371,11 @@ body {
 
 h1, h2, p { margin: 0; }
 
+/* Testi a capo: i titoli su righe di lunghezza simile, i testi senza una parola sola sull'ultima riga. I testi che devono
+   stare su una riga (white-space: nowrap) hanno regole con una classe, che vincono su queste. */
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+
 button, input { font: inherit; color: inherit; }
 
 button {
@@ -306,6 +387,13 @@ button {
 
 :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 [tabindex="-1"]:focus { outline: none; }
+/* Un riquadro che scorre (il testo della Privacy): il contorno sta dentro, perché il foglio taglia quello che sporge */
+.sheet__body[tabindex="0"]:focus-visible { outline-offset: -2px; }
+/* Con la tastiera il browser porta in vista l'elemento con il focus: questo margine lo tiene sopra «+ Nuova attività» e la
+   barra delle schede, fisse in basso (WCAG 2.4.11), e sotto la barra di stato in alto */
+.content :is(a[href], button, input, select, textarea, summary, [tabindex="0"]) {
+  scroll-margin: calc(12px + env(safe-area-inset-top, 0px)) 0 calc(var(--tabbar-h) + 84px + env(safe-area-inset-bottom, 0px));
+}
 
 .sr-only {
   position: absolute !important;
@@ -748,6 +836,146 @@ button {
   .suggest-cta:hover { border-color: var(--border-strong); }
 }
 
+/* Musica nel focus (P-004, passo 4.2; js/ui-music.js). Sotto la striscia, prima delle sezioni.
+   L'avviso è una riga sola, alta come la striscia (48 px): tutta la riga sceglie il servizio, la × chiede quando
+   ricordarlo. Il carosello aperto sta in 150 px; ridotto è una riga sola. */
+.music-note {
+  display: flex;
+  align-items: center;
+  margin: 0 0 14px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.music-note__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 46px;
+  padding: 5px 4px 5px 5px;
+  border: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.music-note__main:active { transform: scale(.985); }
+.music-note__main:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
+.music-note__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  font-size: 19px;
+  line-height: 1;
+}
+.music-note__text { display: grid; flex: 1; min-width: 0; }
+.music-note__kicker,
+.music-note__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-note__kicker { font-size: 12.5px; font-weight: 700; line-height: 15px; color: var(--accent-text); }
+.music-note__title { font-size: 15px; font-weight: 800; line-height: 19px; letter-spacing: -.01em; }
+.music-note__close { margin-right: 2px; color: var(--text-3); }
+
+.music { margin: 0 0 20px; }
+.music__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--tap);
+  margin: -6px 0 2px;
+  padding: 0 0 0 4px;
+}
+.music__title { min-width: 0; text-wrap: balance; } /* a 320 px va su due righe, sempre dentro i 44 px della riga */
+.music__fold {
+  flex: none;
+  min-height: var(--tap);
+  margin-right: -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--accent-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+.music__fold:active { background: var(--hover); }
+/* Ridotto: solo il titolo e «Mostra», in una riga dentro un riquadro leggero */
+.music.is-folded { margin-bottom: 14px; }
+.music.is-folded .music__head {
+  margin: 0;
+  padding: 0 12px 0 14px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.music.is-folded .music__fold { margin-right: -6px; }
+
+/* Le card scorrono di lato fino al bordo dello schermo; la prima resta allineata alla lista. 4 px sopra e sotto per
+   l'anello del focus, che la lista che scorre altrimenti taglierebbe. */
+.music__list {
+  display: flex;
+  gap: 10px;
+  margin: 0 calc(-1 * max(var(--gutter), env(safe-area-inset-right, 0px))) 0 calc(-1 * max(var(--gutter), env(safe-area-inset-left, 0px)));
+  padding: 4px max(var(--gutter), env(safe-area-inset-right, 0px)) 4px max(var(--gutter), env(safe-area-inset-left, 0px));
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding: 0 max(var(--gutter), env(safe-area-inset-left, 0px));
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  list-style: none;
+}
+.music__list::-webkit-scrollbar { display: none; }
+.music__list > li { flex: none; scroll-snap-align: start; }
+/* Una card: l'emoji e la freccia del link in alto, poi l'umore e il servizio */
+.mood {
+  --mood-bg: var(--mood-lofi);
+  --mood-ink: var(--mood-lofi-ink);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 1fr auto;
+  align-items: end;
+  width: clamp(120px, calc((100vw - 36px) / 2.55), 160px); /* due card intere e metà della terza, a ogni larghezza */
+  height: 92px;
+  padding: 10px 12px 9px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--mood-bg);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.mood:active { transform: scale(.97); }
+.mood:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.mood[data-mood="piano"] { --mood-bg: var(--mood-piano); --mood-ink: var(--mood-piano-ink); }
+.mood[data-mood="ambient"] { --mood-bg: var(--mood-ambient); --mood-ink: var(--mood-ambient-ink); }
+.mood[data-mood="jazz"] { --mood-bg: var(--mood-jazz); --mood-ink: var(--mood-jazz-ink); }
+.mood[data-mood="nature"] { --mood-bg: var(--mood-nature); --mood-ink: var(--mood-nature-ink); }
+.mood__emoji { align-self: start; font-size: 24px; line-height: 1; }
+.mood > .icon { align-self: start; width: 14px; height: 14px; color: var(--mood-ink); stroke-width: 2.4; }
+.mood__name,
+.mood__app { grid-column: 1 / -1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mood__name { font-size: 16px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+.mood__app { color: var(--mood-ink); font-size: 12.5px; font-weight: 700; line-height: 16px; }
+/* Oltre 640 px la lista non arriva più ai bordi dello schermo: le cinque card stanno tutte in fila, larghe uguali */
+@media (min-width: 641px) {
+  .music__list { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 4px 0; overflow: visible; }
+  .mood { width: auto; padding-inline: 10px; }
+}
+@media (hover: hover) {
+  .music-note__main:hover .music-note__title { color: var(--accent-text); }
+  .music__fold:hover { background: var(--hover); }
+  .mood:hover { border-color: var(--border-strong); }
+}
+
 .section + .section { margin-top: 24px; }
 
 .section__header {
@@ -899,6 +1127,7 @@ button {
   font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  text-wrap: balance; /* un titolo su due righe: righe simili, non una parola sola sotto */
   transition: color var(--dur-color) var(--ease-out);
 }
 
@@ -916,6 +1145,7 @@ button {
 .meta .icon { width: 15px; height: 15px; }
 .meta--overdue { color: var(--danger); font-weight: 600; }
 .meta--at { color: var(--accent-text); font-weight: 700; }
+.meta--repeat { color: var(--accent-text); } /* ↻ accanto all'ora: si ripete (P-005); la regola la legge il lettore di schermo */
 .meta--at.meta--overdue { color: var(--danger); } /* oggi, con l'ora già passata: rossa come «Ieri» */
 
 .pill {
@@ -1020,6 +1250,7 @@ button {
   font: inherit;
   font-size: 14px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
   transition: background-color var(--dur-color) var(--ease-out);
@@ -1151,7 +1382,7 @@ button {
 .prize__title { font-size: 16px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
 .prize__bar { display: block; height: 6px; overflow: hidden; border-radius: 999px; background: var(--field-bg); }
 .prize__fill { display: block; height: 100%; border-radius: inherit; background: var(--star); transform-origin: left center; }
-.prize__status { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; }
+.prize__status { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; text-wrap: pretty; }
 .prize.is-ready .prize__status { color: var(--low); }
 /* «Riscatta»: pieno con il saldo che basta; altrimenti grigio, ma toccabile (aria-disabled): un tocco dice quanto manca */
 .prize__redeem {
@@ -1221,6 +1452,185 @@ button {
   .prize__open { gap: 10px; }
   .prize__emoji { width: 40px; height: 40px; border-radius: 12px; font-size: 22px; }
   .prize__redeem { min-width: 0; padding: 0 12px; }
+}
+
+/* «Negozio» (P-004, passo 4.1): la card in Motivazione e il foglio. La pillola del saldo è quella dei premi. */
+.shop .block__head { flex-wrap: wrap; row-gap: 6px; }
+/* «Ripara la serie»: con una riparazione possibile un riquadro caldo con la fiamma accesa e, sotto, «Ripara» largo
+   quanto il riquadro; nel foglio, altrimenti, la fiamma spenta e il testo che spiega quando si usa */
+.shop-repair {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border-radius: 20px; /* concentrico con l'icona e «Ripara» (12 + 10 di spazio ≈ 22), ma non più tondo della card (20) */
+  background: var(--field-bg);
+}
+.shop-repair.is-ready { background: var(--medium-soft); }
+.shop-repair__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.shop-repair__flame { width: 24px; height: 24px; }
+.shop-repair .flame__outer { fill: var(--text-3); }
+.shop-repair.is-ready .flame__outer { fill: var(--flame-outer); }
+.shop-repair.is-ready .flame__core { fill: var(--flame-core); }
+.shop-repair__text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.shop-repair__title { font-size: 15px; font-weight: 750; line-height: 1.3; text-wrap: balance; }
+.shop-repair__note { color: var(--text-2); font-size: 13px; line-height: 1.4; text-wrap: pretty; }
+.shop-repair__btn {
+  grid-column: 1 / -1;
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--on-accent);
+  font-size: 15px;
+  font-weight: 750;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.shop-repair__btn:active { transform: scale(.96); }
+/* Con il saldo che non basta resta toccabile (aria-disabled): un tocco dice quanto manca */
+.shop-repair__btn[aria-disabled="true"] { background: var(--surface); color: var(--text-3); cursor: default; }
+/* Su uno schermo largo «Ripara» sta sulla stessa riga del testo */
+@media (min-width: 480px) {
+  .shop-repair { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .shop-repair__btn { grid-column: auto; }
+}
+/* «Apri il negozio»: i cinque colori dell'aurora in anteprima, il nome e la freccia */
+.shop-open {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 2px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+.shop-open:active { background: var(--hover); }
+.shop-open__swatches { display: flex; flex: none; padding-left: 8px; }
+.shop-swatch {
+  width: 26px;
+  height: 26px;
+  margin-left: -8px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+}
+.shop-open__text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.shop-open__title { font-size: 16px; font-weight: 750; line-height: 1.25; text-wrap: balance; }
+.shop-open__note { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; text-wrap: pretty; }
+.shop-open__chevron { flex: none; color: var(--text-3); transform: rotate(-90deg); }
+@media (hover: hover) {
+  .shop-open:hover .shop-open__title { color: var(--accent-text); }
+}
+/* Anteprima di un colore dell'aurora: le sue luci sul fondo viola del focus (data-aurora sull'anteprima) */
+.shop-swatch,
+.shop-item__preview--aurora {
+  background:
+    radial-gradient(60% 75% at 28% 88%, var(--aurora-1), transparent 72%),
+    radial-gradient(55% 70% at 78% 62%, var(--aurora-2), transparent 72%),
+    radial-gradient(70% 60% at 52% 108%, var(--aurora-3), transparent 75%),
+    radial-gradient(40% 40% at 64% 26%, var(--aurora-4), transparent 80%),
+    linear-gradient(180deg, var(--hero-top), var(--hero-bottom));
+  box-shadow: inset 0 0 0 1px var(--preview-edge); /* dentro il bordo: nei cerchi resta lo stacco tra un colore e l'altro */
+}
+
+/* Il foglio: il saldo accanto al titolo (sotto, su un telefono stretto), poi i quattro gruppi */
+.shop-sheet .sheet__header { flex-wrap: wrap; row-gap: 4px; }
+.shop-sheet .sheet__title { margin-right: auto; }
+@media (max-width: 419px) {
+  .shop-sheet .sheet__header::after { content: ""; order: 2; flex-basis: 100%; } /* va a capo prima del saldo */
+  .shop-sheet__balance { order: 3; }
+}
+.shop-group + .shop-group { margin-top: 20px; }
+.shop-group__title { margin: 0 0 4px; font-size: 15px; font-weight: 800; text-wrap: balance; }
+.shop-group__note { margin: 0 0 10px; color: var(--text-3); font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+.shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.shop-grid--packs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 480px) {
+  .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* Un oggetto: anteprima, nome e quello che fa un tocco («In uso», «Usa» o il prezzo) */
+.shop-item {
+  display: grid;
+  grid-template-rows: auto 1fr auto; /* lo stato sta in fondo: in una riga di oggetti i prezzi restano allineati */
+  align-content: start;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 8px 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: inherit;
+  text-align: left;
+  transition: transform var(--dur-tap) var(--ease-out);
+}
+.shop-item:active { transform: scale(.97); }
+.shop-item.is-used { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.shop-item[aria-disabled="true"] { cursor: default; }
+.shop-item__preview { position: relative; display: block; height: 56px; overflow: hidden; border-radius: 7px; } /* 16 − 1 − 8: concentrico */
+.shop-item__preview--confetti { background: var(--field-bg); }
+.shop-item__name { align-self: start; font-size: 15px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.shop-item__status {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.shop-item__status--price { background: var(--points-chip-bg); color: var(--points-chip-text); }
+.shop-item[aria-disabled="true"] .shop-item__status--price { background: var(--field-bg); color: var(--text-3); }
+.shop-item__status--use { background: var(--accent-soft); color: var(--accent-text); }
+.shop-item__status--used { padding: 0; color: var(--accent-text); }
+.shop-item__status--used::before { content: "✓"; margin-right: 4px; }
+.shop-item__status--soon { background: var(--field-bg); color: var(--text-3); }
+@media (hover: hover) {
+  .shop-item:not([aria-disabled="true"]):hover { border-color: var(--accent); }
+}
+/* I pacchetti di punti: una, due o tre stelle, «Presto» */
+.shop-item--pack { padding: 6px 6px 8px; }
+.shop-item--pack .shop-item__name { font-size: 14px; }
+.shop-item__preview--pack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 44px;
+  border-radius: 9px; /* 16 − 1 − 6: concentrico con il pacchetto */
+  background: var(--medium-soft);
+  color: var(--medium);
+  font-size: 18px;
+  line-height: 1;
+}
+/* Sugli schermi da 320 px un poco più di spazio per i nomi e per «Ripara» */
+@media (max-width: 359px) {
+  .shop-item__name { font-size: 14px; }
+  .shop-item--pack .shop-item__name { font-size: 13px; } /* «2000 punti» su una riga anche nelle tre colonne strette */
+  .shop-repair { column-gap: 10px; padding: 10px; }
+  .shop-repair__icon { width: 36px; height: 36px; }
+  .shop-open { gap: 10px; }
+  .shop-swatch { width: 20px; height: 20px; }
 }
 
 /* «Completate» in Motivazione: dentro la sezione aperta, «Svuota» in alto a destra */
@@ -1464,6 +1874,8 @@ button {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   box-shadow: 0 6px 18px var(--focus-ring);
 }
+/* Dentro un riquadro l'ombra è più corta: quella piena arrivava sulla nota sotto il pulsante e la portava a 4,3:1 */
+.panel .btn--primary { box-shadow: 0 3px 10px var(--focus-ring); }
 @media (hover: hover) {
   .btn--primary:hover { filter: brightness(1.07); }
 }
@@ -1611,7 +2023,7 @@ button {
   color: var(--text-2);
 }
 .field__optional { font-weight: 500; color: var(--text-3); }
-.field__hint { margin: 8px 2px 0; font-size: 13.5px; color: var(--text-2); }
+.field__hint { margin: 8px 2px 0; font-size: 13.5px; color: var(--text-2); text-wrap: pretty; }
 .field__error { margin: 8px 2px 0; font-size: 13.5px; font-weight: 600; color: var(--danger); }
 
 .input {
@@ -1636,7 +2048,7 @@ button {
 
 .chip {
   min-width: 48px;
-  min-height: 42px;
+  min-height: var(--tap);
   padding: 0 14px;
   border: 1.5px solid var(--field-border);
   border-radius: 999px;
@@ -1651,6 +2063,25 @@ button {
 .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
 @media (hover: hover) {
   .chip:hover:not([aria-pressed="true"]) { border-color: var(--border-strong); }
+}
+/* Righe di chip in colonne uguali, così nessun chip resta da solo su una riga. Le durate: 6 in una riga, 3 + 3 sotto
+   i 360 px. I minuti di «Cosa faccio adesso?»: 4 + 3, tutti e 7 in una riga quando il foglio è largo. Gli anticipi
+   dei promemoria: 3 + 3, tutti e 6 in una riga quando il foglio è largo. «Si ripete»: sempre 2 + 2, perché nel
+   foglio largo del computer (520 px) «Ogni settimana» in quattro colonne andrebbe a capo. */
+.chips--grid { display: grid; grid-template-columns: repeat(var(--chip-cols), minmax(0, 1fr)); }
+.chips--grid .chip { min-width: 0; padding: 0 4px; }
+.chips--durations { --chip-cols: 6; }
+.chips--minutes { --chip-cols: 4; }
+.chips--leads { --chip-cols: 3; }
+.chips--repeat { --chip-cols: 2; }
+@media (max-width: 359px) {
+  .chips--durations { --chip-cols: 3; }
+}
+@media (min-width: 480px) {
+  .chips--minutes { --chip-cols: 7; }
+}
+@media (min-width: 560px) {
+  .chips--leads { --chip-cols: 6; }
 }
 
 /* Durata: − [ 30 min ] + */
@@ -1777,9 +2208,8 @@ button {
 .emoji-pick input:checked + .emoji-pick__face { border-color: var(--accent); background: var(--accent-soft); }
 .emoji-pick input:focus-visible + .emoji-pick__face { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 .input.prize-cost { margin-bottom: 12px; font-variant-numeric: tabular-nums; }
-/* I sei prezzi pronti in due righe ordinate, tre per riga, alti quanto un'area di tocco */
+/* I sei prezzi pronti in due righe ordinate, tre per riga */
 .chips.prize-costs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.prize-costs .chip { min-height: var(--tap); }
 
 /* Data: un'etichetta leggibile con sopra il calendario nativo, invisibile ma toccabile */
 .date-picker {
@@ -1819,6 +2249,35 @@ button {
 .time-row .date-picker { margin-top: 0; }
 .field--time:disabled .time-row { opacity: .5; }
 .field--time:disabled .date-picker__input { cursor: not-allowed; }
+
+/* «Si ripete» (P-005, passo 5.1): i giorni della settimana in una fila di sette, larghi quanto il campo */
+/* Sette cerchi da 44 px, allineati ai bordi del campo: da 375 px ci stanno sempre interi; sotto si stringono un po' */
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 44px));
+  justify-content: space-between;
+  column-gap: 3px;
+  margin-top: 12px;
+}
+.weekday {
+  min-width: 0;
+  height: 44px;
+  padding: 0;
+  border: 1.5px solid var(--field-border);
+  border-radius: 999px;
+  background: var(--field-bg);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+  transition: background-color var(--dur-color) var(--ease-out), border-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.weekday:active { transform: scale(.93); }
+.weekday[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
+@media (hover: hover) {
+  .weekday:hover:not([aria-pressed="true"]) { border-color: var(--border-strong); }
+}
+.repeat-hint:empty { margin: 0; } /* vuota quando non si ripete: resta nella pagina, senza occupare spazio */
+.repeat-skip { margin-top: 12px; }
 
 /* Riga sopra il modulo: frase arrivata dalla casella di Siri, oppure attività già completata che si sta modificando */
 .sheet-note {
@@ -1897,6 +2356,9 @@ button {
   min-height: 0;
   padding: 10px 22px 4px;
   overflow-y: auto;
+  /* Con la tastiera il browser porta in vista l'elemento con il focus: questo margine fa vedere anche il contorno,
+     invece di fermarlo sul bordo del riquadro che scorre (WCAG 2.4.11) */
+  scroll-padding-block: 12px;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -2038,6 +2500,53 @@ button.setting:not(:disabled):active { background: var(--hover); }
   --pv-hero: linear-gradient(90deg, var(--preview-light-hero) 50%, var(--preview-dark-hero) 50%);
 }
 
+/* Riga «Musica» (P-004, passo 4.2): quattro scelte in due colonne, come il tema; sotto, che cosa fa Aura con i link */
+.choice-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+.choice-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 26px;
+  border: 1.5px solid var(--field-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  cursor: pointer;
+  transition: border-color var(--dur-color) var(--ease-out), background-color var(--dur-color) var(--ease-out);
+}
+.choice-option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.choice-option:has(input:focus-visible) { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.choice-option input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.choice-option__name { max-width: 100%; overflow: hidden; font-size: 14.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.choice-option__check {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  stroke-width: 3;
+  opacity: 0;
+  transform: scale(.5);
+  transition: opacity var(--dur-quick) var(--ease-out), transform var(--dur-move) var(--ease-spring);
+}
+.choice-option input:checked ~ .choice-option__check { opacity: 1; transform: none; }
+.setting-note { margin: -2px 14px 12px; color: var(--text-3); font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+
+/* Foglio «Quando te lo ricordo?»: una frase e quattro righe, ognuna con il giorno in cui l'avviso torna */
+.sheet-intro { margin: 0 2px 14px; color: var(--text-2); font-size: 15px; line-height: 1.45; text-wrap: pretty; }
+
 /* In fondo alle Impostazioni: il collegamento al server e «Scollega questo dispositivo» */
 .settings-device__on { display: grid; gap: 12px; }
 .settings-device__on > * { margin: 0; }
@@ -2093,6 +2602,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   color: var(--text-2);
   font-size: 14.5px;
   font-weight: 600;
+  text-wrap: balance; /* una frase corta: su due righe simili */
 }
 .status::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: currentColor; }
 .status[data-tone="on"] { color: var(--low); background: var(--low-soft); }
@@ -2178,7 +2688,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
   text-transform: uppercase;
   color: var(--text-2);
 }
-.proposal__alts-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+/* minmax(0, 1fr): un nome lungo si accorcia con i puntini invece di allargare la riga oltre il foglio */
+.proposal__alts-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
 
 .alt {
   display: flex;
@@ -2540,7 +3051,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
 }
-.focus__state { min-height: 1.45em; font-size: 15px; font-weight: 700; color: var(--hero-text-2); }
+.focus__state { min-height: 1.45em; font-size: 15px; font-weight: 700; color: var(--hero-text-2); font-variant-numeric: tabular-nums; }
 
 .focus__controls { display: grid; justify-items: center; gap: 14px; width: min(100%, 22rem); }
 .focus__toggle {
@@ -2584,15 +3095,36 @@ button.setting:not(:disabled):active { background: var(--hover); }
   padding: 0 22px;
   border: 0;
   border-radius: 999px;
-  background: transparent;
-  color: var(--hero-text-2);
+  background: var(--glass); /* sul vetro, come gli altri comandi: sull'aurora chiara in basso il testo da solo era 3,5:1 */
+  color: var(--hero-text);
   font-size: 15px;
   font-weight: 700;
   transition: background-color var(--dur-color) var(--ease-out);
 }
+/* «🎧» (P-004, passo 4.2): discreto, in alto a destra, alla stessa altezza dell'etichetta «Focus» */
+.focus__music {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: max(14px, env(safe-area-inset-right, 0px));
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--glass);
+  font-size: 19px;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.focus__music:active { transform: scale(.94); }
+.focus__music:focus-visible { outline: 2px solid var(--hero-text); outline-offset: 2px; }
 @media (hover: hover) {
   .focus__btn:hover,
-  .focus__exit:hover { background: var(--glass-hover); }
+  .focus__exit:hover,
+  .focus__music:hover { background: var(--glass-hover); }
 }
 /* Schermi bassi (iPhone SE, Safari con le sue barre): tutto più raccolto, così titolo, anello e comandi stanno in una schermata */
 @media (max-height: 700px) {
@@ -2643,6 +3175,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .toast__text:only-child { padding-right: 10px; }
 
 .toast__action {
+  position: relative;
   min-height: 36px;
   padding: 0 12px;
   border: 0;
@@ -2652,6 +3185,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
   font-size: 15px;
   font-weight: 800;
 }
+/* L'area di tocco arriva al bordo dell'avviso: 48 px di altezza, oltre i 44 di Apple, con lo stesso aspetto */
+.toast__action::before { content: ""; position: absolute; inset: -6px; }
 @media (hover: hover) {
   .toast__action:hover { background: var(--glass-hover); }
 }
@@ -2690,6 +3225,65 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .confetti__piece:nth-child(5n + 3) { background: var(--low); }
 .confetti__piece:nth-child(5n + 4) { background: var(--star); }
 .confetti__piece:nth-child(3n) { width: 8px; height: 8px; border-radius: 50%; }
+/* Forme dei coriandoli dal negozio (P-004, passo 4.1): data-shape sul livello dei coriandoli (js/app.js) e sulle
+   anteprime del negozio. «classic» non ha regole: rettangoli e cerchi di sempre. Solo la forma e il colore, che non si
+   animano: il movimento resta transform e opacity. */
+[data-shape="stars"] .confetti__piece,
+[data-shape="stars"] .confetti__piece:nth-child(3n) {
+  width: 12px;
+  height: 12px;
+  border-radius: 0;
+  background: var(--shape-stars-1);
+  clip-path: polygon(50% 0%, 62% 35%, 98% 35%, 69% 57%, 79% 91%, 50% 70%, 21% 91%, 31% 57%, 2% 35%, 38% 35%);
+}
+[data-shape="stars"] .confetti__piece:nth-child(5n + 1) { background: var(--shape-stars-2); }
+[data-shape="stars"] .confetti__piece:nth-child(5n + 2) { background: var(--shape-stars-3); }
+[data-shape="stars"] .confetti__piece:nth-child(5n + 3) { background: var(--shape-stars-4); }
+[data-shape="stars"] .confetti__piece:nth-child(5n + 4) { background: var(--accent); }
+[data-shape="hearts"] .confetti__piece,
+[data-shape="hearts"] .confetti__piece:nth-child(3n) {
+  width: 11px;
+  height: 10px;
+  border-radius: 0;
+  background: var(--shape-hearts-1);
+  clip-path: polygon(50% 96%, 12% 60%, 2% 40%, 4% 20%, 15% 7%, 31% 3%, 44% 9%, 50% 20%, 56% 9%, 69% 3%, 85% 7%, 96% 20%, 98% 40%, 88% 60%);
+}
+[data-shape="hearts"] .confetti__piece:nth-child(5n + 1) { background: var(--shape-hearts-2); }
+[data-shape="hearts"] .confetti__piece:nth-child(5n + 2) { background: var(--shape-hearts-3); }
+[data-shape="hearts"] .confetti__piece:nth-child(5n + 3) { background: var(--shape-hearts-4); }
+[data-shape="hearts"] .confetti__piece:nth-child(5n + 4) { background: var(--shape-hearts-5); }
+[data-shape="leaves"] .confetti__piece,
+[data-shape="leaves"] .confetti__piece:nth-child(3n) {
+  width: 9px;
+  height: 12px;
+  border-radius: 0 100% 0 100%;
+  background: var(--shape-leaves-1);
+}
+[data-shape="leaves"] .confetti__piece:nth-child(5n + 1) { background: var(--shape-leaves-2); }
+[data-shape="leaves"] .confetti__piece:nth-child(5n + 2) { background: var(--shape-leaves-3); }
+[data-shape="leaves"] .confetti__piece:nth-child(5n + 3) { background: var(--shape-leaves-4); }
+[data-shape="leaves"] .confetti__piece:nth-child(5n + 4) { background: var(--shape-leaves-5); }
+[data-shape="snow"] .confetti__piece,
+[data-shape="snow"] .confetti__piece:nth-child(3n) {
+  width: 12px;
+  height: 12px;
+  border-radius: 0;
+  background: var(--shape-snow-1);
+  clip-path: polygon(50% 0%, 59% 34%, 93% 25%, 68% 50%, 93% 75%, 59% 66%, 50% 100%, 41% 66%, 7% 75%, 32% 50%, 7% 25%, 41% 34%);
+}
+[data-shape="snow"] .confetti__piece:nth-child(5n + 1) { background: var(--shape-snow-2); }
+[data-shape="snow"] .confetti__piece:nth-child(5n + 2) { background: var(--shape-snow-3); }
+[data-shape="snow"] .confetti__piece:nth-child(5n + 3) { background: var(--shape-snow-4); }
+[data-shape="snow"] .confetti__piece:nth-child(5n + 4) { background: var(--shape-snow-5); }
+/* Nell'anteprima del negozio i coriandoli stanno fermi, sparsi */
+.shop-item__preview--confetti .confetti__piece:nth-child(1) { top: 12px; left: 12%; transform: rotate(-24deg); }
+.shop-item__preview--confetti .confetti__piece:nth-child(2) { top: 30px; left: 28%; transform: rotate(18deg); }
+.shop-item__preview--confetti .confetti__piece:nth-child(3) { top: 10px; left: 44%; transform: rotate(40deg); }
+.shop-item__preview--confetti .confetti__piece:nth-child(4) { top: 34px; left: 58%; transform: rotate(-12deg); }
+.shop-item__preview--confetti .confetti__piece:nth-child(5) { top: 14px; left: 72%; transform: rotate(28deg); }
+.shop-item__preview--confetti .confetti__piece:nth-child(6) { top: 32px; left: 86%; transform: rotate(-36deg); }
+/* Un avviso dentro un foglio aperto (js/ui-shop.js): in basso, sopra il contenuto del foglio */
+.sheet .toast { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 
 /* Lista vuota */
 .empty { padding: 28px 16px 8px; text-align: center; }

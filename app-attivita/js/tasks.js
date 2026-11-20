@@ -6,7 +6,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils } = Aura;
+  const { utils, repeat: RP } = Aura;
 
   /** Livelli di energia. La chiave è quella salvata nei dati; `order` permette i confronti (bassa < media < alta). */
   const ENERGY = {
@@ -59,13 +59,23 @@
     if (time && !utils.isTime(time)) errors.time = 'L\'orario non è valido.';
     else if (time && !date) errors.time = 'Per l\'orario scegli anche il giorno.';
 
-    return { value: { title, duration, energy, date, time }, errors };
+    // «Si ripete» (P-005, passo 5.1): una regola di Aura.repeat, che ha bisogno di un giorno, come l'ora.
+    const repeat = input.repeat ? RP.clean(input.repeat) : null;
+    if (input.repeat && !repeat) errors.repeat = 'La ripetizione non è valida.';
+    else if (repeat && !date) errors.repeat = 'Per ripeterla scegli anche il giorno.';
+
+    return { value: { title, duration, energy, date, time, repeat }, errors };
   }
 
-  /** Nuova attività da dati già controllati con validateInput(). */
+  /**
+   * Nuova attività da dati già controllati con validateInput(). Se si ripete, è la prima volta della sua serie:
+   * `seriesId` è il suo id (P-005, passo 5.1).
+   */
   function createTask(value, now) {
+    const id = utils.uid();
+    const repeat = value.date && value.repeat ? value.repeat : null;
     return {
-      id: utils.uid(),
+      id,
       title: value.title,
       duration: value.duration,
       energy: value.energy,
@@ -74,22 +84,48 @@
       done: false,
       createdAt: now,
       completedAt: null,
-      pointsAwarded: null
+      pointsAwarded: null,
+      repeat,
+      seriesId: repeat ? id : null
     };
   }
 
   /** Campi che il foglio "Modifica attività" può cambiare. Tutto il resto (completamento e punti compresi) resta com'è. */
-  const EDITABLE_FIELDS = ['title', 'duration', 'energy', 'date', 'time'];
+  const EDITABLE_FIELDS = ['title', 'duration', 'energy', 'date', 'time', 'repeat'];
 
-  /** I campi modificabili di un'attività, nella stessa forma di validateInput().value. L'ora c'è solo con un giorno. */
+  /**
+   * I campi modificabili di un'attività, nella stessa forma di validateInput().value. L'ora e la ripetizione ci sono solo
+   * con un giorno.
+   */
   function editableFields(task) {
     const date = task.date || null;
-    return { title: task.title, duration: task.duration, energy: task.energy, date, time: date && task.time ? task.time : null };
+    return {
+      title: task.title,
+      duration: task.duration,
+      energy: task.energy,
+      date,
+      time: date && task.time ? task.time : null,
+      repeat: date && task.repeat ? task.repeat : null
+    };
   }
 
   /**
-   * Modifica un'attività con dati già controllati da validateInput(). Cambiano solo titolo, durata, energia, giorno e ora:
-   * id, creazione, completamento, punti già assegnati e campi sconosciuti restano com'erano.
+   * true se due insiemi di campi modificabili sono uguali: un campo assente vale null, e le regole delle ripetizioni si
+   * confrontano con Aura.repeat.same() (sono oggetti). Lo usano anche l'assistente e il suo «Annulla».
+   */
+  function sameFields(a, b) {
+    return Boolean(a && b) && EDITABLE_FIELDS.every(field => {
+      const x = a[field] == null ? null : a[field];
+      const y = b[field] == null ? null : b[field];
+      return field === 'repeat' ? RP.same(x, y) : x === y;
+    });
+  }
+
+  /**
+   * Modifica un'attività con dati già controllati da validateInput(). Cambiano solo titolo, durata, energia, giorno, ora
+   * e ripetizione: id, creazione, completamento, punti già assegnati e campi sconosciuti restano com'erano.
+   * Una ripetizione nuova ha bisogno di una serie: la sua, se non ce n'è un'altra da fare nella stessa serie, altrimenti
+   * una nuova (ce n'è sempre una sola da fare per serie).
    * Restituisce { tasks, previous, changed }: `previous` è l'attività prima della modifica (null se non c'è).
    * Se non cambia niente, `tasks` è lo stesso elenco ricevuto.
    */
@@ -98,7 +134,10 @@
     if (index === -1) return { tasks, previous: null, changed: false };
     const previous = tasks[index];
     const next = { ...previous, ...editableFields(value) };
-    if (EDITABLE_FIELDS.every(field => next[field] === previous[field])) return { tasks, previous, changed: false };
+    if (sameFields(next, previous)) return { tasks, previous, changed: false };
+    if (next.repeat && !next.done && (!next.seriesId || openInSeries(tasks, next.seriesId, id))) {
+      next.seriesId = openInSeries(tasks, id, id) ? utils.uid() : id; // il suo id, se non lo usa già un'altra serie
+    }
     return { tasks: tasks.map((task, i) => (i === index ? next : task)), previous, changed: true };
   }
 
@@ -111,6 +150,67 @@
       if (task.id !== id || task.done === done) return task;
       return { ...task, done, completedAt: done ? now : null, pointsAwarded: done ? pointsAwarded : null };
     });
+  }
+
+  /** La ripetizione da fare di una serie, se c'è (ce n'è al massimo una), tranne `exceptId`. */
+  function openInSeries(tasks, seriesId, exceptId) {
+    return tasks.find(task => !task.done && task.repeat && task.seriesId === seriesId && task.id !== exceptId) || null;
+  }
+
+  /**
+   * La prossima volta di una ripetizione completata adesso (P-005, passo 5.1): stesso titolo, durata, energia, ora e
+   * regola, la stessa serie, un id nuovo e il giorno di Aura.repeat.afterDone().
+   */
+  function nextOccurrence(task, now) {
+    return {
+      id: utils.uid(),
+      title: task.title,
+      duration: task.duration,
+      energy: task.energy,
+      date: RP.afterDone(task.repeat, task.date, utils.todayISO(now)),
+      time: task.time || null,
+      done: false,
+      createdAt: now,
+      completedAt: null,
+      pointsAwarded: null,
+      repeat: task.repeat,
+      seriesId: task.seriesId || task.id
+    };
+  }
+
+  /**
+   * setDone() con le ripetizioni (P-005, passo 5.1). Restituisce { tasks, next }.
+   * - Completando una ripetizione da fare, in fondo all'elenco arriva la prossima volta (`next`). Se nella serie ce n'è
+   *   già una da fare, non se ne crea un'altra: ce n'è sempre una sola da fare per volta.
+   * - Togliendo la spunta a una volta completata con la sua regola: se la serie ha già la sua prossima da fare, questa
+   *   torna da fare come attività normale, senza regola; altrimenti torna con la regola e la serie riparte da lei.
+   *   «Annulla» subito dopo un completamento toglie prima la prossima (vedi js/app.js), così torna tutto com'era.
+   */
+  function toggleDone(tasks, id, done, now, pointsAwarded = null) {
+    const task = tasks.find(t => t.id === id);
+    if (!task || task.done === done) return { tasks, next: null };
+    const list = setDone(tasks, id, done, now, pointsAwarded);
+    if (!task.repeat || !task.date) return { tasks: list, next: null };
+    const seriesId = task.seriesId || task.id;
+    const other = openInSeries(list, seriesId, id);
+    if (done) {
+      if (other) return { tasks: list, next: null };
+      const next = nextOccurrence({ ...task, seriesId }, now);
+      return { tasks: list.concat(next), next };
+    }
+    return { tasks: other ? list.map(t => (t.id === id ? { ...t, repeat: null } : t)) : list, next: null };
+  }
+
+  /**
+   * «Salta questa volta» (P-005, passo 5.1): la ripetizione da fare passa al giorno di Aura.repeat.afterSkip(), senza
+   * punti. Restituisce { tasks, previous, date }: `previous` è l'attività di prima (per «Annulla»), `date` il giorno nuovo.
+   * Se l'attività non è una ripetizione da fare, non cambia niente (`previous` e `date` null).
+   */
+  function skipOccurrence(tasks, id, today) {
+    const task = tasks.find(t => t.id === id);
+    if (!task || task.done || !task.repeat || !task.date) return { tasks, previous: null, date: null };
+    const date = RP.afterSkip(task.repeat, task.date, today);
+    return { tasks: tasks.map(t => (t.id === id ? { ...t, date } : t)), previous: task, date };
   }
 
   /** Toglie un'attività. Restituisce anche l'attività tolta e la sua posizione, per poterla ripristinare. */
@@ -248,8 +348,13 @@
     validateInput,
     createTask,
     editableFields,
+    sameFields,
     updateTask,
     setDone,
+    openInSeries,
+    nextOccurrence,
+    toggleDone,
+    skipOccurrence,
     removeTask,
     restoreTask,
     removeCompleted,

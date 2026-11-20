@@ -15,10 +15,10 @@
 - È il punto d'aggancio per il Comando Rapido di Siri (punto 2).
 
 **Parser**: `Aura.nlp.parseTaskText(testo, adesso)` in `js/nlp.js`. È a regole, offline e senza API.
-- Restituisce `{ title, duration, energy, date, time }`. Un campo non riconosciuto vale `null`, e il titolo vale `''`.
+- Restituisce `{ title, duration, energy, date, time, repeat }`. Un campo non riconosciuto vale `null`, e il titolo vale `''`. `repeat` è la regola delle attività che si ripetono (P-005, passo 5.1; vedi [ripetizioni.md](ripetizioni.md)).
 - `adesso` è **sempre un parametro**: serve per "oggi o domani?". Nei test si usa un adesso fisso: **giovedì 29/10/2026 alle 9:00**.
 - Le parole si riconoscono su una copia minuscola e senza accenti, lunga quanto il testo, così il titolo conserva gli accenti originali.
-- Ordine di lettura: prima l'orario, poi durata, data ed energia. Così "alle 10" non diventa una durata.
+- Ordine di lettura: prima l'orario, poi durata, ripetizione, data ed energia. Così "alle 10" non diventa una durata e il "lunedì" di "ogni lunedì" non diventa una data.
 - Nelle regex niente lookbehind né gruppi con nome: Safari meno recente non li supporta.
 
 Cosa riconosce:
@@ -37,6 +37,12 @@ Cosa riconosce:
   - "tra/fra 3 giorni", "tra una settimana";
   - giorni della settimana ("venerdì", "venerdi", "ven"): sempre il prossimo, escluso oggi. "Venerdì prossimo" è quello della settimana dopo;
   - "il 15" (il prossimo 15, oggi compreso), "15/11", "15-11-2026", "15 novembre". Senza anno vale la prossima data esistente: il 29/02 diventa il prossimo anno bisestile.
+- **Ripetizione** (P-005, passo 5.1):
+  - "ogni giorno" e "tutti i giorni";
+  - "ogni lunedì", "ogni lunedì e giovedì", "ogni lun, mer e ven": ogni settimana in quei giorni;
+  - "ogni settimana" e "ogni mese": nel giorno della data della frase, o di oggi ("ogni mese il 15" → il 15 di ogni mese);
+  - il giorno diventa il primo della regola da quello della frase in poi (oggi, o domani se l'orario è già passato), compreso;
+  - "ogni tanto" e le altre frasi con "ogni" restano nel titolo.
 - **Energia**:
   - "energia bassa/media/alta";
   - "facile", "leggera" e "veloce" → bassa;
@@ -55,6 +61,9 @@ Cosa riconosce:
 | "domani alle 10 dentista" | Dentista | — | — | 2026-10-30 | 10:00 |
 | "alle 3 dentista" | Dentista | — | — | 2026-10-29 | 15:00 |
 | "colazione alle 8:30" | Colazione | — | — | 2026-10-30 (già passata) | 08:30 |
+| "palestra ogni lunedì e giovedì alle 18" | Palestra | — | — | 2026-10-29 (giovedì; si ripete il lunedì e il giovedì) | 18:00 |
+| "meditare ogni giorno alle 7 di mattina" | Meditare | — | — | 2026-10-30 (le 7 sono passate; ogni giorno) | 07:00 |
+| "pagare le bollette ogni mese il 15" | Pagare le bollette | — | — | 2026-11-15 (ogni mese il 15) | — |
 
 **Casi limite coperti dai test**
 - "leggere 2 capitoli": il 2 resta nel titolo.

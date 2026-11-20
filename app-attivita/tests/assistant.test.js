@@ -18,7 +18,7 @@
     seq++;
     return {
       id: 'id' + seq, title: 'Attività ' + seq, duration: 30, energy: 'medium', date: null, time: null,
-      done: false, createdAt: at(10, 8, seq % 60), completedAt: null, pointsAwarded: null,
+      done: false, createdAt: at(10, 8, seq % 60), completedAt: null, pointsAwarded: null, repeat: null, seriesId: null,
       ...overrides
     };
   }
@@ -105,7 +105,7 @@
       { type: 'add', title: '   ', duration: 10, energy: 'low', date: null, time: null },
       { type: 'add', title: 'Maratona', duration: 900, energy: 'high', date: null, time: null }
     ]);
-    assertEqual(result.auto.map(entry => entry.value), [{ title: 'Comprare il pane', duration: 30, energy: 'medium', date: null, time: null }]);
+    assertEqual(result.auto.map(entry => entry.value), [{ title: 'Comprare il pane', duration: 30, energy: 'medium', date: null, time: null, repeat: null }]);
     const none = plan([], [{ type: 'add', title: '', duration: 10, energy: 'low', date: null, time: null }]);
     assertEqual([none.auto, none.ask, none.say, none.modelSay], [[], [], A.TEXTS.failed, false], 'niente di valido: la frase di riserva');
   });
@@ -406,7 +406,7 @@
     assertEqual([already.auto, already.ask, already.say], [[], [], '«Palestra» è già così.']);
     const titled = plan([task], [{ type: 'update', task: 't1', title: 'Altro', duration: 45 }], { perms: { autoAdd: true, autoEdit: true } });
     assertEqual(titled.auto[0].value.title, 'Palestra');
-    assertEqual(plan([task], [{ type: 'update', task: 't1', time: null }], { perms: { autoAdd: true, autoEdit: true } }).auto[0].value, { title: 'Palestra', duration: 30, energy: 'medium', date: TODAY, time: null }, 'togliere l\'ora');
+    assertEqual(plan([task], [{ type: 'update', task: 't1', time: null }], { perms: { autoAdd: true, autoEdit: true } }).auto[0].value, { title: 'Palestra', duration: 30, energy: 'medium', date: TODAY, time: null, repeat: null }, 'togliere l\'ora');
   });
 
   /* ---------- Proposte ---------- */

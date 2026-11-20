@@ -14,23 +14,11 @@ Su iPhone c'è già il Comando Rapido di Siri con la casella del server (vedi [p
 
 **Test**: unione di `title` e `text`; link con caratteri speciali (accenti, `&`, `+`).
 
-## 3. Promemoria nel calendario (`.ics`)
-**Obiettivo**: un'alternativa senza server alle notifiche push, che sono già realizzate (vedi [promemoria-e-siri.md](promemoria-e-siri.md)). Il promemoria vive nel Calendario del telefono.
-
-**Esportazione `.ics`**
-- Un pulsante sulla card ("Aggiungi al calendario") e un'azione "Esporta tutte con data".
-- Generano un file `.ics` (iCalendar, RFC 5545) che il Calendario di iPhone o Android importa con un promemoria vero, per esempio 15 minuti prima.
-- Logica pura in `js/ics.js`:
-  - `VEVENT` con `DTSTART` locale e `TZID=Europe/Rome`, oppure in UTC calcolato dall'ora locale;
-  - durata = durata stimata;
-  - senza orario: evento di un giorno intero;
-  - `VALARM` con `TRIGGER:-PT15M`;
-  - `UID` = id dell'attività.
-- Si scarica con un `Blob` e `<a download>`. Su iPhone Safari apre il file e propone "Aggiungi al calendario".
-- **Test**: testo esatto del file, con escape di virgole, punti e virgola e a capo; giorno intero; cambio dell'ora.
-
 ## Altre idee (non prioritarie)
-- Attività ricorrenti: ogni giorno, ogni lunedì e così via.
-- **Backup**: un promemoria gentile se l'ultimo backup è vecchio. Oggi l'app non ricorda quando è stato fatto.
-- Statistiche settimanali, ordinamento manuale con trascinamento, scorrimento laterale per completare o eliminare.
+- Statistiche settimanali, ordinamento manuale con trascinamento.
 - **Promemoria**: anticipo diverso per ogni attività (per esempio "avvisami un'ora prima" detto nella frase); un secondo avviso all'ora esatta.
+
+## Passate a una proposta o scartate
+- **Attività che si ripetono** e **scorrimento laterale per completare o eliminare**: sono in [P-005](../../docs/proposte/P-005.md), passi 5.1 e 5.2. Il 5.1 è fatto (vedi [ripetizioni.md](ripetizioni.md)).
+- **Promemoria nel calendario (`.ics`)**: non si fa. Il Product Owner, il 20 novembre 2026: «la d no perché tanto abbiamo già un calendario dentro l'app, voglio un sistema centralizzato non che faccia affidamento a cose esterne». Il calendario è l'Agenda; i promemoria sono le notifiche push di Aura.
+- **Promemoria del backup**: non si fa. Lo stesso giorno: «la c non serve perché creeremo il collegamento o con l'account google o con uno proprio dell'app». I dati passeranno da un telefono all'altro con l'account.

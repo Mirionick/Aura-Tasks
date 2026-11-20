@@ -8,13 +8,13 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW } = Aura;
+  const { utils, repeat: RP, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW, shop: SH, music: MU } = Aura;
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
   // Dati di prima dell'ultima importazione di un backup, per poterli ripristinare: una sola copia, sovrascritta ogni volta.
   const BEFORE_IMPORT_KEY = 'aura-tasks:before-import';
-  // Preferenze (ultima scheda, scelte di «Cosa faccio adesso?», assistente) e focus in corso: senza versione e fuori dal backup.
+  // Preferenze (ultima scheda, scelte di «Cosa faccio adesso?», assistente, musica) e focus in corso: senza versione e fuori dal backup.
   const PREFS_KEY = 'aura-tasks:prefs';
   const FOCUS_KEY = 'aura-tasks:focus';
   // Assistente: elenco «Cosa ha fatto l'assistente», memoria breve, copia della proposta all'apertura. Fuori dal backup.
@@ -26,12 +26,12 @@
     damaged: 'Il backup è danneggiato: mancano le attività.'
   };
   // Per cambiare lo schema: aumenta questo numero e aggiungi un passo in migrate() (vedi CLAUDE.md).
-  const SCHEMA_VERSION = 5;
+  const SCHEMA_VERSION = 7;
 
   const isCount = value => Number.isInteger(value) && value >= 0;
 
   function emptyState() {
-    return { version: SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats() };
+    return { version: SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats(), look: SH.defaultLook() };
   }
 
   /** Porta i dati salvati da versioni precedenti a quella attuale, un passo alla volta. */
@@ -56,6 +56,16 @@
       // sanitizeStats(); il resto resta intatto.
       state.version = 5;
     }
+    if (state.version === 5) {
+      // v6: negozio (P-004, passo 4.1): acquisti nel registro (stats.shop) e quello che è in uso (look, con i valori di
+      // partenza). Li aggiungono sanitizeStats() e fromData(); il resto resta intatto.
+      state.version = 6;
+    }
+    if (state.version === 6) {
+      // v7: attività che si ripetono (P-005, passo 5.1): `repeat` e `seriesId` nelle attività. Li aggiunge sanitizeTask()
+      // (null, quindi le attività che c'erano non si ripetono); il resto resta intatto.
+      state.version = 7;
+    }
     return state;
   }
 
@@ -78,10 +88,13 @@
     const pointsAwarded = !done ? null : isCount(raw.pointsAwarded) ? raw.pointsAwarded : P.pointsFor({ duration, energy });
 
     const date = utils.isISODate(raw.date) ? raw.date : null;
+    const id = typeof raw.id === 'string' && raw.id ? raw.id : utils.uid();
+    // Ripetizione (v7): regola valida solo con un giorno; serie non valida → l'id dell'attività (vedi Aura.repeat.sanitize).
+    const { repeat, seriesId } = RP.sanitize({ id, date, repeat: raw.repeat, seriesId: raw.seriesId });
 
     return {
       ...raw,
-      id: typeof raw.id === 'string' && raw.id ? raw.id : utils.uid(),
+      id,
       title,
       duration,
       energy,
@@ -90,14 +103,17 @@
       done,
       createdAt,
       completedAt: done ? (Number.isFinite(raw.completedAt) ? raw.completedAt : createdAt) : null,
-      pointsAwarded
+      pointsAwarded,
+      repeat,
+      seriesId
     };
   }
 
   /**
    * Ripulisce il registro di punti e serie. I giorni non validi vengono scartati; totale e record
-   * non validi si ricalcolano dai giorni. I minuti di focus (v4) passano da Aura.focus.sanitizeMinutes, i riscatti dei
-   * premi (v5) da Aura.rewards.sanitizeSpent. I campi sconosciuti vengono conservati.
+   * non validi si ricalcolano dai giorni (e dai giorni riparati). I minuti di focus (v4) passano da
+   * Aura.focus.sanitizeMinutes, i riscatti dei premi (v5) da Aura.rewards.sanitizeSpent, gli acquisti del negozio (v6) da
+   * Aura.shop.sanitizeShop. I campi sconosciuti vengono conservati.
    */
   function sanitizeStats(raw) {
     const rawDays = raw.days && typeof raw.days === 'object' ? raw.days : {};
@@ -111,14 +127,16 @@
     const milestones = Array.isArray(raw.milestones)
       ? Array.from(new Set(raw.milestones.filter(m => Number.isInteger(m) && m > 0))).sort((a, b) => a - b)
       : [];
+    const shop = SH.sanitizeShop(raw.shop);
     return {
       ...raw,
       totalPoints: isCount(raw.totalPoints) ? raw.totalPoints : sum,
-      bestStreak: isCount(raw.bestStreak) ? raw.bestStreak : P.longestStreak(days),
+      bestStreak: isCount(raw.bestStreak) ? raw.bestStreak : P.longestStreak(days, P.repairedDays({ shop })),
       milestones,
       days,
       focus: F.sanitizeMinutes(raw.focus),
-      spent: RW.sanitizeSpent(raw.spent)
+      spent: RW.sanitizeSpent(raw.spent),
+      shop
     };
   }
 
@@ -148,6 +166,8 @@
     // Registro mancante (dati appena portati dalla v1) o illeggibile: si ricostruisce dalle attività completate.
     const hasStats = state.stats && typeof state.stats === 'object' && !Array.isArray(state.stats);
     state.stats = hasStats ? sanitizeStats(state.stats) : P.rebuildStats(state.tasks);
+    // Quello che è in uso nel negozio (v6): solo cose comprate, altrimenti i valori di partenza.
+    state.look = SH.sanitizeLook(state.look, state.stats.shop);
     // Mai abbassare la versione: i dati scritti da una versione più nuova dell'app restano intatti.
     state.version = Math.max(state.version, SCHEMA_VERSION);
     return state;
@@ -160,8 +180,8 @@
   /* ---------- File di backup ---------- */
 
   /**
-   * Contenuto di un backup: tutto lo stato (attività, premi, registro di punti, serie e riscatti, campi sconosciuti) e
-   * quando è stato fatto.
+   * Contenuto di un backup: tutto lo stato (attività, premi, registro di punti, serie, riscatti e acquisti del negozio,
+   * quello che è in uso, campi sconosciuti) e quando è stato fatto.
    * Il collegamento al server, con il codice segreto del dispositivo, sta in un'altra chiave (aura-tasks:remote):
    * il backup non la legge mai.
    */
@@ -268,7 +288,8 @@
    * Preferenze ripulite: ultima scheda usata e quando (lastTab, lastTabAt), scelte di «Cosa faccio adesso?» (suggest),
    * interruttori e permessi dell'assistente (assistant, vedi Aura.assistant.sanitizePrefs), vista del calendario
    * dell'Agenda (agendaView: 'month' o 'week', vedi Aura.agenda), obiettivo della settimana in Motivazione (weeklyGoal:
-   * 5, 10, 15, 20, 30 o 50; null = nessun obiettivo, vedi Aura.motivation).
+   * 5, 10, 15, 20, 30 o 50; null = nessun obiettivo, vedi Aura.motivation), musica nel focus (music: servizio scelto,
+   * rimando dell'avviso, ultimo umore, carosello ridotto; vedi Aura.music). Le preferenze non vanno nel backup.
    * I valori non validi tornano a quelli di partenza; i campi sconosciuti vengono conservati.
    */
   function sanitizePrefs(raw) {
@@ -286,7 +307,8 @@
       },
       assistant: A.sanitizePrefs(base.assistant),
       agendaView: AG.AGENDA.views.includes(base.agendaView) ? base.agendaView : AG.AGENDA.views[0],
-      weeklyGoal: MO.sanitizeGoal(base.weeklyGoal)
+      weeklyGoal: MO.sanitizeGoal(base.weeklyGoal),
+      music: MU.sanitize(base.music)
     };
   }
 
