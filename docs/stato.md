@@ -27,7 +27,7 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 - **PR 11 — passo 3.4 di P-003** (20 novembre 2026, `97f9301`): «I tuoi premi» in Motivazione, con il saldo da spendere, il riscatto con coriandoli e «Annulla»; spendere non fa mai scendere di livello. Dati alla versione 5 dello schema. **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «P-003, passo 3.4»).
 
 ## In lavorazione
-- **P-004 v2** (livello A, autore Claude Project, revisione di ChatGPT / Codex): negozio e musica nel focus, in [proposte/P-004.md](proposte/P-004.md). Quattro passi: 4.1 negozio (pagato con i punti ★, con lo stesso saldo dei premi, con «Ripara la serie» e i pacchetti di punti «Presto»), 4.2 musica senza account, 4.3 Spotify collegato, 4.4 suoni del focus. Il Product Owner ha già deciso che le stelle a pagamento arrivano con la versione per altri, e che il negozio si costruisce subito.
+- **P-004 v3** (livello A, autore Claude Project, revisione di ChatGPT / Codex): negozio e musica nel focus, in [proposte/P-004.md](proposte/P-004.md). Quattro passi: 4.1 negozio (pagato con i punti ★, con lo stesso saldo dei premi, con «Ripara la serie» e i pacchetti di punti «Presto»), 4.2 musica senza account, 4.3 Spotify collegato (da ricollegare ogni sei mesi, regola di Spotify), 4.4 suoni del focus. Il Product Owner ha già deciso che le stelle a pagamento arrivano con la versione per altri, e che il negozio si costruisce subito.
 
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.
