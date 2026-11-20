@@ -9,6 +9,7 @@
 - "Annulla", o togliere la spunta, sottrae gli stessi punti dal giorno in cui erano stati dati: spuntare e togliere la spunta non fa accumulare.
 - Eliminare un'attività completata o usare "Svuota" **non** toglie punti.
 - **Attività che si ripetono** (P-005, passo 5.1; vedi [ripetizioni.md](ripetizioni.md)): ogni volta completata dà i suoi punti come un'attività qualsiasi. «Salta questa volta» non dà punti e non conta per la serie; «Annulla» dopo un completamento toglie i punti e anche la prossima.
+- **Scorrimento sulle card** (P-005, passo 5.2; vedi [scorrimento.md](scorrimento.md)): completare scorrendo verso destra è come la spunta, con gli stessi punti, la stessa festa e lo stesso «Annulla».
 
 **Serie**
 - È il numero di giorni consecutivi con almeno un completamento, contati all'indietro da oggi. Un giorno riparato nel negozio conta come un giorno con completamenti (vedi «Negozio»).

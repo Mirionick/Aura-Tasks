@@ -19,6 +19,6 @@ Su iPhone c'è già il Comando Rapido di Siri con la casella del server (vedi [p
 - **Promemoria**: anticipo diverso per ogni attività (per esempio "avvisami un'ora prima" detto nella frase); un secondo avviso all'ora esatta.
 
 ## Passate a una proposta o scartate
-- **Attività che si ripetono** e **scorrimento laterale per completare o eliminare**: sono in [P-005](../../docs/proposte/P-005.md), passi 5.1 e 5.2. Il 5.1 è fatto (vedi [ripetizioni.md](ripetizioni.md)).
+- **Attività che si ripetono** e **scorrimento laterale per completare o eliminare**: sono in [P-005](../../docs/proposte/P-005.md), passi 5.1 e 5.2. Il 5.1 e il 5.2 sono fatti (vedi [ripetizioni.md](ripetizioni.md) e [scorrimento.md](scorrimento.md)).
 - **Promemoria nel calendario (`.ics`)**: non si fa. Il Product Owner, il 20 novembre 2026: «la d no perché tanto abbiamo già un calendario dentro l'app, voglio un sistema centralizzato non che faccia affidamento a cose esterne». Il calendario è l'Agenda; i promemoria sono le notifiche push di Aura.
 - **Promemoria del backup**: non si fa. Lo stesso giorno: «la c non serve perché creeremo il collegamento o con l'account google o con uno proprio dell'app». I dati passeranno da un telefono all'altro con l'account.
