@@ -18,7 +18,7 @@
 
   const { utils, repeat: RP, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
     motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
-    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI } = Aura;
+    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI, swipeUI: SwipeUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -773,15 +773,20 @@
     setTimeout(cleanup, M.ms('celebrate') * 2); // rete di sicurezza
   }
 
-  /** Elimina subito: la card esce scivolando a destra mentre le altre salgono al suo posto (Aura.motion, in commit()). */
-  function onDelete(id) {
-    if (busy.has(id)) return; // sta finendo di completarsi
+  /**
+   * Elimina subito: la card esce scivolando a destra mentre le altre salgono al suo posto (Aura.motion, in commit()).
+   * `slideX`: px dello scivolamento, quando la card è stata fatta scorrere verso sinistra (js/ui-swipe.js), così continua
+   * il gesto. Restituisce true se l'ha eliminata.
+   */
+  function onDelete(id, slideX) {
+    if (busy.has(id)) return false; // sta finendo di completarsi
     const { tasks: next, removed, index } = T.removeTask(state.tasks, id);
-    if (!removed || !commit(next, undefined, { slide: 'task:' + id })) return;
+    if (!removed || !commit(next, undefined, { slide: 'task:' + id, slideX })) return false;
     showToast('Attività eliminata', {
       action: 'Annulla',
       onAction: () => commit(T.restoreTask(state.tasks, removed, index))
     });
+    return true;
   }
 
   function onClearCompleted() {
@@ -2559,6 +2564,23 @@
     vibrate,
     celebrateRepair,
     isActive: () => activeTab === 'motivation'
+  });
+
+  // Scorrimento sulle card da fare (P-005, passo 5.2): verso destra come la spunta, verso sinistra come il cestino.
+  SwipeUI.init({
+    root: els.main,
+    canSwipe: id => {
+      const task = state.tasks.find(t => t.id === id);
+      return Boolean(task) && !task.done && !busy.has(id) && !pendingDone.has(id);
+    },
+    onDone: (id, node) => {
+      const card = node.isConnected ? node : cardOf(id); // la lista può essersi ridisegnata mentre la card tornava
+      if (!card) return;
+      card.querySelector('.check__input').checked = true;
+      onToggle(id, true, card);
+    },
+    onDelete,
+    vibrate
   });
 
   syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti

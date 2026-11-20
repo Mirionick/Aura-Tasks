@@ -34,6 +34,7 @@
   <script src="js/rewards.js" defer></script>
   <script src="js/shop.js" defer></script>
   <script src="js/music.js" defer></script>
+  <script src="js/swipe.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/reminders.js" defer></script>
   <script src="js/remote.js" defer></script>
@@ -47,6 +48,7 @@
   <script src="js/ui-rewards.js" defer></script>
   <script src="js/ui-shop.js" defer></script>
   <script src="js/ui-music.js" defer></script>
+  <script src="js/ui-swipe.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -1540,6 +1542,21 @@
       <button class="icon-btn task__delete" type="button" data-action="delete">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
       </button>
+    </li>
+  </template>
+
+  <!-- Dietro una card che scorre (js/ui-swipe.js): verso destra «Fatto», verso sinistra «Elimina». Solo per chi guarda:
+       per la tastiera e il lettore di schermo ci sono la spunta e il cestino. Lo strato pieno appare oltre la soglia. -->
+  <template id="swipe-template">
+    <li class="swipe" aria-hidden="true">
+      <span class="swipe__layer">
+        <span class="swipe__action swipe__action--done"><svg class="icon" focusable="false"><use href="#i-check"></use></svg>Fatto</span>
+        <span class="swipe__action swipe__action--delete">Elimina<svg class="icon" focusable="false"><use href="#i-trash"></use></svg></span>
+      </span>
+      <span class="swipe__layer swipe__layer--full">
+        <span class="swipe__action swipe__action--done"><svg class="icon" focusable="false"><use href="#i-check"></use></svg>Fatto</span>
+        <span class="swipe__action swipe__action--delete">Elimina<svg class="icon" focusable="false"><use href="#i-trash"></use></svg></span>
+      </span>
     </li>
   </template>
 </body>
