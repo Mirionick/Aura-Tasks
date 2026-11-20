@@ -497,7 +497,7 @@
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
             </button>
           </div>
-          <div class="chips" id="duration-chips">
+          <div class="chips chips--grid chips--durations" id="duration-chips">
             <button class="chip" type="button" data-minutes="5" aria-pressed="false" aria-label="5 minuti">5</button>
             <button class="chip" type="button" data-minutes="15" aria-pressed="false" aria-label="15 minuti">15</button>
             <button class="chip" type="button" data-minutes="30" aria-pressed="true" aria-label="30 minuti">30</button>
@@ -780,7 +780,8 @@
           <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
         </button>
       </header>
-      <div class="sheet__body">
+      <!-- Solo testo: con tabindex il riquadro si può scorrere anche con la tastiera (frecce, spazio) -->
+      <div class="sheet__body" tabindex="0" role="region" aria-labelledby="privacy-sheet-title">
         <p class="status" id="privacy-now" data-tone="on">I dati restano solo su questo dispositivo.</p>
 
         <section class="panel" aria-labelledby="privacy-phone-title">
@@ -852,7 +853,7 @@
           <p class="status" id="reminder-status" data-tone="off" role="status">Spenti</p>
           <fieldset class="field panel__field">
             <legend class="field__label">Quanto prima avvisarti</legend>
-            <div class="chips" id="reminder-leads">
+            <div class="chips chips--grid chips--leads" id="reminder-leads">
               <button class="chip" type="button" data-lead="0" aria-pressed="false" aria-label="All'ora esatta">All'ora</button>
               <button class="chip" type="button" data-lead="5" aria-pressed="false" aria-label="5 minuti prima">5 min</button>
               <button class="chip" type="button" data-lead="10" aria-pressed="true" aria-label="10 minuti prima">10 min</button>
@@ -1033,7 +1034,7 @@
 
         <fieldset class="field">
           <legend class="field__label">Quanto tempo hai? <span class="field__optional" id="suggest-said" hidden></span></legend>
-          <div class="chips" id="suggest-minutes">
+          <div class="chips chips--grid chips--minutes" id="suggest-minutes">
             <button class="chip" type="button" data-minutes="10" aria-pressed="false" aria-label="10 minuti">10</button>
             <button class="chip" type="button" data-minutes="15" aria-pressed="false" aria-label="15 minuti">15</button>
             <button class="chip" type="button" data-minutes="30" aria-pressed="true" aria-label="30 minuti">30</button>

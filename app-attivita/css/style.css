@@ -71,7 +71,7 @@
   --aurora-bloom: rgba(255, 245, 214, .6);
   --aurora-bloom-2: rgba(255, 210, 63, .2);
   --hero-text: #ffffff;
-  --hero-text-2: rgba(255, 255, 255, .86);
+  --hero-text-2: rgba(255, 255, 255, .92); /* almeno 4,5:1 anche sul punto più chiaro del bagliore (era .86: 4,4:1 in Agenda) */
   --glass: rgba(22, 10, 70, .2);
   --glass-border: rgba(255, 255, 255, .18);
   --glass-hover: rgba(255, 255, 255, .14);
@@ -295,6 +295,11 @@ body {
 
 h1, h2, p { margin: 0; }
 
+/* Testi a capo: i titoli su righe di lunghezza simile, i testi senza una parola sola sull'ultima riga. I testi che devono
+   stare su una riga (white-space: nowrap) hanno regole con una classe, che vincono su queste. */
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+
 button, input { font: inherit; color: inherit; }
 
 button {
@@ -306,6 +311,13 @@ button {
 
 :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 [tabindex="-1"]:focus { outline: none; }
+/* Un riquadro che scorre (il testo della Privacy): il contorno sta dentro, perché il foglio taglia quello che sporge */
+.sheet__body[tabindex="0"]:focus-visible { outline-offset: -2px; }
+/* Con la tastiera il browser porta in vista l'elemento con il focus: questo margine lo tiene sopra «+ Nuova attività» e la
+   barra delle schede, fisse in basso (WCAG 2.4.11), e sotto la barra di stato in alto */
+.content :is(a[href], button, input, select, textarea, summary, [tabindex="0"]) {
+  scroll-margin: calc(12px + env(safe-area-inset-top, 0px)) 0 calc(var(--tabbar-h) + 84px + env(safe-area-inset-bottom, 0px));
+}
 
 .sr-only {
   position: absolute !important;
@@ -899,6 +911,7 @@ button {
   font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  text-wrap: balance; /* un titolo su due righe: righe simili, non una parola sola sotto */
   transition: color var(--dur-color) var(--ease-out);
 }
 
@@ -1020,6 +1033,7 @@ button {
   font: inherit;
   font-size: 14px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
   transition: background-color var(--dur-color) var(--ease-out);
@@ -1151,7 +1165,7 @@ button {
 .prize__title { font-size: 16px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
 .prize__bar { display: block; height: 6px; overflow: hidden; border-radius: 999px; background: var(--field-bg); }
 .prize__fill { display: block; height: 100%; border-radius: inherit; background: var(--star); transform-origin: left center; }
-.prize__status { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; }
+.prize__status { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; text-wrap: pretty; }
 .prize.is-ready .prize__status { color: var(--low); }
 /* «Riscatta»: pieno con il saldo che basta; altrimenti grigio, ma toccabile (aria-disabled): un tocco dice quanto manca */
 .prize__redeem {
@@ -1464,6 +1478,8 @@ button {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   box-shadow: 0 6px 18px var(--focus-ring);
 }
+/* Dentro un riquadro l'ombra è più corta: quella piena arrivava sulla nota sotto il pulsante e la portava a 4,3:1 */
+.panel .btn--primary { box-shadow: 0 3px 10px var(--focus-ring); }
 @media (hover: hover) {
   .btn--primary:hover { filter: brightness(1.07); }
 }
@@ -1636,7 +1652,7 @@ button {
 
 .chip {
   min-width: 48px;
-  min-height: 42px;
+  min-height: var(--tap);
   padding: 0 14px;
   border: 1.5px solid var(--field-border);
   border-radius: 999px;
@@ -1651,6 +1667,23 @@ button {
 .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
 @media (hover: hover) {
   .chip:hover:not([aria-pressed="true"]) { border-color: var(--border-strong); }
+}
+/* Righe di chip in colonne uguali, così nessun chip resta da solo su una riga. Le durate: 6 in una riga, 3 + 3 sotto
+   i 360 px. I minuti di «Cosa faccio adesso?»: 4 + 3, tutti e 7 in una riga quando il foglio è largo. Gli anticipi
+   dei promemoria: 3 + 3, tutti e 6 in una riga quando il foglio è largo. */
+.chips--grid { display: grid; grid-template-columns: repeat(var(--chip-cols), minmax(0, 1fr)); }
+.chips--grid .chip { min-width: 0; padding: 0 4px; }
+.chips--durations { --chip-cols: 6; }
+.chips--minutes { --chip-cols: 4; }
+.chips--leads { --chip-cols: 3; }
+@media (max-width: 359px) {
+  .chips--durations { --chip-cols: 3; }
+}
+@media (min-width: 480px) {
+  .chips--minutes { --chip-cols: 7; }
+}
+@media (min-width: 560px) {
+  .chips--leads { --chip-cols: 6; }
 }
 
 /* Durata: − [ 30 min ] + */
@@ -1777,9 +1810,8 @@ button {
 .emoji-pick input:checked + .emoji-pick__face { border-color: var(--accent); background: var(--accent-soft); }
 .emoji-pick input:focus-visible + .emoji-pick__face { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 .input.prize-cost { margin-bottom: 12px; font-variant-numeric: tabular-nums; }
-/* I sei prezzi pronti in due righe ordinate, tre per riga, alti quanto un'area di tocco */
+/* I sei prezzi pronti in due righe ordinate, tre per riga */
 .chips.prize-costs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.prize-costs .chip { min-height: var(--tap); }
 
 /* Data: un'etichetta leggibile con sopra il calendario nativo, invisibile ma toccabile */
 .date-picker {
@@ -2093,6 +2125,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   color: var(--text-2);
   font-size: 14.5px;
   font-weight: 600;
+  text-wrap: balance; /* una frase corta: su due righe simili */
 }
 .status::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: currentColor; }
 .status[data-tone="on"] { color: var(--low); background: var(--low-soft); }
@@ -2178,7 +2211,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
   text-transform: uppercase;
   color: var(--text-2);
 }
-.proposal__alts-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+/* minmax(0, 1fr): un nome lungo si accorcia con i puntini invece di allargare la riga oltre il foglio */
+.proposal__alts-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
 
 .alt {
   display: flex;
@@ -2540,7 +2574,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
 }
-.focus__state { min-height: 1.45em; font-size: 15px; font-weight: 700; color: var(--hero-text-2); }
+.focus__state { min-height: 1.45em; font-size: 15px; font-weight: 700; color: var(--hero-text-2); font-variant-numeric: tabular-nums; }
 
 .focus__controls { display: grid; justify-items: center; gap: 14px; width: min(100%, 22rem); }
 .focus__toggle {
@@ -2584,8 +2618,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
   padding: 0 22px;
   border: 0;
   border-radius: 999px;
-  background: transparent;
-  color: var(--hero-text-2);
+  background: var(--glass); /* sul vetro, come gli altri comandi: sull'aurora chiara in basso il testo da solo era 3,5:1 */
+  color: var(--hero-text);
   font-size: 15px;
   font-weight: 700;
   transition: background-color var(--dur-color) var(--ease-out);

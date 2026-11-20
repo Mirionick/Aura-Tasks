@@ -4,7 +4,7 @@ Fotografia breve di dove siamo, per chi comincia un intervento. La aggiorna chi 
 
 Non ripete gli altri documenti: decisioni, funzioni e verifiche sono in [decisioni.md](decisioni.md), le regole in [AGENTS.md](../AGENTS.md).
 
-**Aggiornato il** 19 novembre 2026, con la PR del passo 3.4 di P-003 («I tuoi premi»).
+**Aggiornato il** 20 novembre 2026, con la PR delle rifiniture di tutta l'app.
 
 ## Pubblicato su `main`
 - **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più i passi 0b e 1 di P-002 (il focus a tutto schermo resta fermo; la rotella apre le Impostazioni) e i passi 3.1 (cambio di scheda e aurora nel focus), 3.2 (Agenda a calendario) e 3.3 (Motivazione) di P-003. Cache `aura-tasks-v17` (19 novembre 2026). Con questa PR: passo 3.4 di P-003, cache `aura-tasks-v18` e dati alla versione 5 dello schema.
@@ -27,6 +27,7 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 
 ## In lavorazione
 - **Passo 3.4 di P-003** (livello A, esecutore Claude Project, revisione di ChatGPT / Codex): «I tuoi premi» in Motivazione. Ognuno scrive i suoi premi (nome, emoji da un elenco fisso, prezzo in punti) e li riscatta con il saldo da spendere, con coriandoli e «Annulla»; spendere non fa mai scendere di livello. I dati passano alla versione 5 dello schema (`rewards` e `stats.spent`), nel backup anche premi e riscatti. Specifica in [proposte/P-003.md](proposte/P-003.md), passo 3.4, regole in [punti-e-serie.md](../app-attivita/docs/punti-e-serie.md), «Premi», misure in [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Risultati del passo 3.4». Provato nel browser; **da provare sull'iPhone** dopo il merge.
+- **Rifiniture di tutta l'app** (livello B, esecutore Claude Project, revisione di ChatGPT / Codex): le tre schede e i fogli ripassati con le liste delle skill browser-qa, accessibility e make-interfaces-feel-better; solo stile, testi e accessibilità, senza cambiare le funzioni. Le regole nuove sono in [CLAUDE-GUIDE.md](../app-attivita/docs/CLAUDE-GUIDE.md), «Design», «Rifiniture per tutta l'app»; gli esiti in [decisioni.md](decisioni.md), sezione 4. Si unisce dopo la PR 13 del negozio.
 
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.
