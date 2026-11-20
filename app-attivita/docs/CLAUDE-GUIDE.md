@@ -463,6 +463,12 @@ Note per i controlli automatici con Edge headless:
   - per "maskable" e `apple-touch-icon` si usa lo stesso disegno con `rx="0"`, cioè senza angoli arrotondati e senza trasparenza;
   - le versioni da 512 si ottengono con uno screenshot di Edge headless (`--window-size=512,512 --default-background-color=00000000`);
   - quelle da 192 e 180 si ottengono rimpicciolendo le 512.
+- **Rifiniture per tutta l'app** (20 novembre 2026, con le liste delle skill browser-qa, accessibility e make-interfaces-feel-better):
+  - titoli (`h1`–`h3`, i titoli delle attività e le righe di stato) con `text-wrap: balance`, paragrafi e stato dei premi con `text-wrap: pretty`: niente parola sola sull'ultima riga. I testi che devono stare su una riga hanno `white-space: nowrap` in una regola con una classe, che vince;
+  - le righe di chip sono colonne uguali (`.chips--grid`, con `--chip-cols`), così nessun chip resta da solo su una riga: le durate 6 (3 sotto i 360 px), i minuti di «Cosa faccio adesso?» 4 + 3 (7 dai 480 px), gli anticipi dei promemoria 3 + 3 (6 dai 560 px). Ogni chip è alto almeno `--tap` (44 px);
+  - il contrasto del testo sugli sfondi sfumati o a livelli (intestazione, focus a tutto schermo, pulsanti con il gradiente) si misura sui pixel, perché axe non vede lo sfondo: almeno 4,5:1 nel punto più chiaro dietro il testo. Per questo `--hero-text-2` è al 92% nel tema chiaro e «Esci» del focus sta sul vetro (`--glass`), come gli altri comandi;
+  - dentro un riquadro (`.panel`) il pulsante principale ha l'ombra corta: quella piena arrivava sulla nota sotto e la rendeva meno leggibile;
+  - un foglio di solo testo che scorre (Privacy) ha `tabindex="0"` e `role="region"` sul corpo, così scorre anche con la tastiera; il contorno del focus sta dentro il riquadro.
 
 ---
 
