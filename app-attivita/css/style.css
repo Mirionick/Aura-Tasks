@@ -2066,12 +2066,14 @@ button {
 }
 /* Righe di chip in colonne uguali, così nessun chip resta da solo su una riga. Le durate: 6 in una riga, 3 + 3 sotto
    i 360 px. I minuti di «Cosa faccio adesso?»: 4 + 3, tutti e 7 in una riga quando il foglio è largo. Gli anticipi
-   dei promemoria: 3 + 3, tutti e 6 in una riga quando il foglio è largo. */
+   dei promemoria: 3 + 3, tutti e 6 in una riga quando il foglio è largo. «Si ripete»: sempre 2 + 2, perché nel
+   foglio largo del computer (520 px) «Ogni settimana» in quattro colonne andrebbe a capo. */
 .chips--grid { display: grid; grid-template-columns: repeat(var(--chip-cols), minmax(0, 1fr)); }
 .chips--grid .chip { min-width: 0; padding: 0 4px; }
 .chips--durations { --chip-cols: 6; }
 .chips--minutes { --chip-cols: 4; }
 .chips--leads { --chip-cols: 3; }
+.chips--repeat { --chip-cols: 2; }
 @media (max-width: 359px) {
   .chips--durations { --chip-cols: 3; }
 }
@@ -2274,6 +2276,7 @@ button {
 @media (hover: hover) {
   .weekday:hover:not([aria-pressed="true"]) { border-color: var(--border-strong); }
 }
+.repeat-hint:empty { margin: 0; } /* vuota quando non si ripete: resta nella pagina, senza occupare spazio */
 .repeat-skip { margin-top: 12px; }
 
 /* Riga sopra il modulo: frase arrivata dalla casella di Siri, oppure attività già completata che si sta modificando */
@@ -2353,6 +2356,9 @@ button {
   min-height: 0;
   padding: 10px 22px 4px;
   overflow-y: auto;
+  /* Con la tastiera il browser porta in vista l'elemento con il focus: questo margine fa vedere anche il contorno,
+     invece di fermarlo sul bordo del riquadro che scorre (WCAG 2.4.11) */
+  scroll-padding-block: 12px;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }

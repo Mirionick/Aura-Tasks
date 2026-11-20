@@ -653,7 +653,7 @@
         <!-- «Si ripete» (P-005, passo 5.1): senza un giorno, sceglierla mette il primo giorno giusto da oggi -->
         <fieldset class="field field--repeat" id="repeat-field">
           <legend class="field__label">Si ripete</legend>
-          <div class="chips" id="repeat-chips">
+          <div class="chips chips--grid chips--repeat" id="repeat-chips">
             <button class="chip" type="button" data-repeat="none" aria-pressed="true">Mai</button>
             <button class="chip" type="button" data-repeat="day" aria-pressed="false">Ogni giorno</button>
             <button class="chip" type="button" data-repeat="week" aria-pressed="false">Ogni settimana</button>
@@ -668,7 +668,8 @@
             <button class="weekday" type="button" data-day="6" aria-pressed="false" aria-label="Sabato">S</button>
             <button class="weekday" type="button" data-day="7" aria-pressed="false" aria-label="Domenica">D</button>
           </div>
-          <p class="field__hint" id="repeat-hint" hidden></p>
+          <!-- Sempre presente e vuota quando non si ripete: così il lettore di schermo annuncia anche il primo testo -->
+          <p class="field__hint repeat-hint" id="repeat-hint" aria-live="polite"></p>
           <p class="field__error" id="err-repeat" hidden></p>
           <!-- Solo modificando una ripetizione da fare: questa volta non si fa, senza punti -->
           <button class="btn btn--soft repeat-skip" id="repeat-skip" type="button" hidden>

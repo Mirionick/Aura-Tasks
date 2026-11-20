@@ -1186,8 +1186,12 @@
     if (!valid) els.timeInput.value = '';
     syncTime();
     // Anche la ripetizione: senza giorno torna «Mai»; cambiando giorno, una regola che lo segue si sposta con lui.
-    if (!valid) repeatRule = null;
-    else if (repeatRule && repeatFollows) repeatRule = RP.fromKind(repeatRule.every, value);
+    if (!valid) {
+      repeatRule = null;
+    } else if (repeatRule && repeatFollows) {
+      const derived = RP.fromKind(repeatRule.every, value);
+      if (!RP.same(derived, repeatRule)) repeatRule = derived; // uguale: resta quella di prima, con i suoi campi
+    }
     syncRepeat();
   }
 
@@ -1214,8 +1218,8 @@
     const hint = repeatRule && utils.isISODate(date)
       ? RP.label(repeatRule) + ' · dopo questa, ' + RP.dayLabel(RP.afterDone(repeatRule, date, today), today)
       : '';
-    els.repeatHint.textContent = hint;
-    els.repeatHint.hidden = !hint;
+    // Solo se cambia: la riga è una regione «live», e riscriverla uguale (a ogni lettera della frase) la ripeterebbe
+    if (els.repeatHint.textContent !== hint) els.repeatHint.textContent = hint;
     const task = editingId ? state.tasks.find(t => t.id === editingId) : null;
     els.repeatSkip.hidden = !(task && !task.done && repeatRule);
   }
@@ -2047,7 +2051,10 @@
       const card = cardOf(focusAfterEdit);
       const button = card && card.querySelector('.task__edit');
       focusAfterEdit = null;
-      if (button) button.focus({ preventScroll: true });
+      // Finita in un'altra scheda (per esempio saltata a lunedì, da Focus): il focus resta nella pagina, all'inizio,
+      // invece di perdersi; l'avviso dice dove è andata
+      if (button && button.getClientRects().length) button.focus({ preventScroll: true });
+      else els.main.focus({ preventScroll: true });
     }
     if (dialog === els.addSheet && inboxShowing && inboxShowing !== ASSISTANT_BUSY) {
       const id = inboxShowing;

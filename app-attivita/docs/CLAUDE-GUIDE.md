@@ -30,6 +30,7 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - **Focus a tutto schermo**: un timer sull'attività scelta, con pausa, +5 min e un suono alla fine. I **minuti di focus** finiscono nel registro.
 - **Musica nel focus**, senza account: nelle Impostazioni si sceglie Spotify, Apple Music o Amazon Music; in Focus, sotto «Cosa faccio adesso?», cinque playlist per umore che si aprono nell'app del servizio, e nel focus a tutto schermo «🎧» riapre l'ultima. Senza un servizio scelto c'è un avviso, che si rimanda o si toglie per sempre (vedi [docs/musica.md](musica.md)).
 - **Gestione**: aggiungere, **modificare** (tocco sulla card), completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
+- **Attività che si ripetono**: nel foglio, «Si ripete» ogni giorno, ogni settimana nei giorni scelti oppure ogni mese. Completandola arriva la prossima, una sola da fare per volta; «Salta questa volta» la porta al primo giorno giusto; sulla card c'è ↻. Si scrive anche nella frase: «palestra ogni lunedì e giovedì alle 18» (vedi [docs/ripetizioni.md](ripetizioni.md)).
 - **Backup dei dati**: esportare e importare un file JSON con attività, punti, serie, minuti di focus, premi e riscatti (link "Backup dei dati" in fondo a Motivazione, e riga nelle Impostazioni).
 - **Scrivere una frase**, che compila il modulo da sola ("domani alle 10 dentista 30 min").
 - **Aprire il link `…/?add=testo`**, che apre il modulo già compilato (vedi [docs/linguaggio-naturale.md](linguaggio-naturale.md)).
@@ -104,7 +105,8 @@ Dopo il merge il telefono scarica la nuova versione alla prima apertura con inte
 | `css/style.css` | Design system: token (variabili) per i due temi, componenti, animazioni. Le tavolozze dei colori dell'aurora (`[data-aurora]`, con il bagliore dell'intestazione di Focus per tema) e le forme dei coriandoli (`[data-shape]`) |
 | `js/theme.js` | Tema Automatico/Chiaro/Scuro. Caricato nel `<head>` **senza `defer`** per applicare il tema prima del primo disegno (niente lampi) |
 | `js/utils.js` | Date e orari locali, formattazione in italiano, saluto, id univoci |
-| `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, modifica, completamento, eliminazione e ripristino, sezioni, riepilogo. Schede: quali sezioni mostra ognuna (`TAB_SECTIONS`), in quale scheda si vede un'attività (`tabOf`, `isInTab`), completate di un giorno (`completedOn`), ora già passata (`isTimePassed`). Ordini delle liste, usati anche dall'Agenda (`compareByTime`, `compareByDate`, `compareByCreation`) |
+| `js/repeat.js` | Logica pura delle attività che si ripetono (P-005, passo 5.1; specifica in [docs/ripetizioni.md](ripetizioni.md)): le regole e la loro pulizia (`clean`, `same`, `fromKind`), il giorno dopo (`nextAfter`, `onOrAfter`), completare e saltare (`afterDone`, `afterSkip`), i testi (`label`, `spokenLabel`, `dayLabel`, `returnLabel`), i campi letti (`sanitize`). Lavora sui giorni, non sulle ore |
+| `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, modifica, completamento, eliminazione e ripristino, sezioni, riepilogo. Ripetizioni (P-005, passo 5.1): completare prepara la prossima (`toggleDone`), «Salta questa volta» (`skipOccurrence`), la volta da fare di una serie (`openInSeries`), confronto dei campi del foglio (`sameFields`). Schede: quali sezioni mostra ognuna (`TAB_SECTIONS`), in quale scheda si vede un'attività (`tabOf`, `isInTab`), completate di un giorno (`completedOn`), ora già passata (`isTimePassed`). Ordini delle liste, usati anche dall'Agenda (`compareByTime`, `compareByDate`, `compareByCreation`) |
 | `js/nlp.js` | Logica pura del linguaggio naturale: `parseTaskText(testo, adesso)` riconosce giorno, orario, durata ed energia in una frase. `parseDetails()` dà gli stessi campi più `dateSaid` (la frase nomina un giorno?), per l'assistente |
 | `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione. Serie e record contano anche i giorni riparati nel negozio (`repairedDays`). I punti spesi in premi e nel negozio non toccano il totale: li conta `rewards.js` |
 | `js/focus.js` | Logica pura della modalità focus: sessione (`start`, `pause`, `resume`, `extend`), tempo che manca calcolato dagli istanti, esito di una sessione (`sessionResult`), minuti di focus nel registro (`recordMinutes`), pulizia di sessione e minuti |
@@ -154,7 +156,7 @@ Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 La chiave `aura-tasks:data` contiene:
 ```json
 {
-  "version": 6,
+  "version": 7,
   "tasks": [
     {
       "id": "3f2c9a…",
@@ -166,7 +168,9 @@ La chiave `aura-tasks:data` contiene:
       "done": true,
       "createdAt": 1793258400000,
       "completedAt": 1793290000000,
-      "pointsAwarded": 24
+      "pointsAwarded": 24,
+      "repeat": { "every": "week", "days": [1, 4] },
+      "seriesId": "3f2c9a…"
     }
   ],
   "rewards": [
@@ -194,6 +198,8 @@ La chiave `aura-tasks:data` contiene:
 - `time`: `'HH:MM'` locale oppure `null`. Esiste **solo insieme a `date`**: `sanitizeTask()` lo azzera se manca il giorno, e nel modulo il campo "Ora" è spento finché non c'è una data. Nello stesso giorno le attività vanno in ordine d'ora, prima di quelle senza orario.
 - `createdAt` e `completedAt`: millisecondi (`Date.now()`). `completedAt` vale `null` se l'attività non è completata.
 - `pointsAwarded`: punti dati al completamento, oppure `null` se l'attività non è completata. "Annulla" toglie esattamente questo valore.
+- `repeat`: la regola di un'attività che si ripete (P-005, passo 5.1; vedi [docs/ripetizioni.md](ripetizioni.md)), oppure `null`. `{ "every": "day" }`, `{ "every": "week", "days": [1, 4] }` (1 = lunedì … 7 = domenica, in ordine e senza doppi) o `{ "every": "month", "day": 31 }` (nei mesi più corti vale l'ultimo giorno). Esiste **solo insieme a `date`**, come `time`. Le volte completate tengono la loro regola; ce n'è una sola da fare per serie.
+- `seriesId`: lo stesso in tutte le volte di una serie (l'id della prima), oppure `null` per un'attività che non si è mai ripetuta. Stringa fino a 100 caratteri; un valore non valido diventa l'id dell'attività.
 - `stats` è il registro di punti e serie. È **separato dalle attività**: eliminarle o usare "Svuota" non cancella la storia.
   - `days`: completamenti e punti per giorno, dove il giorno è quello locale di `completedAt`. Un giorno che torna a 0 completamenti viene tolto.
   - **Non sfoltire mai `days`**: serie e record si calcolano da qui.
@@ -251,6 +257,8 @@ La chiave `aura-tasks:data` contiene:
 **Dalla v4 alla v5**: `migrate()` cambia solo il numero di versione; `fromData()` aggiunge `rewards: []` e `sanitizeStats()` aggiunge `spent: []` al registro (li puliscono `Aura.rewards.sanitizeRewards()` e `sanitizeSpent()`). Attività, punti, serie, minuti di focus e campi sconosciuti restano intatti, come verifica un test. I backup della v1, v2, v3 e v4 si importano ancora.
 
 **Dalla v5 alla v6**: `migrate()` cambia solo il numero di versione; `sanitizeStats()` aggiunge `shop: []` al registro (lo pulisce `Aura.shop.sanitizeShop()`) e `fromData()` aggiunge `look` con i valori di partenza (`Aura.shop.sanitizeLook()`). Attività, premi, punti, serie, minuti di focus e campi sconosciuti restano intatti, come verifica un test. I backup dalla v1 alla v5 si importano ancora.
+
+**Dalla v6 alla v7**: `migrate()` cambia solo il numero di versione; `sanitizeTask()` aggiunge `repeat: null` e `seriesId: null` alle attività (li pulisce `Aura.repeat.sanitize()`). Le attività che c'erano non si ripetono; punti, serie, premi, negozio e campi sconosciuti restano intatti, come verifica un test. I backup dalla v1 alla v6 si importano ancora.
 
 I dati migrati vengono salvati alla prima modifica.
 
@@ -486,6 +494,7 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 | [docs/illustrazioni.md](illustrazioni.md) | Illustrazioni: flusso, revisione, elenco e prompt per Nano Banana | in corso: 8 nell'app (`empty-focus` da sostituire), 5 da rifare |
 | [docs/assistente.md](assistente.md) | Assistente con l'IA: scrivere o parlare ad Aura, permessi, memoria breve, frasi di Siri, server e limiti | in corso: passi 0 (prova tecnica) e 1 (assistente scritto) pubblicati, da provare sull'iPhone |
 | [docs/impostazioni.md](impostazioni.md) | Rotella e foglio «Impostazioni»: indice con lo stato di ogni funzione, tema nella riga, foglio «Privacy», «Scollega questo dispositivo» con «Annulla» | realizzata, da provare sull'iPhone |
+| [docs/ripetizioni.md](ripetizioni.md) | Attività che si ripetono: regole, foglio, completare, «Salta questa volta», frase e Siri, dati (schema v7) | passo 5.1 di P-005 fatto, da provare sull'iPhone |
 | [docs/musica.md](musica.md) | Musica nel focus: servizio scelto nelle Impostazioni, avviso con «Quando te lo ricordo?», carosello «Musica per concentrarti», «🎧» nel focus a tutto schermo | passo 4.2 di P-004 (senza account) fatto, da provare sull'iPhone; 4.3 (Spotify collegato) e 4.4 (suoni) da fare |
 | [docs/funzioni-future.md](funzioni-future.md) | Web Share Target e scorciatoie (Android), altre idee; le idee passate a una proposta o scartate | da fare |
 | [docs/premium.md](premium.md) | Licenza premium: verifica offline, interfaccia e dati | da fare |
@@ -520,6 +529,7 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 | Linguaggio naturale con orario e link ?add= | gratuita |
 | Promemoria push e casella del Comando Rapido di Siri (server di Aura) | gratuita |
 | Modificare un'attività | gratuita |
+| Attività che si ripetono (P-005, passo 5.1) | gratuita |
 | Backup dei dati (esporta, importa, ripristina) | gratuita |
 | Animazioni più fluide | gratuita |
 | Barra delle schede | gratuita |
@@ -553,7 +563,7 @@ Le funzioni di oggi restano gratuite anche dove cambiano posto (vedi [docs/tre-m
 Come funzionerà la licenza (verifica offline, interfaccia e dati): vedi [docs/premium.md](premium.md).
 
 ## Ordine consigliato (visione "segretario personale")
-Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati, animazioni più fluide, barra delle schede e Focus con «Cosa faccio adesso?» e il timer (schema v4), Agenda a calendario, Motivazione con livelli, settimana e premi (schema v5).
+Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati, animazioni più fluide, barra delle schede e Focus con «Cosa faccio adesso?» e il timer (schema v4), Agenda a calendario, Motivazione con livelli, settimana e premi (schema v5), negozio (schema v6), musica nel focus senza account, attività che si ripetono (schema v7).
 1. ~~**Linguaggio naturale con orario** e aggiunta con il link `?add=testo`~~: fatto.
 2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
 3. ~~**Promemoria con notifiche Web Push**~~: fatto. L'esportazione `.ics` non si fa: il calendario è l'Agenda (decisione del Product Owner del 20 novembre 2026).
