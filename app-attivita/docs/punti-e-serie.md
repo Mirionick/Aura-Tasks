@@ -32,6 +32,21 @@
   - ai traguardi: "🎉 7 giorni di fila! · …";
   - completando dal focus a tutto schermo, in coda: "· 25 min di focus". I minuti di focus non danno punti e non toccano la serie.
 
+**Premi** (P-003, passo 3.4; gratuita o premium: da decidere). Logica pura in `js/rewards.js`, regole in `REWARDS`; interfaccia in `js/ui-rewards.js`, nella scheda Motivazione.
+- Ognuno scrive i suoi premi: nome fino a 60 caratteri, un'emoji da un elenco fisso di 15 e un prezzo intero da 10 a 100.000 punti. Al massimo 30 premi.
+  - Scrivendo il nome l'emoji si sceglie da sola («Pizza del venerdì» → 🍕), finché non la sceglie l'utente; senza un'idea resta 🎁.
+  - Sotto il prezzo ci sono sei prezzi pronti (100, 250, 500, 1000, 2500 e 5000) e un aiuto: i punti guadagnati negli ultimi 7 giorni, oppure quanto vale un'attività di 30 minuti con energia media.
+- **Saldo da spendere** = punti guadagnati (`totalPoints`) − punti spesi (la somma di `stats.spent`), mai sotto zero.
+  - **Spendere non fa mai scendere di livello**: livello, riquadro Punti, serie e traguardi contano tutti i punti guadagnati, e i riscatti non li toccano.
+  - Se si annulla un completamento dopo aver riscattato, il saldo può restare a zero finché quei punti non si guadagnano di nuovo.
+- I premi stanno in ordine di prezzo, ognuno con una barra e quanto manca. Con il saldo che basta «Riscatta» si accende; prima è grigio, ma un tocco dice «Ancora 240 punti per Serata al cinema».
+- **Riscatto**: va nel registro (`stats.spent`, `{ id, rewardId, title, cost, at }`, con il nome e il prezzo di quel momento); poi coriandoli dal pulsante e l'avviso «Te lo sei meritato: Pizza del venerdì · −400 punti» con «Annulla», che toglie quel riscatto. Un doppio tocco conta una volta sola.
+- Un premio si modifica e si elimina dal suo foglio, con «Annulla». I riscatti già fatti restano come sono stati fatti: cambiare il prezzo non li cambia, e un premio eliminato resta nello storico con il suo nome (e 🎁).
+- «Riscattati», chiusa sotto i premi: dal più recente, emoji, nome, giorno e punti spesi.
+- Dopo un completamento, quando il saldo arriva al prezzo di un premio, l'avviso dice «🍕 Ora puoi riscattare: Pizza del venerdì · +24 punti», se non c'è già un traguardo, un livello nuovo o l'obiettivo della settimana da dire. Con più premi pronti insieme nomina il più caro.
+- Premi e riscatti finiscono nel backup (vedi [backup.md](backup.md)). `rebuildStats()`, che ricostruisce il registro dalle attività, conserva i riscatti.
+- Test: `tests/rewards.test.js`.
+
 **Casi limite (coperti dai test)**
 - Completamenti a cavallo di mezzanotte: fa fede il giorno locale di `completedAt`.
 - Annullare un completamento di ieri: si sottrae da ieri.

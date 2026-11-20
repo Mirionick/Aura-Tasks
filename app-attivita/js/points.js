@@ -23,9 +23,12 @@
     return Math.round((POINTS.base + minutes / POINTS.minutesPerPoint) * multiplier);
   }
 
-  /** Registro vuoto. `focus` sono i minuti di focus per giorno (schema v4, vedi js/focus.js): non toccano punti e serie. */
+  /**
+   * Registro vuoto. `focus` sono i minuti di focus per giorno (schema v4, vedi js/focus.js): non toccano punti e serie.
+   * `spent` sono i riscatti dei premi (schema v5, vedi js/rewards.js): non tolgono niente a totalPoints.
+   */
   function emptyStats() {
-    return { totalPoints: 0, bestStreak: 0, milestones: [], days: {}, focus: {} };
+    return { totalPoints: 0, bestStreak: 0, milestones: [], days: {}, focus: {}, spent: [] };
   }
 
   /** Completamenti e punti di un giorno (zero se il giorno non è nel registro). */
@@ -105,9 +108,10 @@
 
   /**
    * Registro ricostruito dalle attività completate (migrazione alla v2).
-   * I traguardi già superati si segnano come raggiunti, senza festa.
+   * I traguardi già superati si segnano come raggiunti, senza festa. Da `previous`, il registro di prima (facoltativo),
+   * conserva i riscatti dei premi (`spent`): dalle attività non si possono ricostruire (P-003, passo 3.4).
    */
-  function rebuildStats(tasks) {
+  function rebuildStats(tasks, previous) {
     const stats = tasks
       .filter(task => task.done && Number.isFinite(task.completedAt))
       .reduce((acc, task) => {
@@ -115,7 +119,8 @@
         return changeDay(acc, utils.todayISO(task.completedAt), 1, points);
       }, emptyStats());
     const bestStreak = longestStreak(stats.days);
-    return { ...stats, bestStreak, milestones: POINTS.milestones.filter(m => m <= bestStreak) };
+    const spent = previous && Array.isArray(previous.spent) ? previous.spent : stats.spent;
+    return { ...stats, bestStreak, milestones: POINTS.milestones.filter(m => m <= bestStreak), spent };
   }
 
   Aura.points = {

@@ -24,12 +24,12 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - **Tre schede**, con una barra in basso (vedi [docs/tre-modalita.md](tre-modalita.md)):
   - **Focus**, per fare: in ritardo, oggi, senza data e «Completate oggi»;
   - **Agenda**, per pianificare: un calendario del mese (o solo della settimana) con i puntini delle attività; sotto, il giorno scelto con «In giornata» e «Con orario» (spazi liberi con il «+», linea dell'ora, sovrapposizioni), «Prossimi giorni» e «Da pianificare» con «Metti a…»;
-  - **Motivazione**, per i progressi: il livello con il distintivo, serie e punti in grande, «La tua settimana» (una stella per ogni attività completata e l'obiettivo della settimana, che raggiunto la fa diventare una costellazione), «I tuoi numeri» (minuti di focus, serie più lunga, giorno migliore, completate in tutto), le completate e il backup.
+  - **Motivazione**, per i progressi: il livello con il distintivo, serie e punti in grande, «La tua settimana» (una stella per ogni attività completata e l'obiettivo della settimana, che raggiunto la fa diventare una costellazione), «I tuoi premi» (premi scelti da te con un prezzo in punti, da riscattare con il saldo), «I tuoi numeri» (minuti di focus, serie più lunga, giorno migliore, completate in tutto), le completate e il backup.
 - **«Cosa faccio adesso?»**: dici quanto tempo hai e come ti senti, e Aura propone un'attività, con il motivo. La proposta è già scritta nella striscia in cima a Focus.
 - **Assistente «Aura»** (facoltativo, con l'IA del server di Aura): le scrivi una frase («domani devo chiamare il medico», «ho 40 minuti e sono cotto») e lei propone, aggiunge o sposta secondo i permessi che scegli. Completare ed eliminare restano sempre un tuo tocco. Spento, senza internet o a quota finita, tutto funziona come prima.
 - **Focus a tutto schermo**: un timer sull'attività scelta, con pausa, +5 min e un suono alla fine. I **minuti di focus** finiscono nel registro.
 - **Gestione**: aggiungere, **modificare** (tocco sulla card), completare (con "Annulla"), eliminare (con "Annulla") e svuotare le completate.
-- **Backup dei dati**: esportare e importare un file JSON con attività, punti, serie e minuti di focus (link "Backup dei dati" in fondo a Motivazione, e riga nelle Impostazioni).
+- **Backup dei dati**: esportare e importare un file JSON con attività, punti, serie, minuti di focus, premi e riscatti (link "Backup dei dati" in fondo a Motivazione, e riga nelle Impostazioni).
 - **Scrivere una frase**, che compila il modulo da sola ("domani alle 10 dentista 30 min").
 - **Aprire il link `…/?add=testo`**, che apre il modulo già compilato (vedi [docs/linguaggio-naturale.md](linguaggio-naturale.md)).
 - **Liste** divise per giorno, con le attività in ordine d'ora. In quelle di oggi l'ora già passata è in rosso.
@@ -99,19 +99,20 @@ Dopo il merge il telefono scarica la nuova versione alla prima apertura con inte
 
 | File | Ruolo |
 |---|---|
-| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, l'intestazione, le tre schede (`<section class="tab">`) con la barra (`<nav class="tabbar">`), i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; «Impostazioni»; «Privacy»; "Promemoria e Siri"; "Backup dei dati"; «Cosa faccio adesso?», che con l'assistente acceso si chiama «Aura»; «Assistente»; Focus a tutto schermo) e il `<template>` della card |
+| `index.html` | Struttura della pagina e meta per mobile e PWA. Contiene lo sprite delle icone SVG, l'intestazione, le tre schede (`<section class="tab">`) con la barra (`<nav class="tabbar">`), i fogli `<dialog>` ("Nuova attività", che fa anche da "Modifica attività"; «Impostazioni»; «Privacy»; "Promemoria e Siri"; "Backup dei dati"; «Cosa faccio adesso?», che con l'assistente acceso si chiama «Aura»; «Assistente»; Focus a tutto schermo; il foglio del premio, «Nuovo premio» o «Modifica premio») e il `<template>` della card |
 | `css/style.css` | Design system: token (variabili) per i due temi, componenti, animazioni |
 | `js/theme.js` | Tema Automatico/Chiaro/Scuro. Caricato nel `<head>` **senza `defer`** per applicare il tema prima del primo disegno (niente lampi) |
 | `js/utils.js` | Date e orari locali, formattazione in italiano, saluto, id univoci |
 | `js/tasks.js` | Logica pura delle attività: livelli di energia, limiti, validazione, creazione, modifica, completamento, eliminazione e ripristino, sezioni, riepilogo. Schede: quali sezioni mostra ognuna (`TAB_SECTIONS`), in quale scheda si vede un'attività (`tabOf`, `isInTab`), completate di un giorno (`completedOn`), ora già passata (`isTimePassed`). Ordini delle liste, usati anche dall'Agenda (`compareByTime`, `compareByDate`, `compareByCreation`) |
 | `js/nlp.js` | Logica pura del linguaggio naturale: `parseTaskText(testo, adesso)` riconosce giorno, orario, durata ed energia in una frase. `parseDetails()` dà gli stessi campi più `dateSaid` (la frase nomina un giorno?), per l'assistente |
-| `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione |
+| `js/points.js` | Logica pura di punti e serie: regole (`POINTS`), completamento con punti, registro dei giorni, serie, record, traguardi, ricostruzione del registro per la migrazione. I punti spesi in premi non toccano il totale: li conta `rewards.js` |
 | `js/focus.js` | Logica pura della modalità focus: sessione (`start`, `pause`, `resume`, `extend`), tempo che manca calcolato dagli istanti, esito di una sessione (`sessionResult`), minuti di focus nel registro (`recordMinutes`), pulizia di sessione e minuti |
 | `js/suggest.js` | Logica pura di «Cosa faccio adesso?»: `suggest(tasks, { minutes, energy, today, now, exclude, random })` sceglie la proposta e ne dice il motivo (un'attività di oggi con l'orario solo da 15 minuti prima); pesi e scelte in `SUGGEST`. Con `first` la proposta è un'attività già scelta (quella scritta nella striscia). `candidates()` dà tutte le candidate, senza caso: una proposta dell'IA vale solo se è lì dentro |
 | `js/assistant.js` | Logica pura dell'assistente: ciò che si manda al server (`buildRequest`: attività con sigle al posto degli id, memoria breve), controllo della risposta con le regole del modulo e con i freni (`planReply`), permessi (`isAutomatic`), applicare e annullare (`applyAuto`, `undoEntries`), frasi scritte dall'app, copia della proposta all'apertura, pulizia dei dati salvati. Limiti e valori di partenza in `ASSISTANT` |
 | `js/agenda.js` | Logica pura dell'Agenda a calendario: griglia del mese e settimana del giorno scelto (`calendar`, `monthWeeks`, `weekOf`), frecce (`navigate`), puntini, attività del giorno (`dayTasks`), «Con orario» con spazi liberi, linea dell'ora e sovrapposizioni (`schedule`), «Prossimi giorni» e «Da pianificare» (`upcoming`, `unplanned`), che cosa si vede (`isInAgenda`), il giorno di «Metti a…» (`planDate`), frasi per la pagina e per il lettore di schermo. Valori in `AGENDA` |
 | `js/motivation.js` | Logica pura della scheda Motivazione, tutta dal registro: livelli dai punti guadagnati, mai salvati (`LEVELS`, `levelOf`, `levelUp`, Aurora 2, 3… compresi), la settimana da lunedì e quella scorsa (`weekOf`, `lastWeek`), l'obiettivo (`nextGoal`, `sanitizeGoal`), il cielo con le stelle, i cerchi che mancano e la costellazione (`sky`, `starAt`, `constellation`), «I tuoi numeri» (`numbers`, `numberRows`), frasi per la pagina e per il lettore di schermo. Valori in `MOTIVATION` |
-| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione. Preferenze (`aura-tasks:prefs`), focus in corso (`aura-tasks:focus`) e dati dell'assistente (`aura-tasks:assistant`) |
+| `js/rewards.js` | Logica pura di «I tuoi premi» (P-003, passo 3.4; regole in [docs/punti-e-serie.md](punti-e-serie.md), «Premi»): il saldo da spendere (`balance`: punti guadagnati meno punti spesi), il riscatto e il suo «Annulla» (`redeem`, `undoRedeem`), aggiungere, modificare, eliminare e rimettere un premio, il controllo del foglio (`validateInput`), le righe della card (`rows`), lo storico dei riscatti (`history`), il premio che un completamento rende riscattabile (`newlyReady`), l'emoji scelta dal nome (`guessEmoji`), la pulizia di premi e riscatti letti, le frasi. Limiti, prezzi pronti ed emoji in `REWARDS` |
+| `js/storage.js` | Lettura e scrittura del `localStorage`, versione dello schema, migrazioni, pulizia di attività, premi e registro. File di backup (esportazione e lettura, con gli stessi controlli) e copia dei dati di prima di un'importazione. Preferenze (`aura-tasks:prefs`), focus in corso (`aura-tasks:focus`) e dati dell'assistente (`aura-tasks:assistant`) |
 | `js/reminders.js` | Logica pura dei promemoria: dalle attività con giorno e ora all'elenco per il server (`at`, `fireAt`), anticipi, impronta dell'elenco |
 | `js/remote.js` | Collegamento al server di Aura, senza DOM: richieste (anche quelle dell'assistente: `api.transcribe`, `api.chat`), codice del dispositivo, sottoscrizione push, impostazioni in `aura-tasks:remote`. Le funzioni pure sono testate |
 | `js/settings.js` | Logica pura delle Impostazioni: che cosa dice ogni riga del foglio con i dati di adesso (`describe`), la frase su dove stanno i dati, intera e breve (`privacyLine`, `privacyShort`), i tre temi con nome e descrizione (`THEMES`) |
@@ -121,21 +122,22 @@ Dopo il merge il telefono scarica la nuova versione alla prima apertura con inte
 | `js/ui-settings.js` | Interfaccia della rotella e dei fogli «Impostazioni» e «Privacy»: le righe con lo stato di adesso (le frasi le scrive `settings.js`), il tema scelto nella riga, le copie dei testi sulla privacy, «Scollega questo dispositivo». Le righe aprono, sopra, i fogli che ci sono già. Avviato da `app.js` con `Aura.settingsUI.init()`, dopo `ui-assistant.js` |
 | `js/ui-agenda.js` | Interfaccia dell'Agenda: calendario (mese o settimana, frecce, scorrimento di lato, «Oggi», maniglia), giorno scelto con «In giornata» e «Con orario», «Prossimi giorni» e «Da pianificare» con «Metti a…», movimenti. Tiene il giorno scelto. Avviato da `app.js` con `Aura.agendaUI.init()`, dopo `ui-settings.js`; ogni minuto `tick()` fa avanzare la linea dell'ora |
 | `js/ui-motivation.js` | Interfaccia della scheda Motivazione: nell'intestazione il livello (distintivo, nome, barra, quanto manca), «La tua settimana» con il cielo in SVG e il pulsante dell'obiettivo, «I tuoi numeri», le stelle che si accendono all'apertura e la costellazione che appare. Avviato da `app.js` con `Aura.motivationUI.init()`, dopo `ui-agenda.js`; `celebrate()` dice ad `app.js` se un completamento ha fatto salire di livello o raggiungere l'obiettivo |
-| `js/app.js` | Interfaccia: schede e barra, disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Tocca la pagina insieme a `ui-focus.js`, a `ui-assistant.js`, a `ui-settings.js`, a `ui-agenda.js`, a `ui-motivation.js` e, per le animazioni, a `motion.js` |
+| `js/ui-rewards.js` | Interfaccia di «I tuoi premi» in Motivazione: la pillola del saldo, le righe dei premi con la barra e «Riscatta» (coriandoli e avviso con «Annulla»), «Aggiungi un premio», i riscatti chiusi, e il foglio del premio (nome, emoji da un elenco fisso, prezzo con i prezzi pronti; modificando, «Elimina»). Nella pagina i premi si chiamano `prize` (`#prizes`, `.prize`, `#prize-sheet`): `rewards` è già il riquadro di serie e punti. Avviato da `app.js` con `Aura.rewardsUI.init()`, dopo `ui-motivation.js`; salva con `commitState()`; `celebrate()` dice ad `app.js` quale premio un completamento ha reso riscattabile |
+| `js/app.js` | Interfaccia: schede e barra, disegno, eventi, fogli (anche la modifica delle attività), avvisi con "Annulla", serie e punti con i loro effetti, foglio "Backup dei dati", foglio "Promemoria e Siri", casella di Siri, registrazione del service worker. Tocca la pagina insieme a `ui-focus.js`, a `ui-assistant.js`, a `ui-settings.js`, a `ui-agenda.js`, a `ui-motivation.js`, a `ui-rewards.js` e, per le animazioni, a `motion.js` |
 | `sw.js` | Service worker: uso offline, notifiche dei promemoria (`push`) e tocco sulla notifica (`notificationclick`) |
 | `manifest.webmanifest` | Nome, icone e colori per l'installazione |
 | `icons/` | `icon.svg` (favicon e sorgente), PNG 192 e 512 "any", 512 "maskable", `apple-touch-icon` 180 |
 | `images/` | Illustrazioni in WebP, ottimizzate dagli originali che restano fuori dal repository (vedi [docs/illustrazioni.md](illustrazioni.md)). Per ora `suggest-none.webp`, `empty-focus.webp` e i distintivi dei livelli 1, 2, 3, 5, 6 e 7 (`level-N-<nome>.webp`); Stella è disegnata in `index.html` finché `level-4-star` non è rifatta |
 | `prove/` | Pagine **provvisorie** di prova, fuori da `APP_FILES`. Per ora `voce.html` (con `voce.css` e `voce.js`): prova tecnica di microfono, trascrizione e voce del telefono per l'assistente. Si apre dal link in fondo a Motivazione e sparisce con il passo 2 di [docs/assistente.md](assistente.md) |
-| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`, `assistant.test.js`, `settings.test.js`, `agenda.test.js`, `motivation.test.js`): si aprono con `tests/index.html` |
+| `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`, `assistant.test.js`, `settings.test.js`, `agenda.test.js`, `motivation.test.js`, `rewards.test.js`): si aprono con `tests/index.html` |
 | `docs/` | Le specifiche delle funzioni, una per file (vedi "Indice delle specifiche"), e questa guida (`docs/CLAUDE-GUIDE.md`) |
 | `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](promemoria-e-siri.md) e `server/README.md` |
 | `../AGENTS.md`, `../docs/`, `../.github/` | Per tutti gli agenti: regole condivise (`AGENTS.md`), stato del lavoro, decisioni e proposte (`docs/` alla radice), modello delle Pull Request (`.github/`) |
 | `CLAUDE.md`, `../CLAUDE.md`, `../server/CLAUDE.md`, `../.claude/`, `../CLAUDE-WORKFLOW.md` | Istruzioni per Claude Code: istruzioni di lavoro e vincoli sempre attivi (`CLAUDE.md`), richiami per area (`.claude/rules/`), procedure a richiesta (`.claude/skills/`), permessi (`.claude/settings.json`) e flusso di lavoro con Claude Project |
 
-**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `focus.js` → `suggest.js` → `assistant.js` → `agenda.js` → `motivation.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `settings.js` → `ui-focus.js` → `ui-assistant.js` → `ui-settings.js` → `ui-agenda.js` → `ui-motivation.js` → `app.js`.
-- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.focus`, `Aura.suggest`, `Aura.assistant`, `Aura.agenda`, `Aura.motivation`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`, `Aura.settings`, `Aura.focusUI`, `Aura.assistantUI`, `Aura.settingsUI`, `Aura.agendaUI`, `Aura.motivationUI`).
-- `points.js`, `focus.js`, `suggest.js`, `assistant.js`, `agenda.js` e `motivation.js` vanno prima di `storage.js`, che li usa per la migrazione e per pulire registro, sessione, preferenze (anche la vista dell'Agenda e l'obiettivo della settimana) e dati dell'assistente. `agenda.js` va dopo `tasks.js`, di cui usa gli ordini delle liste. `motivation.js` va dopo `points.js`, `focus.js` e `agenda.js`, che usa (totali dei giorni, minuti di focus, settimana da lunedì). `assistant.js` va dopo `nlp.js` e `suggest.js`, che usa. `reminders.js` va prima di `remote.js` e di `settings.js`, che ne usano gli anticipi. `ui-focus.js`, `ui-assistant.js`, `ui-settings.js`, `ui-agenda.js` e `ui-motivation.js` vanno prima di `app.js`, che li avvia in quest'ordine.
+**Ordine di caricamento**: `theme.js` → `utils.js` → `tasks.js` → `nlp.js` → `points.js` → `focus.js` → `suggest.js` → `assistant.js` → `agenda.js` → `motivation.js` → `rewards.js` → `storage.js` → `reminders.js` → `remote.js` → `motion.js` → `settings.js` → `ui-focus.js` → `ui-assistant.js` → `ui-settings.js` → `ui-agenda.js` → `ui-motivation.js` → `ui-rewards.js` → `app.js`.
+- Ogni file aggiunge il suo modulo a `window.Aura` (`Aura.theme`, `Aura.utils`, `Aura.tasks`, `Aura.nlp`, `Aura.points`, `Aura.focus`, `Aura.suggest`, `Aura.assistant`, `Aura.agenda`, `Aura.motivation`, `Aura.rewards`, `Aura.storage`, `Aura.reminders`, `Aura.remote`, `Aura.motion`, `Aura.settings`, `Aura.focusUI`, `Aura.assistantUI`, `Aura.settingsUI`, `Aura.agendaUI`, `Aura.motivationUI`, `Aura.rewardsUI`).
+- `points.js`, `focus.js`, `suggest.js`, `assistant.js`, `agenda.js`, `motivation.js` e `rewards.js` vanno prima di `storage.js`, che li usa per la migrazione e per pulire registro, premi e riscatti, sessione, preferenze (anche la vista dell'Agenda e l'obiettivo della settimana) e dati dell'assistente. `agenda.js` va dopo `tasks.js`, di cui usa gli ordini delle liste. `motivation.js` va dopo `points.js`, `focus.js` e `agenda.js`, che usa (totali dei giorni, minuti di focus, settimana da lunedì). `rewards.js` va dopo `points.js`, di cui usa i punti di un'attività tipica. `assistant.js` va dopo `nlp.js` e `suggest.js`, che usa. `reminders.js` va prima di `remote.js` e di `settings.js`, che ne usano gli anticipi. `ui-focus.js`, `ui-assistant.js`, `ui-settings.js`, `ui-agenda.js`, `ui-motivation.js` e `ui-rewards.js` vanno prima di `app.js`, che li avvia in quest'ordine.
 
 Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 1. in `index.html`, con `defer`, prima di `app.js`;
@@ -147,7 +149,7 @@ Un nuovo modulo `js/<nome>.js` va aggiunto in tre punti:
 La chiave `aura-tasks:data` contiene:
 ```json
 {
-  "version": 4,
+  "version": 5,
   "tasks": [
     {
       "id": "3f2c9a…",
@@ -162,12 +164,18 @@ La chiave `aura-tasks:data` contiene:
       "pointsAwarded": 24
     }
   ],
+  "rewards": [
+    { "id": "8d1e4b…", "title": "Pizza del venerdì", "emoji": "🍕", "cost": 400, "createdAt": 1793100000000 }
+  ],
   "stats": {
     "totalPoints": 24,
     "bestStreak": 1,
     "milestones": [],
     "days": { "2026-10-29": { "done": 1, "points": 24 } },
-    "focus": { "2026-10-29": 25 }
+    "focus": { "2026-10-29": 25 },
+    "spent": [
+      { "id": "c07a2f…", "rewardId": "8d1e4b…", "title": "Pizza del venerdì", "cost": 400, "at": 1793290500000 }
+    ]
   }
 }
 ```
@@ -184,6 +192,8 @@ La chiave `aura-tasks:data` contiene:
   - `bestStreak`: il record, cioè la serie più lunga in `days`. Si ricalcola a ogni modifica.
   - `milestones`: i traguardi già festeggiati. Restano anche dopo "Annulla", così la festa non si ripete.
   - `focus`: i minuti di focus per giorno (interi tra 1 e 1440). È una mappa separata da `days`: non tocca punti, serie e record. Il giorno è quello locale in cui il focus si è fermato.
+  - `spent`: i riscatti dei premi, dal più vecchio, con il nome e il prezzo di quel momento (`rewardId` è il premio, oppure `null`). **Non tolgono niente a `totalPoints`**: il saldo da spendere è `totalPoints` meno la somma dei `cost`, mai sotto zero (`Aura.rewards.balance()`), e livello e riquadro Punti contano tutti i punti guadagnati. Un riscatto resta anche se il premio viene eliminato; «Annulla» lo toglie per `id`.
+- `rewards`: i premi scelti dall'utente, al massimo 30 (P-003, passo 3.4; regole in [docs/punti-e-serie.md](punti-e-serie.md), «Premi»). `title` fino a 60 caratteri, `emoji` dall'elenco fisso di `Aura.rewards.REWARDS.emoji` (🎁 se è un'altra), `cost` intero tra 10 e 100.000 punti. Nella pagina sono in ordine di prezzo.
 - Le altre chiavi:
   - `aura-tasks:theme`: `auto` | `light` | `dark`;
   - `aura-tasks:prefs`: preferenze, **senza versione** e fuori dal backup. La scrive e la legge solo `js/storage.js` (`loadPrefs()`, `savePrefs()`), che pulisce i valori e conserva i campi sconosciuti. Contiene:
@@ -211,9 +221,9 @@ La chiave `aura-tasks:data` contiene:
 
 **File di backup** (`aura-tasks-backup-AAAA-MM-GG.json`, giorno locale):
 ```json
-{ "format": "aura-tasks-backup", "exportedAt": 1793…, "data": { "version": 4, "tasks": […], "stats": {…} } }
+{ "format": "aura-tasks-backup", "exportedAt": 1793…, "data": { "version": 5, "tasks": […], "rewards": […], "stats": {…} } }
 ```
-- `data` è tutto `aura-tasks:data` così com'è, compresi i campi sconosciuti e i minuti di focus.
+- `data` è tutto `aura-tasks:data` così com'è, compresi i campi sconosciuti, i minuti di focus, i premi e i riscatti.
 - Non contiene mai `aura-tasks:remote` (codice segreto del dispositivo, promemoria, casella di Siri), il tema, le preferenze, il focus in corso o i dati dell'assistente: il backup legge solo lo stato.
 - Leggendo un file si usa solo `data`, che passa da `fromData()`, cioè dagli stessi controlli e dalle stesse migrazioni dei dati salvati.
 
@@ -224,14 +234,16 @@ La chiave `aura-tasks:data` contiene:
 
 **Dalla v2 alla v3**: `migrate()` cambia solo il numero di versione, e `sanitizeTask()` aggiunge `time: null` alle attività. Punti, registro e campi sconosciuti restano intatti, come verifica un test.
 
-**Dalla v3 alla v4**: `migrate()` cambia solo il numero di versione, e `sanitizeStats()` aggiunge `focus: {}` al registro. Attività, punti, serie e campi sconosciuti restano intatti, come verifica un test. I backup della v1, v2 e v3 si importano ancora.
+**Dalla v3 alla v4**: `migrate()` cambia solo il numero di versione, e `sanitizeStats()` aggiunge `focus: {}` al registro. Attività, punti, serie e campi sconosciuti restano intatti, come verifica un test.
+
+**Dalla v4 alla v5**: `migrate()` cambia solo il numero di versione; `fromData()` aggiunge `rewards: []` e `sanitizeStats()` aggiunge `spent: []` al registro (li puliscono `Aura.rewards.sanitizeRewards()` e `sanitizeSpent()`). Attività, punti, serie, minuti di focus e campi sconosciuti restano intatti, come verifica un test. I backup della v1, v2, v3 e v4 si importano ancora.
 
 I dati migrati vengono salvati alla prima modifica.
 
 ### Cambiare lo schema
 1. Aumenta `SCHEMA_VERSION` in `js/storage.js`.
 2. In `migrate()` aggiungi un passo `if (state.version === N) { …; state.version = N + 1; }`. I passi si eseguono in ordine: un utente fermo alla v1 deve arrivare all'ultima versione.
-3. Se aggiungi campi alle attività, aggiorna `sanitizeTask()`; se cambi il registro, `sanitizeStats()`. Poi scrivi i test della migrazione.
+3. Se aggiungi campi alle attività, aggiorna `sanitizeTask()`; se cambi il registro, `sanitizeStats()`; un elenco nuovo accanto a `tasks` (come `rewards`) si pulisce in `fromData()`. Poi scrivi i test della migrazione.
 4. **Non cambiare mai il significato di un campo esistente**: aggiungine uno nuovo.
 
 `parse()` conserva i campi che non conosce e non abbassa mai il numero di versione. Così una versione più vecchia dell'app non rovina i dati scritti da una più nuova.
@@ -240,12 +252,13 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
 
 ## Convenzioni
 
-- **Logica pura e pagina sono separate.** `utils.js`, `tasks.js`, `focus.js`, `suggest.js`, `assistant.js`, `agenda.js`, `motivation.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. La pagina la toccano solo `app.js`, `ui-focus.js`, `ui-assistant.js`, `ui-settings.js`, `ui-agenda.js` e `ui-motivation.js`, insieme a `motion.js` per le animazioni.
+- **Logica pura e pagina sono separate.** `utils.js`, `tasks.js`, `focus.js`, `suggest.js`, `assistant.js`, `agenda.js`, `motivation.js`, `rewards.js` e le parti pure di `storage.js` non toccano né il DOM né il `localStorage`. Restituiscono sempre nuovi oggetti invece di modificare quelli esistenti, quindi sono facili da testare e da annullare. La pagina la toccano solo `app.js`, `ui-focus.js`, `ui-assistant.js`, `ui-settings.js`, `ui-agenda.js`, `ui-motivation.js` e `ui-rewards.js`, insieme a `motion.js` per le animazioni.
 - **Schede**: sono tre `<section class="tab">` dentro `#main`; quelle non attive hanno `hidden`. Si cambiano solo con `showTab()`.
   - `render()` ridisegna tutte e tre: una stessa attività può avere una card in due schede (completata oggi: «Completate oggi» in Focus e lo storico in Motivazione; senza data: Focus e «Da pianificare» in Agenda; di oggi, con oggi scelto nel calendario: Focus e il giorno scelto in Agenda). Per cercare una card si usa `cardOf(id)`, che guarda solo la scheda attiva.
   - Se un'attività si vede nella scheda aperta lo dice `isVisibleIn(task, tab, today)`: per l'Agenda dipende anche dal giorno scelto (`Aura.agendaUI` → `Aura.agenda.isInAgenda`). Lo usano gli avvisi di aggiunta e modifica e `showTask()`.
   - **Agenda** (P-003, passo 3.2): il giorno scelto vive in `ui-agenda.js` e non si salva; si salva solo la vista, mese o settimana (`prefs.agendaView`). «Nuova attività» aperta dall'Agenda propone il giorno scelto, mai un giorno passato (`addPreset()`).
   - **Motivazione** (P-003, passo 3.3): livello, cielo e numeri vengono dal registro (`stats`), non dalle completate: «Svuota» non spegne le stelle. Si salva solo l'obiettivo (`prefs.weeklyGoal`). L'avviso «🌌 Obiettivo della settimana raggiunto» parte una volta per settimana, quando un completamento porta il conto esattamente all'obiettivo; dopo «Annulla» non si ripete (la memoria è in `ui-motivation.js`, non si salva).
+  - **I tuoi premi** (P-003, passo 3.4): premi (`state.rewards`) e riscatti (`stats.spent`) passano da `commitState()`, che salva solo le parti che cambiano. Riscattare non tocca `totalPoints`: cambiano solo il saldo e lo storico, mai il livello o il riquadro Punti. Dopo un completamento l'avviso dice «🍕 Ora puoi riscattare: …» quando il saldo arriva al prezzo di un premio, se non c'è già un traguardo, un livello nuovo o l'obiettivo raggiunto. I pulsanti delle righe si riconoscono da `data-prize`: `data-action` è dei pulsanti delle card delle attività, gestiti da `app.js` su tutto `#main`.
   - Le animazioni FLIP lavorano su `#main` e saltano da sole ciò che sta sotto `[hidden]`.
   - Serie e punti hanno due copie, i chip di Focus e i riquadri grandi di Motivazione: gli effetti vanno su quella che si vede (`rewardTargets()`).
   - **Intestazione di Focus compatta**: su iPhone 13 in Safari (390×664) resta sotto i 220 px e lascia vedere 4 card. Prima di aggiungerle qualcosa, misura.
@@ -257,7 +270,7 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - **se il modello e le regole di `nlp.js` leggono un'ora diversa**, l'app chiede sempre, e nella domanda propone l'ora delle regole («alle 6» sono le 18:00), come nel foglio "Nuova attività" (`agreedTime()`);
   - **nessuna richiesta prima del primo disegno**, né con l'assistente spento, senza consenso o da `file://`: lì vale la proposta delle regole;
   - gli id delle attività non partono mai: al server vanno le sigle `t1`, `t2`… di `buildRequest()`.
-- **Ogni modifica passa da `commit()`** in `app.js`, che salva e ridisegna. `render()` ridisegna tutto partendo da `state`: i dati sono pochi, quindi è veloce e non ci sono stati "sfasati". `commit()` fa anche scivolare le card al loro posto (vedi "Movimento").
+- **Ogni modifica passa da `commit()`** in `app.js`, che salva e ridisegna; premi e riscatti passano da `commitState()`, la stessa cosa per le parti di `state` indicate. `render()` ridisegna tutto partendo da `state`: i dati sono pochi, quindi è veloce e non ci sono stati "sfasati". `commit()` fa anche scivolare le card al loro posto (vedi "Movimento").
   - Unica eccezione: importare un backup e ripristinare la copia sostituiscono **tutto** lo stato. Salvano `storage.replaceData()` e `storage.restoreBeforeImport()`, poi `applyState()` ridisegna.
 - **Date**: usa sempre `Aura.utils` (`todayISO`, `addDays`, `daysBetween`, `parseISODate`, `isISODate`…).
   - Mai `toISOString()` per la data di oggi: è in UTC, e dopo mezzanotte in Italia darebbe il giorno prima.
@@ -402,6 +415,12 @@ Note per i controlli automatici con Edge headless:
   - all'apertura della scheda le stelle si accendono una dopo l'altra (al massimo 24, entro `--dur-tab`); la costellazione appena formata appare con una dissolvenza. Solo `opacity` e `transform`; con «Riduci movimento» niente;
   - «I tuoi numeri» sono sei riquadri in tre colonne (due sotto i 360 px), con i valori allineati in basso; senza minuti di focus una riga dice da dove arrivano;
   - «Completate» è chiusa, con il numero, come «Completate oggi» in Focus; «Svuota» sta dentro.
+- **I tuoi premi** (P-003, passo 3.4), tra «La tua settimana» e «I tuoi numeri»:
+  - un riquadro (`.card-block`) con il titolo e la pillola d'oro del saldo («1360 da spendere», `--points-chip-*`), che sugli schermi stretti va sotto il titolo;
+  - ogni premio è una riga: l'emoji in un riquadro di 48 px (40 sotto i 360 px), il nome, una barra d'oro (`--star`) e lo stato («Pronto» in verde, `--low`; «Ancora 240 · 800 punti»); a destra «Riscatta», pieno dell'accento, oppure grigio ma toccabile (`aria-disabled`): un tocco dice quanto manca;
+  - senza premi, una frase e «Aggiungi un premio» in evidenza; «Riscattati» è chiusa, con il numero, come «Completate»;
+  - riscattando, coriandoli dal pulsante e la pillola che salta; con «Riduci movimento» niente;
+  - nel foglio del premio le 15 emoji stanno in cinque colonne (pulsanti di opzione di almeno 48 px) e i sei prezzi pronti in due righe da tre.
 - **Focus a tutto schermo**: i colori dell'intestazione "aura" in entrambi i temi, con testo chiaro, un grande anello del tempo che manca e un'aurora che scorre piano e sale con il tempo (P-003, passo 3.1).
 - **Serie e punti**: due chip nell'intestazione di Focus e due riquadri grandi in quella di Motivazione, con gli stessi effetti.
   - Serie "accesa" quando oggi c'è già un completamento: gradiente caldo arancio-rosa e fiamma colorata.
@@ -436,12 +455,12 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 
 | File | Funzione | Stato |
 |---|---|---|
-| [docs/punti-e-serie.md](punti-e-serie.md) | Punti, serie di giorni, record e traguardi | realizzata |
+| [docs/punti-e-serie.md](punti-e-serie.md) | Punti, serie di giorni, record e traguardi; premi da riscattare con i punti | realizzata; i premi (P-003, passo 3.4) da provare sull'iPhone |
 | [docs/linguaggio-naturale.md](linguaggio-naturale.md) | Frase che compila il modulo, con l'orario; link `?add=` | realizzata |
 | [docs/promemoria-e-siri.md](promemoria-e-siri.md) | Server di Aura: promemoria push, casella di Siri, limiti; prova completa in locale | realizzata |
 | [docs/modifica.md](modifica.md) | Modificare un'attività | realizzata |
 | [docs/backup.md](backup.md) | Esportare, importare e ripristinare i dati | realizzata |
-| [docs/tre-modalita.md](tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fasi 1 e 2a provate sull'iPhone; passi 3.1, 3.2 e 3.3 di P-003 fatti, da provare sull'iPhone |
+| [docs/tre-modalita.md](tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fasi 1 e 2a provate sull'iPhone; passi 3.1, 3.2, 3.3 e 3.4 di P-003 fatti, da provare sull'iPhone |
 | [docs/illustrazioni.md](illustrazioni.md) | Illustrazioni: flusso, revisione, elenco e prompt per Nano Banana | in corso: 8 nell'app (`empty-focus` da sostituire), 5 da rifare |
 | [docs/assistente.md](assistente.md) | Assistente con l'IA: scrivere o parlare ad Aura, permessi, memoria breve, frasi di Siri, server e limiti | in corso: passi 0 (prova tecnica) e 1 (assistente scritto) pubblicati, da provare sull'iPhone |
 | [docs/impostazioni.md](impostazioni.md) | Rotella e foglio «Impostazioni»: indice con lo stato di ogni funzione, tema nella riga, foglio «Privacy», «Scollega questo dispositivo» con «Annulla» | realizzata, da provare sull'iPhone |
@@ -452,7 +471,7 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 L'app si divide in tre schede, con una barra in basso:
 - **Focus**, per fare: in ritardo, oggi e senza data, con «Cosa faccio adesso?» e il timer;
 - **Agenda**, per pianificare: il calendario del mese o della settimana, il giorno scelto con gli orari e gli spazi liberi, i prossimi giorni e le attività da pianificare (P-003, passo 3.2);
-- **Motivazione**, per i progressi: livello, serie e punti, «La tua settimana» con l'obiettivo, «I tuoi numeri» e le completate (P-003, passo 3.3); poi «I tuoi premi» e «Sfide di oggi» (passi 3.4 e 3.5).
+- **Motivazione**, per i progressi: livello, serie e punti, «La tua settimana» con l'obiettivo, «I tuoi premi», «I tuoi numeri» e le completate (P-003, passi 3.3 e 3.4); poi «Sfide di oggi» (passo 3.5).
 
 Per la regola 2 di `../AGENTS.md` ogni funzione di oggi resta: al massimo cambia posto. Le fasi sono quattro; ognuna si pubblica da sola e si prova sull'iPhone prima della successiva:
 1. animazioni più fluide (fatta, provata sull'iPhone il 16 novembre 2026);
@@ -461,7 +480,7 @@ Per la regola 2 di `../AGENTS.md` ogni funzione di oggi resta: al massimo cambia
    - 2b, la notifica push alla fine del focus (approvata: è un passo a parte, da fare dopo la prova della 2a sull'iPhone);
    - due passi a parte dopo la 2a: apertura più leggera di «Nuova attività» e «Dimensione testo» dell'iPhone;
 3. Agenda: sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2, l'Agenda a calendario (fatta con la v16, da provare sull'iPhone);
-4. Motivazione, con le illustrazioni: sostituita da P-003, passi 3.3–3.5 (il 3.3 fatto con la v17, da provare sull'iPhone).
+4. Motivazione, con le illustrazioni: sostituita da P-003, passi 3.3–3.5 (il 3.3 fatto con la v17 e il 3.4 con la v18, da provare sull'iPhone).
 
 Ogni illustrazione entra con la fase che la usa, nella versione che c'è in quel momento (vedi [docs/illustrazioni.md](illustrazioni.md)).
 
@@ -491,6 +510,7 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 | Calendario delle ultime settimane | da decidere |
 | «La tua settimana»: il cielo con una stella per attività e la costellazione dell'obiettivo (P-003, passo 3.3) | da decidere |
 | «I tuoi numeri» (P-003, passo 3.3) | da decidere |
+| «I tuoi premi»: premi con un prezzo in punti, da riscattare con il saldo (P-003, passo 3.4) | da decidere |
 | Frase del giorno | da decidere |
 | Illustrazioni | da decidere |
 | Assistente con l'IA (scrivere e parlare ad Aura) | da decidere |
@@ -510,7 +530,7 @@ Le funzioni di oggi restano gratuite anche dove cambiano posto (vedi [docs/tre-m
 Come funzionerà la licenza (verifica offline, interfaccia e dati): vedi [docs/premium.md](premium.md).
 
 ## Ordine consigliato (visione "segretario personale")
-Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati, animazioni più fluide, barra delle schede e Focus con «Cosa faccio adesso?» e il timer (schema v4).
+Già fatto: punti e serie (schema v2), linguaggio naturale con orario e link `?add=` (schema v3), server di Aura con promemoria push e casella di Siri, modifica delle attività, backup dei dati, animazioni più fluide, barra delle schede e Focus con «Cosa faccio adesso?» e il timer (schema v4), Agenda a calendario, Motivazione con livelli, settimana e premi (schema v5).
 1. ~~**Linguaggio naturale con orario** e aggiunta con il link `?add=testo`~~: fatto.
 2. ~~**Comando Rapido di Siri**~~: fatto, con la casella del server. Restano **Web Share Target** e **shortcuts** nel manifest per Android.
 3. ~~**Promemoria con notifiche Web Push**~~: fatto. Resta, facoltativa, l'esportazione `.ics`.

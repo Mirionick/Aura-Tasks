@@ -30,6 +30,7 @@
   <script src="js/assistant.js" defer></script>
   <script src="js/agenda.js" defer></script>
   <script src="js/motivation.js" defer></script>
+  <script src="js/rewards.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/reminders.js" defer></script>
   <script src="js/remote.js" defer></script>
@@ -40,6 +41,7 @@
   <script src="js/ui-settings.js" defer></script>
   <script src="js/ui-agenda.js" defer></script>
   <script src="js/ui-motivation.js" defer></script>
+  <script src="js/ui-rewards.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -306,9 +308,10 @@
       </section>
     </section>
 
-    <!-- Scheda Motivazione, per i progressi (P-003, passo 3.3): «La tua settimana», «I tuoi numeri», «Completate» chiusa e,
-         in fondo, privacy e backup. Livello, serie e punti stanno nell'intestazione. Settimana e numeri li scrive
-         js/ui-motivation.js, con la logica di js/motivation.js; «Completate» la scrive app.js (vedi docs/tre-modalita.md). -->
+    <!-- Scheda Motivazione, per i progressi (P-003, passi 3.3 e 3.4): «La tua settimana», «I tuoi premi», «I tuoi numeri»,
+         «Completate» chiusa e, in fondo, privacy e backup. Livello, serie e punti stanno nell'intestazione. Settimana e numeri
+         li scrive js/ui-motivation.js, con la logica di js/motivation.js; i premi js/ui-rewards.js, con js/rewards.js;
+         «Completate» la scrive app.js (vedi docs/tre-modalita.md). -->
     <section class="tab" id="tab-motivation" aria-label="Motivazione" hidden>
       <section class="card-block sky" id="sky" aria-labelledby="sky-title" data-flip="sky">
         <div class="block__head">
@@ -333,6 +336,38 @@
         <p class="block__note" id="sky-note"></p>
         <p class="sky__recap" id="sky-recap" hidden><span class="sky__tag">Settimana scorsa</span> <span id="sky-recap-text"></span></p>
         <p class="sr-only" id="goal-live" aria-live="polite"></p>
+      </section>
+
+      <!-- «I tuoi premi» (P-003, passo 3.4): il saldo da spendere, i premi dal più vicino con «Riscatta», «Aggiungi un premio»
+           e, chiusi, i riscatti. Lo scrive js/ui-rewards.js, con la logica di js/rewards.js. Nella pagina i premi si chiamano
+           «prize»: «rewards» è già il riquadro di serie e punti. -->
+      <section class="card-block prizes" id="prizes" aria-labelledby="prizes-title" data-flip="prizes">
+        <div class="block__head">
+          <h2 class="block__title" id="prizes-title">I tuoi premi</h2>
+          <p class="prizes__balance" id="prizes-balance">
+            <svg class="prizes__star" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 2.6l2.83 5.73 6.32.92-4.57 4.46 1.08 6.29L12 17.03l-5.66 2.97 1.08-6.29-4.57-4.46 6.32-.92z"/>
+            </svg>
+            <span><span id="prizes-balance-value">0</span> da spendere</span>
+          </p>
+        </div>
+        <p class="prizes__empty" id="prizes-empty" hidden>Scegli come premiarti, con il prezzo in punti: quando ne hai abbastanza, lo riscatti.</p>
+        <ul class="prizes__list" id="prizes-list"></ul>
+        <button class="prizes__add" id="prize-add" type="button" aria-haspopup="dialog" data-flip="prize-add">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>
+          Aggiungi un premio
+        </button>
+        <p class="block__note" id="prizes-full" hidden>Hai 30 premi, il massimo: per aggiungerne un altro, eliminane uno.</p>
+        <!-- I riscatti, dal più recente: chiusi, con il numero. Un premio eliminato resta qui con il suo nome. -->
+        <details class="prizes__history" id="prizes-history" hidden>
+          <summary class="prizes__summary">
+            <span>Riscattati</span>
+            <span class="badge" id="prizes-history-count">0</span>
+            <svg class="icon completed__chevron" aria-hidden="true" focusable="false"><use href="#i-chevron"></use></svg>
+          </summary>
+          <ul class="prizes__log" id="prizes-log"></ul>
+        </details>
+        <p class="block__note" data-flip="prizes-note">Spendere punti non ti fa scendere di livello: il livello conta tutti i punti guadagnati.</p>
       </section>
 
       <section class="section nums" id="nums" aria-labelledby="nums-title" data-flip="nums">
@@ -554,6 +589,61 @@
     </form>
   </dialog>
 
+  <!-- Foglio del premio (P-003, passo 3.4): nome, emoji da un elenco fisso, prezzo in punti; modificando, anche «Elimina».
+       Lo gestisce js/ui-rewards.js, che scrive le emoji e i prezzi pronti da Aura.rewards.REWARDS. -->
+  <dialog class="sheet sheet--small" id="prize-sheet" aria-labelledby="prize-sheet-title">
+    <form class="sheet__panel" id="prize-form" novalidate autocomplete="off">
+      <header class="sheet__header">
+        <h2 class="sheet__title" id="prize-sheet-title" tabindex="-1">Nuovo premio</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Chiudi">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+
+      <div class="sheet__body">
+        <!-- Modificando un premio già preso: quante volte, e che i riscatti di prima restano come sono stati fatti -->
+        <p class="sheet-note" id="prize-note" hidden>
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+          <span id="prize-note-text"></span>
+        </p>
+
+        <div class="field">
+          <label class="field__label" for="prize-title">Che premio è?</label>
+          <input class="input" id="prize-title" name="title" type="text" maxlength="60"
+                 placeholder="Es. Pizza del venerdì" enterkeyhint="done" autocapitalize="sentences"
+                 aria-describedby="err-prize-title">
+          <p class="field__error" id="err-prize-title" hidden></p>
+        </div>
+
+        <fieldset class="field">
+          <legend class="field__label">Emoji</legend>
+          <div class="emoji-grid" id="prize-emoji"></div>
+        </fieldset>
+
+        <div class="field">
+          <label class="field__label" for="prize-cost">Prezzo in punti</label>
+          <input class="input prize-cost" id="prize-cost" name="cost" type="number" inputmode="numeric"
+                 min="10" max="100000" step="1" placeholder="Es. 400" enterkeyhint="done"
+                 aria-describedby="prize-cost-hint err-prize-cost">
+          <div class="chips prize-costs" id="prize-costs"></div>
+          <p class="field__hint" id="prize-cost-hint"></p>
+          <p class="field__error" id="err-prize-cost" hidden></p>
+        </div>
+      </div>
+
+      <footer class="sheet__footer">
+        <button class="btn btn--ghost btn--danger btn--block" id="prize-delete" type="button" hidden>
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-trash"></use></svg>
+          Elimina premio
+        </button>
+        <button class="btn btn--primary btn--block" type="submit">
+          <svg class="icon" aria-hidden="true" focusable="false"><use id="prize-submit-icon" href="#i-plus"></use></svg>
+          <span id="prize-submit-text">Aggiungi premio</span>
+        </button>
+      </footer>
+    </form>
+  </dialog>
+
   <!-- Foglio «Impostazioni»: un indice. Ogni riga dice lo stato di adesso e apre, sopra a questo, il foglio che c'è già;
        il tema si sceglie nella sua riga (js/ui-settings.js; che cosa dice ogni riga lo decide js/settings.js) -->
   <dialog class="sheet sheet--small" id="settings-sheet" aria-labelledby="settings-sheet-title">
@@ -698,7 +788,7 @@
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-lock"></use></svg>
             Sul telefono
           </h3>
-          <p class="panel__text">Attività, punti, serie, minuti di focus e impostazioni restano nella memoria di questo browser, su questo dispositivo. Non c'è nessun account.</p>
+          <p class="panel__text">Attività, punti, serie, premi, minuti di focus e impostazioni restano nella memoria di questo browser, su questo dispositivo. Non c'è nessun account.</p>
           <p class="panel__text">Se i dati del browser vengono cancellati, si perdono: con un backup ne tieni una copia in un file.</p>
         </section>
 
@@ -834,7 +924,7 @@
     </div>
   </dialog>
 
-  <!-- Foglio "Backup dei dati": esporta e importa attività, punti e serie in un file JSON (vedi docs/backup.md) -->
+  <!-- Foglio "Backup dei dati": esporta e importa attività, punti, serie e premi in un file JSON (vedi docs/backup.md) -->
   <dialog class="sheet sheet--small" id="backup-sheet" aria-labelledby="backup-sheet-title">
     <div class="sheet__panel">
       <header class="sheet__header">
@@ -847,7 +937,7 @@
         <p class="status" id="backup-status" data-tone="warn" role="status" hidden></p>
 
         <div id="backup-main">
-          <p class="sheet__text">Attività, punti e serie restano solo su questo dispositivo. Con un backup ne tieni una copia in un file: ti serve se cambi telefono o se i dati del browser vengono cancellati.</p>
+          <p class="sheet__text">Attività, punti, serie e premi restano solo su questo dispositivo. Con un backup ne tieni una copia in un file: ti serve se cambi telefono o se i dati del browser vengono cancellati.</p>
 
           <section class="panel" aria-labelledby="export-title">
             <h3 class="panel__title" id="export-title">
@@ -868,7 +958,7 @@
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-upload"></use></svg>
               Importa
             </h3>
-            <p class="panel__text">Sostituisce attività, punti e serie di questo dispositivo con quelli del file. Prima ti mostro un riepilogo.</p>
+            <p class="panel__text">Sostituisce attività, punti, serie e premi di questo dispositivo con quelli del file. Prima ti mostro un riepilogo.</p>
             <button class="btn btn--soft btn--block" id="backup-import" type="button">
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-upload"></use></svg>
               Scegli un file di backup

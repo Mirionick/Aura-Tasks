@@ -25,7 +25,11 @@
         task({ id: 'a', title: 'Dentista', date: '2026-11-04', time: '10:00' }),
         task({ id: 'b', title: 'Spesa', done: true, completedAt: NOW - 3600e3, pointsAwarded: 24, extra: 'campo sconosciuto' })
       ],
-      stats: { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-03': { done: 1, points: 24 } }, focus: { '2026-11-03': 25 } },
+      rewards: [{ id: 'r', title: 'Pizza del venerdì', emoji: '🍕', cost: 400, createdAt: 1 }],
+      stats: {
+        totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-03': { done: 1, points: 24 } }, focus: { '2026-11-03': 25 },
+        spent: [{ id: 's', rewardId: 'r', title: 'Pizza del venerdì', cost: 20, at: NOW - 600e3 }]
+      },
       future: { x: 1 }
     };
   }
@@ -60,7 +64,7 @@
     const file = JSON.parse(storage.backupFile(state, NOW).text);
     assertEqual(Object.keys(file), ['format', 'exportedAt', 'data']);
     assertEqual([file.format, file.exportedAt], ['aura-tasks-backup', NOW]);
-    assertEqual(file.data, state, 'attività, registro e campi sconosciuti');
+    assertEqual(file.data, state, 'attività, premi, registro con i riscatti e campi sconosciuti');
   });
 
   test('readBackup: andata e ritorno identici, con il momento dell\'esportazione', () => {
@@ -120,15 +124,17 @@
     assertEqual([state.stats.totalPoints, state.stats.bestStreak, state.stats.focus], [68, 2, {}]);
   });
 
-  test('readBackup: i backup della v2 e della v3 arrivano alla v4 con punti e registro intatti', () => {
+  test('readBackup: i backup della v2, v3 e v4 arrivano all\'ultima versione con punti e registro intatti', () => {
     const stats = { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-02': { done: 1, points: 24 } } };
     const done = { id: 'a', title: 'Spesa', duration: 30, energy: 'medium', date: '2026-11-02', done: true, createdAt: 1, completedAt: new Date(2026, 10, 2, 18).getTime(), pointsAwarded: 24 };
     const v2 = { version: 2, tasks: [done], stats };
     const v3 = { version: 3, tasks: [{ ...done, time: '18:00' }], stats };
-    [[v2, null], [v3, '18:00']].forEach(([data, time]) => {
+    const v4 = { version: 4, tasks: [{ ...done, time: '18:00' }], stats: { ...stats, focus: {} } };
+    [[v2, null], [v3, '18:00'], [v4, '18:00']].forEach(([data, time]) => {
       const { state, error } = storage.readBackup(wrap(data));
-      assertEqual([error, state.version, state.tasks[0].time, state.tasks[0].pointsAwarded], [null, 4, time, 24], 'v' + data.version);
-      assertEqual(state.stats, { ...stats, focus: {} }, 'registro della v' + data.version);
+      assertEqual([error, state.version, state.tasks[0].time, state.tasks[0].pointsAwarded], [null, 5, time, 24], 'v' + data.version);
+      assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'registro della v' + data.version);
+      assertEqual(state.rewards, [], 'nessun premio nella v' + data.version);
     });
   });
 

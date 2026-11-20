@@ -8,7 +8,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO } = Aura;
+  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW } = Aura;
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
@@ -26,12 +26,12 @@
     damaged: 'Il backup è danneggiato: mancano le attività.'
   };
   // Per cambiare lo schema: aumenta questo numero e aggiungi un passo in migrate() (vedi CLAUDE.md).
-  const SCHEMA_VERSION = 4;
+  const SCHEMA_VERSION = 5;
 
   const isCount = value => Number.isInteger(value) && value >= 0;
 
   function emptyState() {
-    return { version: SCHEMA_VERSION, tasks: [], stats: P.emptyStats() };
+    return { version: SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats() };
   }
 
   /** Porta i dati salvati da versioni precedenti a quella attuale, un passo alla volta. */
@@ -50,6 +50,11 @@
     if (state.version === 3) {
       // v4: minuti di focus nel registro (stats.focus). Li aggiunge vuoti sanitizeStats(); il resto resta intatto.
       state.version = 4;
+    }
+    if (state.version === 4) {
+      // v5: premi (rewards) e riscatti nel registro (stats.spent). Due elenchi vuoti, aggiunti da fromData() e da
+      // sanitizeStats(); il resto resta intatto.
+      state.version = 5;
     }
     return state;
   }
@@ -91,8 +96,8 @@
 
   /**
    * Ripulisce il registro di punti e serie. I giorni non validi vengono scartati; totale e record
-   * non validi si ricalcolano dai giorni. I minuti di focus (v4) passano da Aura.focus.sanitizeMinutes.
-   * I campi sconosciuti vengono conservati.
+   * non validi si ricalcolano dai giorni. I minuti di focus (v4) passano da Aura.focus.sanitizeMinutes, i riscatti dei
+   * premi (v5) da Aura.rewards.sanitizeSpent. I campi sconosciuti vengono conservati.
    */
   function sanitizeStats(raw) {
     const rawDays = raw.days && typeof raw.days === 'object' ? raw.days : {};
@@ -112,7 +117,8 @@
       bestStreak: isCount(raw.bestStreak) ? raw.bestStreak : P.longestStreak(days),
       milestones,
       days,
-      focus: F.sanitizeMinutes(raw.focus)
+      focus: F.sanitizeMinutes(raw.focus),
+      spent: RW.sanitizeSpent(raw.spent)
     };
   }
 
@@ -137,6 +143,8 @@
       seen.add(unique.id);
       return unique;
     });
+    // Premi (v5): elenco ripulito, vuoto se manca (dati di prima della v5) o se è illeggibile.
+    state.rewards = RW.sanitizeRewards(state.rewards);
     // Registro mancante (dati appena portati dalla v1) o illeggibile: si ricostruisce dalle attività completate.
     const hasStats = state.stats && typeof state.stats === 'object' && !Array.isArray(state.stats);
     state.stats = hasStats ? sanitizeStats(state.stats) : P.rebuildStats(state.tasks);
@@ -152,7 +160,8 @@
   /* ---------- File di backup ---------- */
 
   /**
-   * Contenuto di un backup: tutto lo stato (attività, registro di punti e serie, campi sconosciuti) e quando è stato fatto.
+   * Contenuto di un backup: tutto lo stato (attività, premi, registro di punti, serie e riscatti, campi sconosciuti) e
+   * quando è stato fatto.
    * Il collegamento al server, con il codice segreto del dispositivo, sta in un'altra chiave (aura-tasks:remote):
    * il backup non la legge mai.
    */

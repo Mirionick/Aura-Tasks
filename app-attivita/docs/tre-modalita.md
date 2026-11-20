@@ -18,6 +18,8 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | 4 | Motivazione, con le illustrazioni | sostituita da [P-003](../../docs/proposte/P-003.md), passi 3.3–3.5 |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.1: cambio di scheda animato e aurora nel focus | fatto con la v15; da provare sull'iPhone (vedi "P-003, passo 3.1") |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario | fatto con la v16; da provare sull'iPhone (vedi "Agenda: per pianificare" e "P-003, passo 3.2") |
+| — | [P-003](../../docs/proposte/P-003.md), passo 3.3: Motivazione con livello, «La tua settimana» e «I tuoi numeri» | fatto con la v17; da provare sull'iPhone (vedi "P-003, passo 3.3") |
+| — | [P-003](../../docs/proposte/P-003.md), passo 3.4: «I tuoi premi» | fatto con la v18; da provare sull'iPhone (vedi "P-003, passo 3.4") |
 
 ### Fase 1: animazioni più fluide
 - **Token**: durate (`--dur-*`) e curve (`--ease-*`) stanno solo in `:root`. Il JavaScript le legge con `Aura.motion` (`js/motion.js`): nessuna durata scritta a mano.
@@ -206,6 +208,37 @@ Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 
   - le stelle si accendono solo con `opacity` e `transform`; con «Riduci movimento» nessuna animazione;
   - contrasto dei testi nuovi tra 5,2 e 17,8 a 1, nei due temi.
 - Intestazione di Focus a 390×664: 188 px prima e dopo, con 4 card intere. In Motivazione l'intestazione cresce di una riga (il livello, 60 px) e il sottotitolo non c'è più.
+
+### P-003, passo 3.4: «I tuoi premi»
+In Motivazione, tra «La tua settimana» e «I tuoi numeri», la card «I tuoi premi» del passo 3.4 di [P-003](../../docs/proposte/P-003.md): i premi scelti dall'utente, con un prezzo in punti, da riscattare con il saldo da spendere. Le regole stanno in [punti-e-serie.md](punti-e-serie.md), «Premi»; i dati in «Dati», qui sotto. L'ha scritto Claude Project, come prevede la tabella «Ordine» della proposta.
+
+In più rispetto alla proposta, piccoli aiuti che non cambiano le regole: l'emoji che si sceglie da sola dal nome, i sei prezzi pronti con i punti degli ultimi 7 giorni, l'avviso «Ora puoi riscattare» dopo una spunta, lo storico «Riscattati».
+
+#### Risultati del passo 3.4 (19 novembre 2026)
+Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 390×844 in Chromium 153 headless, con la settimana piena del passo 3.3 più 4 premi e 3 riscatti. «Prima» è la versione pubblicata (v17), «dopo» quella nuova (v18); i gesti dei premi prima non c'erano. WebKit non è stato eseguito: in questo ambiente non c'è.
+
+| Gesto | Chromium, CPU 4 volte più lenta | Chromium a piena velocità |
+|---|---|---|
+| passare a Motivazione | 4 → 6 | 0 → 0 |
+| tornare a Focus | 0 → 0 | 0 → 0 |
+| riscattare (coriandoli, avviso, saldo) | 3 | 0 |
+| aprire il foglio del premio | 2 | 0 |
+| chiudere il foglio del premio | 0 | 0 |
+
+- Passare a Motivazione costa 2 fotogrammi in più, ma solo la prima volta dopo l'apertura dell'app e solo con la CPU rallentata: in un'altra serie di prove la prima apertura passa da 3 a 5, la seconda da 0 a 1, la terza resta a 0. Vengono dal primo disegno delle emoji dei premi: con le emoji sostituite da una lettera, oppure senza la card, si torna a 4 come prima; nascondere i pulsanti «Riscatta» o rimandare il disegno della card (`content-visibility`) non cambia niente. A piena velocità nessun gesto perde fotogrammi; la prova vera è quella sull'iPhone.
+- Riscattare perde 3 fotogrammi solo con la CPU rallentata: i coriandoli sono quelli dei traguardi, con l'avviso e la pillola del saldo che salta.
+- Prove di funzionamento, con Playwright 1.63, a 390×664 nei due temi, a 320×568 e a 1280×800, con «Riduci movimento» e aprendo `index.html` da file (166 controlli, tutti superati; nessun errore nella console né messaggi della CSP; nessuno scorrimento orizzontale):
+  - i dati della v4 arrivano alla v5 e restano intatti; la card vuota invita ad aggiungere un premio;
+  - il foglio: errori del nome e del prezzo con il focus sul campo giusto, l'emoji che si sceglie dal nome finché non la sceglie l'utente, i prezzi pronti, «Esc» e la chiusura che riportano il focus dove serve;
+  - i premi in ordine di prezzo, con la barra e lo stato; «Riscatta» grigio dice quanto manca; il riscatto con coriandoli, l'avviso «Te lo sei meritato: … · −400 punti», il saldo che scende mentre livello e riquadro Punti restano; «Annulla»; un doppio tocco conta una volta sola;
+  - modifica con la nota «Preso 1 volta», il riscatto di prima che resta a −400, «Annulla»; eliminazione con «Annulla», e il premio eliminato che resta nello storico con il suo nome;
+  - l'avviso «🍕 Ora puoi riscattare: …» dopo una spunta in Focus (anche con il saldo più basso dei punti), e quello del livello che ha la precedenza;
+  - 30 premi al massimo: «Aggiungi» lascia il posto alla nota, e torna eliminandone uno;
+  - backup dal foglio: il file ha premi e riscatti, il riepilogo conta i premi, importare e ripristinare li rimettono;
+  - a 320 px la pillola del saldo va sotto il titolo e i nomi lunghi vanno a capo senza finire sotto «Riscatta»; le aree di tocco della card e del foglio sono di almeno 44 px;
+  - coriandoli e salto della pillola solo con `opacity` e `transform`; con «Riduci movimento» niente;
+  - contrasto dei testi nuovi tra 4,7 e 17,8 a 1, nei due temi.
+- Intestazione di Focus a 390×664: 188 px prima e dopo, con 4 card intere.
 
 ## Navigazione
 - **Barra delle schede** in basso: **Focus**, **Agenda**, **Motivazione**.
@@ -421,6 +454,10 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - `suggest.minutes` è una delle scelte del foglio; `null` vuol dire «120+».
 - **Focus in corso**: `aura-tasks:focus` (vedi "Tempo affidabile"). Lo scrive e lo legge solo `js/storage.js` (`loadFocus()`, `saveFocus()`, `clearFocus()`); lo pulisce `Aura.focus.sanitizeSession()`. È fuori dal backup.
 - **Livello**: si calcola dai punti, non si salva.
+- **Premi** (P-003, passo 3.4; regole in [punti-e-serie.md](punti-e-serie.md), «Premi»): `rewards`, accanto a `tasks`, e i riscatti in `stats.spent`.
+  - **Schema v5**: `migrate()` cambia solo il numero di versione; `fromData()` aggiunge `rewards: []` e `sanitizeStats()` aggiunge `spent: []`, puliti da `Aura.rewards.sanitizeRewards()` e `sanitizeSpent()`.
+  - Il saldo da spendere si calcola, non si salva: `totalPoints` meno i riscatti, mai sotto zero.
+  - I backup di tutte le versioni di prima si importano ancora; premi e riscatti finiscono nel backup.
 
 ## Collegamenti e notifiche
 - `?add=`, casella di Siri, promemoria, modifica e backup restano come oggi. Il foglio "Nuova attività" si apre sopra la scheda in cui si è.
@@ -467,16 +504,18 @@ Elenco, flusso e prompt stanno in [illustrazioni.md](illustrazioni.md).
 ## Premium
 Le categorie stanno nella tabella di `CLAUDE-GUIDE.md`:
 - **gratuite**: animazioni, barra delle schede, Focus, Agenda e la base di Motivazione, perché ci finiscono funzioni di oggi;
-- **da decidere**: «Cosa faccio adesso?», timer e minuti di focus, livelli, obiettivo settimanale, calendario, frase del giorno, illustrazioni.
+- **da decidere**: «Cosa faccio adesso?», timer e minuti di focus, livelli, obiettivo settimanale, calendario, frase del giorno, illustrazioni, «I tuoi premi».
 
 ## Codice
 - **Moduli puri nuovi**:
   - `js/suggest.js` e `js/focus.js` (fase 2);
   - `js/agenda.js` (P-003, passo 3.2, al posto della fase 3);
-  - `js/motivation.js` (P-003, passo 3.3), con `LEVELS` e il calcolo del livello, Aurora 2, 3… compresi: P-003 li mette qui e non in `js/points.js`, che resta com'è.
+  - `js/motivation.js` (P-003, passo 3.3), con `LEVELS` e il calcolo del livello, Aurora 2, 3… compresi: P-003 li mette qui e non in `js/points.js`, che resta com'è;
+  - `js/rewards.js` (P-003, passo 3.4): premi, saldo, riscatti e «Annulla», limiti, pulizia dei dati letti.
 - `js/motion.js` (fase 1) tocca la pagina solo per le animazioni. `slideIn()` (fase 2a) fa entrare un blocco intero; da P-003 (passo 3.1) la scheda entra a blocchi con `staggerIn()` e lo sfondo dell'intestazione scivola con `shiftIn()`.
 - Ogni scheda può avere un suo file che tocca la pagina, come `app.js`: così `app.js` non cresce troppo.
   - `js/ui-focus.js` (fase 2a): i fogli «Cosa faccio adesso?» e Focus, il suono di fine e lo schermo acceso. `app.js` gli passa con `Aura.focusUI.init()` quello che gli serve: stato, `commit()`, fogli, avvisi, preferenze.
   - `js/ui-agenda.js` (P-003, passo 3.2): calendario, giorno scelto, «Prossimi giorni», «Da pianificare», gesti e movimenti dell'Agenda. Tiene il giorno scelto; `app.js` gli passa con `Aura.agendaUI.init()` stato, `commit()`, la card (`buildTask()`), avvisi, il foglio «Nuova attività» e le preferenze, e ogni minuto chiama `tick()` per la linea dell'ora. `isVisible()` dice ad `app.js` se un'attività si vede nell'Agenda (dipende dal giorno scelto), `addPreset()` che giorno propone «Nuova attività».
   - `js/ui-motivation.js` (P-003, passo 3.3): nell'intestazione il livello, poi «La tua settimana» con il cielo e l'obiettivo, «I tuoi numeri» e i movimenti della scheda. `app.js` gli passa con `Aura.motivationUI.init()` stato e preferenze e sapere se la scheda è aperta; disegna lui «Completate». `celebrate()` dice ad `app.js` se un completamento ha fatto salire di livello o raggiungere l'obiettivo, e `app.js` sceglie l'avviso.
+  - `js/ui-rewards.js` (P-003, passo 3.4): «I tuoi premi» e il foglio del premio. `app.js` gli passa con `Aura.rewardsUI.init()` stato, `commitState()` (salva solo le parti di `state` che cambiano: `rewards` o `stats`), avvisi, fogli e coriandoli; `celebrate()` dice ad `app.js` quale premio un completamento ha reso riscattabile.
 - Ogni file nuovo va in `index.html`, in `tests/index.html` se ha logica pura, e in `APP_FILES` di `sw.js`.
