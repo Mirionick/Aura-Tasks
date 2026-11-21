@@ -1,7 +1,7 @@
 /*
- * Test del negozio (js/shop.js; P-004, passo 4.1): saldo unico con i premi, acquisti e «Annulla», oggetti in uso,
- * «Ripara la serie» con tutte le sue condizioni, serie, record e traguardi con i giorni riparati, pulizia dei dati letti,
- * migrazione alla v6, esportazione e importazione con il backup.
+ * Test del negozio (js/shop.js; P-004, passi 4.1 e 4.4): saldo unico con i premi, acquisti e «Annulla», oggetti in uso
+ * (anche i suoni del focus), «Ripara la serie» con tutte le sue condizioni, serie, record e traguardi con i giorni
+ * riparati, pulizia dei dati letti, migrazione alla v6, esportazione e importazione con il backup.
  */
 (function () {
   'use strict';
@@ -12,7 +12,7 @@
   const NOW = new Date(2026, 10, 20, 10, 30).getTime(); // venerdì 20/11/2026 alle 10:30
   const TODAY = '2026-11-20';
   const day = offset => utils.addDays(TODAY, offset); // day(-1) = ieri
-  const LOOK = { aurora: 'aurora', confetti: 'classic', at: 0 };
+  const LOOK = { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 };
 
   /**
    * Registro con un completamento da 100 punti in ciascuno dei giorni `done` (offset da oggi: 0 = oggi), più `extra`
@@ -41,10 +41,14 @@
       [['aurora', 0], ['sunset', 400], ['forest', 400], ['ocean', 400], ['night', 400]], 'colori dell\'aurora');
     assertEqual(SHOP.looks.confetti.map(item => [item.value, item.cost]),
       [['classic', 0], ['stars', 250], ['hearts', 250], ['leaves', 250], ['snow', 250]], 'coriandoli');
+    assertEqual(SHOP.looks.sound.map(item => [item.value, item.name, item.cost]),
+      [['none', 'Silenzio', 0], ['brown', 'Rumore marrone', 0], ['rain', 'Pioggia', 300], ['waves', 'Onde', 300]], 'suoni del focus (passo 4.4)');
     assertEqual(SHOP.packs, [500, 2000, 5000], 'pacchetti di punti, solo da vedere');
     assertEqual(SH.defaultLook(), LOOK);
     assertEqual(SH.itemOf('aurora:sunset'), { value: 'sunset', name: 'Tramonto', cost: 400, id: 'aurora:sunset', group: 'aurora' });
     assertEqual([SH.itemOf('repair').cost, SH.itemOf('aurora:aurora'), SH.itemOf('boh')], [150, null, null], 'quelli di partenza non si vendono');
+    assertEqual(SH.itemOf('sound:rain'), { value: 'rain', name: 'Pioggia', cost: 300, id: 'sound:rain', group: 'sound' });
+    assertEqual([SH.itemOf('sound:none'), SH.itemOf('sound:brown')], [null, null], 'Silenzio e Rumore marrone sono gratis: non si vendono');
   });
 
   /* ---------- Saldo unico con i premi ---------- */
@@ -92,12 +96,30 @@
   test('use: si usano gli oggetti comprati e quelli di partenza, gratis', () => {
     const stats = statsWith({ shop: [bought('aurora:ocean')] });
     const look = SH.use(LOOK, stats, 'aurora', 'ocean', NOW);
-    assertEqual(look, { aurora: 'ocean', confetti: 'classic', at: NOW });
-    assertEqual(SH.use(look, stats, 'aurora', 'aurora', NOW + 1), { aurora: 'aurora', confetti: 'classic', at: NOW + 1 }, 'si torna all\'aurora di partenza');
+    assertEqual(look, { aurora: 'ocean', confetti: 'classic', sound: 'none', at: NOW });
+    assertEqual(SH.use(look, stats, 'aurora', 'aurora', NOW + 1), { aurora: 'aurora', confetti: 'classic', sound: 'none', at: NOW + 1 }, 'si torna all\'aurora di partenza');
     assert(SH.use(look, stats, 'aurora', 'ocean', NOW + 1) === look, 'già in uso: lo stesso oggetto');
     assertEqual([SH.use(LOOK, stats, 'aurora', 'night', NOW), SH.use(LOOK, stats, 'confetti', 'stars', NOW)], [null, null], 'non comprati');
-    assertEqual([SH.use(LOOK, stats, 'sound', 'rain', NOW), SH.use(LOOK, stats, 'aurora', 'boh', NOW)], [null, null], 'gruppi o valori che non ci sono');
+    assertEqual([SH.use(LOOK, stats, 'tema', 'oro', NOW), SH.use(LOOK, stats, 'aurora', 'boh', NOW)], [null, null], 'gruppi o valori che non ci sono');
     assertEqual([SH.isOwned(stats, 'aurora', 'ocean'), SH.isOwned(stats, 'aurora', 'aurora'), SH.isOwned(stats, 'aurora', 'night')], [true, true, false]);
+  });
+
+  test('suoni del focus: Silenzio e Rumore marrone sono di tutti, Pioggia e Onde si comprano e poi si usano', () => {
+    const stats = statsWith({ extra: 700 });
+    assertEqual(['none', 'brown', 'rain', 'waves'].map(value => SH.isOwned(stats, 'sound', value)), [true, true, false, false]);
+    const brown = SH.use(LOOK, stats, 'sound', 'brown', NOW);
+    assertEqual(brown, { aurora: 'aurora', confetti: 'classic', sound: 'brown', at: NOW }, 'il rumore marrone si usa senza comprarlo');
+    assertEqual([SH.buy(stats, 'sound:brown', NOW), SH.buy(stats, 'sound:none', NOW)], [null, null], 'quelli gratis non si comprano');
+    assertEqual(SH.use(brown, stats, 'sound', 'rain', NOW + 1), null, 'la pioggia, prima di comprarla, no');
+    const bought = SH.buy(stats, 'sound:rain', NOW + 2);
+    assertEqual([bought.entry.item, bought.entry.cost, R.balance(bought.stats)], ['sound:rain', 300, 400]);
+    assertEqual(SH.boughtText(bought.entry), 'Comprato: Pioggia · −300 punti');
+    const rain = SH.use(brown, bought.stats, 'sound', 'rain', NOW + 3);
+    assertEqual([rain.sound, rain.at, SH.isOwned(bought.stats, 'sound', 'rain')], ['rain', NOW + 3, true]);
+    assertEqual(SH.use(rain, bought.stats, 'sound', 'none', NOW + 4).sound, 'none', 'si torna al silenzio');
+    assertEqual(SH.buy(bought.stats, 'sound:rain', NOW + 5), null, 'già tua: non si ricompra');
+    const back = SH.undo(bought.stats, bought.entry.id);
+    assertEqual([R.balance(back), SH.isOwned(back, 'sound', 'rain')], [700, false], '«Annulla»: i punti tornano');
   });
 
   test('undo: «Annulla» toglie solo quell\'acquisto e il saldo torna com\'era', () => {
@@ -233,24 +255,38 @@
   });
 
   test('sanitizeShop: gli oggetti che il catalogo non conosce restano e contano nel saldo, ma non si usano', () => {
-    // Per esempio i suoni del passo 4.4, letti da una copia di Aura ferma al passo 4.1 (revisione di Codex sulla P-004 v1).
-    const rain = { id: 'u1', item: 'sound:rain', cost: 300, at: NOW };
+    // Per esempio un suono di un passo futuro, letto da una copia di Aura più vecchia (revisione di Codex sulla P-004 v1).
+    const thunder = { id: 'u1', item: 'sound:thunder', cost: 300, at: NOW };
     const twice = { id: 'u2', item: 'freeze', cost: 50, at: NOW };
-    const shop = SH.sanitizeShop([rain, twice, { ...twice, id: 'u3' }, { ...rain }]);
-    assertEqual(shop, [rain, twice, { ...twice, id: 'u3' }], 'si distinguono solo per id');
+    const shop = SH.sanitizeShop([thunder, twice, { ...twice, id: 'u3' }, { ...thunder }]);
+    assertEqual(shop, [thunder, twice, { ...twice, id: 'u3' }], 'si distinguono solo per id');
     const stats = statsWith({ extra: 1000, shop });
     assertEqual(R.balance(stats), 600, 'nessun rimborso');
-    assertEqual([SH.use(LOOK, stats, 'sound', 'rain', NOW), SH.catalog({ stats, look: LOOK }).sound], [null, undefined]);
-    assertEqual(SH.boughtText(rain), 'Comprato: oggetto · −300 punti');
+    assertEqual([SH.use(LOOK, stats, 'sound', 'thunder', NOW), SH.catalog({ stats, look: LOOK }).sound.map(item => item.value)],
+      [null, ['none', 'brown', 'rain', 'waves']]);
+    assertEqual(SH.boughtText(thunder), 'Comprato: oggetto · −300 punti');
   });
 
-  test('sanitizeLook: in uso solo cose comprate, altrimenti i valori di partenza; i gruppi sconosciuti restano', () => {
-    const shop = [bought('aurora:night')];
-    assertEqual(SH.sanitizeLook({ aurora: 'night', confetti: 'hearts', at: NOW, sound: 'rain' }, shop),
-      { aurora: 'night', confetti: 'classic', at: NOW, sound: 'rain' });
+  test('sanitizeShop: i suoni del passo 4.4 sono oggetti come gli altri; comprati due volte contano una volta', () => {
+    const rain = { id: 'u1', item: 'sound:rain', cost: 300, at: NOW };
+    assertEqual(SH.sanitizeShop([rain, { ...rain, id: 'u2' }, { id: 'u3', item: 'sound:waves', cost: 300, at: NOW }]),
+      [rain, { id: 'u3', item: 'sound:waves', cost: 300, at: NOW }]);
+  });
+
+  test('sanitizeLook: in uso solo cose gratis o comprate, altrimenti i valori di partenza; i gruppi sconosciuti restano', () => {
+    const shop = [bought('aurora:night'), bought('sound:waves')];
+    assertEqual(SH.sanitizeLook({ aurora: 'night', confetti: 'hearts', at: NOW, sound: 'rain', tema: 'oro' }, shop),
+      { aurora: 'night', confetti: 'classic', sound: 'none', at: NOW, tema: 'oro' }, 'la pioggia non è stata comprata');
+    assertEqual(SH.sanitizeLook({ sound: 'waves', at: NOW }, shop).sound, 'waves', 'le onde sì');
+    assertEqual(SH.sanitizeLook({ sound: 'brown' }, []).sound, 'brown', 'il rumore marrone è di tutti');
+    assertEqual(SH.sanitizeLook({ sound: 'thunder' }, [{ id: 'x', item: 'sound:thunder', cost: 300, at: NOW }]).sound, 'thunder',
+      'un suono comprato con una versione più nuova resta in uso: questa non lo suona, ma non si perde');
+    assertEqual(SH.sanitizeLook({ sound: 'thunder' }, []).sound, 'none', 'senza acquisto, no');
     assertEqual(SH.sanitizeLook({ aurora: 'boh', confetti: 7, at: -1 }, shop), LOOK);
     [undefined, null, [], 'testo'].forEach(raw => assertEqual(SH.sanitizeLook(raw, shop), LOOK, JSON.stringify(raw)));
     assertEqual(SH.sanitizeLook({ aurora: 'night' }, undefined), LOOK, 'senza acquisti');
+    assertEqual(Object.keys(SH.sanitizeLook({ at: 5, tema: 'oro', confetti: 'classic' }, [])), ['aurora', 'confetti', 'sound', 'at', 'tema'],
+      'sempre nello stesso ordine, anche per i dati di prima del passo 4.4');
   });
 
   /* ---------- Per la pagina ---------- */
@@ -258,7 +294,7 @@
   test('catalog: per ogni oggetto se è tuo, se è in uso, se si può comprare e quanto manca', () => {
     const stats = statsWith({ extra: 680, shop: [bought('aurora:sunset')] });
     const groups = SH.catalog({ stats, look: { ...LOOK, aurora: 'sunset' } });
-    assertEqual(Object.keys(groups), ['aurora', 'confetti']);
+    assertEqual(Object.keys(groups), ['aurora', 'confetti', 'sound']);
     const row = item => [item.id, item.owned, item.inUse, item.ready, item.missing];
     assertEqual(groups.aurora.map(row), [
       ['aurora:aurora', true, false, false, 0],
@@ -268,6 +304,12 @@
       ['aurora:night', false, false, false, 120]
     ], 'saldo 280');
     assertEqual(groups.confetti.map(row).slice(0, 2), [['confetti:classic', true, true, false, 0], ['confetti:stars', false, false, true, 0]]);
+    assertEqual(groups.sound.map(row), [
+      ['sound:none', true, true, false, 0],
+      ['sound:brown', true, false, false, 0],
+      ['sound:rain', false, false, false, 20],
+      ['sound:waves', false, false, false, 20]
+    ], 'suoni: Silenzio in uso, Rumore marrone tuo, gli altri a 300 punti');
     assertEqual(SH.catalog({ stats: P.emptyStats() }).aurora[0].inUse, true, 'senza look: i valori di partenza');
   });
 
@@ -313,7 +355,7 @@
       tasks: [],
       rewards: [],
       stats: { ...statsWith({ done: [-3, -2, 0], extra: 900 }), bestStreak: 4, shop },
-      look: { aurora: 'ocean', confetti: 'stars', at: NOW }
+      look: { aurora: 'ocean', confetti: 'stars', sound: 'brown', at: NOW }
     };
     const file = storage.backupFile(state, NOW);
     assertEqual([JSON.parse(file.text).data.stats.shop, JSON.parse(file.text).data.look], [shop, state.look], 'nel file ci sono acquisti e colori');
@@ -322,21 +364,31 @@
     const dirty = {
       ...state,
       stats: { ...state.stats, shop: [...shop, bought('aurora:ocean', { id: 'doppio' }), { item: 'aurora:night', cost: -1, at: NOW }, 'rotto'] },
-      look: { aurora: 'night', confetti: 'stars', at: NOW }
+      look: { aurora: 'night', confetti: 'stars', sound: 'rain', at: NOW }
     };
     const cleaned = storage.readBackup(JSON.stringify({ format: storage.BACKUP_FORMAT, exportedAt: NOW, data: dirty })).state;
-    assertEqual([cleaned.stats.shop, cleaned.look], [shop, { aurora: 'aurora', confetti: 'stars', at: NOW }], 'Notte polare non è stata comprata');
+    assertEqual([cleaned.stats.shop, cleaned.look], [shop, { aurora: 'aurora', confetti: 'stars', sound: 'none', at: NOW }],
+      'Notte polare e Pioggia non sono state comprate');
     assertEqual(R.balance(cleaned.stats), 400, '1.200 − 400 − 150 − 250');
   });
 
   test('readBackup: dati di una versione più nuova, con oggetti che il catalogo non conosce, si leggono senza perdere niente', () => {
-    const rain = { id: 'u1', item: 'sound:rain', cost: 300, at: NOW };
+    const gold = { id: 'u1', item: 'tema:oro', cost: 300, at: NOW };
     const data = {
-      version: 8, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 500, shop: [repaired(-1), rain] },
-      look: { aurora: 'aurora', confetti: 'classic', sound: 'rain', at: NOW }
+      version: 8, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 500, shop: [repaired(-1), gold] },
+      look: { aurora: 'aurora', confetti: 'classic', sound: 'brown', at: NOW, tema: 'oro' }
     };
     const { state } = storage.readBackup(JSON.stringify({ format: storage.BACKUP_FORMAT, exportedAt: NOW, data }));
-    assertEqual([state.version, state.stats.shop, state.look], [8, [repaired(-1), rain], data.look]);
+    assertEqual([state.version, state.stats.shop, state.look], [8, [repaired(-1), gold], data.look]);
     assertEqual(R.balance(state.stats), 50, '500 − 150 − 300: niente rimborsato');
+  });
+
+  test('readBackup: i dati scritti prima del passo 4.4 (senza suono) arrivano con il silenzio, e i colori restano', () => {
+    const data = {
+      version: 7, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 900, shop: [bought('aurora:ocean')] },
+      look: { aurora: 'ocean', confetti: 'classic', at: NOW }
+    };
+    const { state } = storage.readBackup(JSON.stringify({ format: storage.BACKUP_FORMAT, exportedAt: NOW, data }));
+    assertEqual(state.look, { aurora: 'ocean', confetti: 'classic', sound: 'none', at: NOW });
   });
 })();

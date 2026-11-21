@@ -31,7 +31,7 @@
         spent: [{ id: 's', rewardId: 'r', title: 'Pizza del venerdì', cost: 20, at: NOW - 600e3 }],
         shop: []
       },
-      look: { aurora: 'aurora', confetti: 'classic', at: 0 },
+      look: { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 },
       future: { x: 1 }
     };
   }
@@ -137,7 +137,7 @@
       const { state, error } = storage.readBackup(wrap(data));
       assertEqual([error, state.version, state.tasks[0].time, state.tasks[0].pointsAwarded], [null, storage.SCHEMA_VERSION, time, 24], 'v' + data.version);
       assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'registro della v' + data.version);
-      assertEqual([state.rewards, state.look], [[], { aurora: 'aurora', confetti: 'classic', at: 0 }], 'nessun premio e i colori di partenza nella v' + data.version);
+      assertEqual([state.rewards, state.look], [[], { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 }], 'nessun premio, i colori di partenza e nessun suono nella v' + data.version);
     });
   });
 

@@ -34,6 +34,7 @@
   <script src="js/rewards.js" defer></script>
   <script src="js/shop.js" defer></script>
   <script src="js/music.js" defer></script>
+  <script src="js/sound.js" defer></script>
   <script src="js/swipe.js" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/reminders.js" defer></script>
@@ -48,6 +49,7 @@
   <script src="js/ui-rewards.js" defer></script>
   <script src="js/ui-shop.js" defer></script>
   <script src="js/ui-music.js" defer></script>
+  <script src="js/ui-sound.js" defer></script>
   <script src="js/ui-swipe.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
@@ -88,6 +90,9 @@
     <!-- Musica nel focus: cuffie (riga «Musica» delle Impostazioni) e freccia che esce (la playlist si apre in un'altra app) -->
     <symbol id="i-music" viewBox="0 0 24 24"><path d="M4.5 15.5v-3.2a7.5 7.5 0 0 1 15 0v3.2"/><rect x="3.5" y="14" width="4.5" height="6.5" rx="1.8"/><rect x="16" y="14" width="4.5" height="6.5" rx="1.8"/></symbol>
     <symbol id="i-external" viewBox="0 0 24 24"><path d="M8 16L16.5 7.5M9.5 7.5h7v7"/></symbol>
+    <!-- Suoni del focus: altoparlante con le onde (un suono in uso) e con la croce (silenzio) -->
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.6h3.4L12 5.5v13L7.4 14.4H4z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6M18.3 6.5a7.8 7.8 0 0 1 0 11"/></symbol>
+    <symbol id="i-sound-off" viewBox="0 0 24 24"><path d="M4 9.6h3.4L12 5.5v13L7.4 14.4H4z"/><path d="M15.8 9.6l4.8 4.8M20.6 9.6l-4.8 4.8"/></symbol>
     <!-- Assistente: invio del messaggio (freccia in su), impostazioni (ingranaggio) -->
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19.5v-15M5.5 11L12 4.5 18.5 11"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/><circle cx="12" cy="12" r="6.6"/></symbol>
@@ -442,7 +447,7 @@
           </span>
           <span class="shop-open__text">
             <span class="shop-open__title">Apri il negozio</span>
-            <span class="shop-open__note">Colori dell'aurora, coriandoli e «Ripara la serie»</span>
+            <span class="shop-open__note">Colori, coriandoli, suoni e «Ripara&nbsp;la&nbsp;serie»</span>
           </span>
           <svg class="icon shop-open__chevron" aria-hidden="true" focusable="false"><use href="#i-chevron"></use></svg>
         </button>
@@ -795,6 +800,12 @@
           <h3 class="shop-group__title" id="shop-group-confetti">Coriandoli</h3>
           <p class="shop-group__note">Per tutte le feste: traguardi, livelli, premi e acquisti.</p>
           <ul class="shop-grid" id="shop-confetti"></ul>
+        </section>
+
+        <section class="shop-group" aria-labelledby="shop-group-sound">
+          <h3 class="shop-group__title" id="shop-group-sound">Suoni del focus</h3>
+          <p class="shop-group__note">Fatti da Aura, anche senza rete: si sentono nel focus a tutto schermo, con «Suono». Toccane uno per ascoltarlo.</p>
+          <ul class="shop-grid" id="shop-sound"></ul>
         </section>
 
         <section class="shop-group" aria-labelledby="shop-group-packs">
@@ -1455,6 +1466,19 @@
           <span class="aurora__band aurora__band--4"></span>
         </div>
         <span class="aurora__bloom" id="aurora-bloom"></span>
+      </div>
+
+      <!-- Suono (P-004, passo 4.4): in alto a sinistra, di fronte a «🎧». Il menu sceglie tra i suoni che hai, fatti da Aura;
+           il suono suona mentre il focus conta il tempo (js/ui-sound.js). Viene prima di «🎧»: con Tab si va da sinistra a destra -->
+      <div class="focus__sound" id="focus-sound">
+        <button class="focus__sound-btn" id="focus-sound-btn" type="button" aria-expanded="false" aria-controls="focus-sound-menu" aria-label="Suono: silenzio">
+          <svg class="icon" aria-hidden="true" focusable="false"><use id="focus-sound-icon" href="#i-sound-off"></use></svg>
+        </button>
+        <div class="focus__sound-menu" id="focus-sound-menu" role="radiogroup" aria-labelledby="focus-sound-title" hidden>
+          <p class="focus__sound-title" id="focus-sound-title">Suono</p>
+          <div class="focus__sound-options" id="focus-sound-options"></div>
+          <p class="focus__sound-note" id="focus-sound-note" hidden></p>
+        </div>
       </div>
 
       <!-- Musica (P-004, passo 4.2): apre la playlist dell'ultimo umore scelto nell'app del servizio. Solo con un servizio

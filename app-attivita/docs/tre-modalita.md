@@ -400,6 +400,7 @@ Cosa è cambiato durante il ripasso:
 - **Interfaccia**: foglio a tutto schermo con il titolo dell'attività, un anello SVG che fa il conto alla rovescia partendo dalla durata stimata e il tempo grande (mm:ss). Comandi: Pausa/Riprendi, +5 min, Completa, Esci.
 - **Una sessione per volta**. Se l'attività del focus viene completata o eliminata, la sessione si chiude e i suoi minuti restano.
 - **«🎧»** (P-004, passo 4.2): con un servizio scelto, in alto a destra, apre la playlist dell'ultimo umore (vedi [musica.md](musica.md)). Il tempo continua a contare nell'altra app.
+- **«Suono»** (P-004, passo 4.4): in alto a sinistra, di fronte a «🎧» e uguale a lui. Il menu sceglie tra i suoni che hai (Silenzio, Rumore marrone, e Pioggia e Onde se comprate): il suono in uso suona mentre il tempo conta e si ferma in pausa, a tempo finito, all'uscita e con Aura in secondo piano. Con il menu aperto Esc chiude il menu, non il focus. Vedi [suoni.md](suoni.md).
 - **Uscita**: Esc, il gesto "indietro" ed "Esci" chiudono la sessione. L'avviso "Focus terminato · 12 min" ha "Annulla", che la riapre com'era e toglie i minuti.
 - **Sfondo: l'aurora** (da [P-003](../../docs/proposte/P-003.md), passo 3.1; prima erano due bagliori che respiravano): quattro fasce di luce (verde acqua, ciano, rosa, lilla) che scorrono piano, ognuna con la sua durata (da 13 a 29 secondi), e due livelli di stelline che brillano. Si muovono solo con `transform` e `opacity`.
   - **Sale con il tempo**: all'inizio sta in basso (16% dello schermo), alla fine riempie lo schermo. Lo spostamento lo calcola `Aura.focus.auroraRise()` e si aggiorna una volta al secondo, insieme all'anello, a passi che a occhio non si vedono. Con «+5 min» scende un poco.
@@ -426,6 +427,7 @@ Cosa è cambiato durante il ripasso:
 - **Fine del tempo**
   - Suono breve con Web Audio, generato (nessun file). L'`AudioContext` va sbloccato al tocco su "Inizia focus", altrimenti iOS lo blocca. Si crea un attimo prima, quando il dito tocca il pulsante (`pointerdown`), perché crearlo costa tempo.
   - Riaprendo Aura con un focus in corso l'audio non è sbloccato: lo sblocca il primo tocco nel foglio.
+  - Lo stesso `AudioContext` suona i suoni del focus (passo 4.4): il suono in uso se ne va in 0,6 s mentre arriva il suono di fine, e torna con «+5 min».
   - Vibrazione solo su Android: `navigator.vibrate` su iOS non esiste.
   - Poi si propone "Completata" oppure "+5 min". A tempo finito "+5 min" dà altri 5 minuti da adesso.
   - Se il tempo finisce con Aura nascosta, al ritorno si vede "Tempo finito", senza suono.

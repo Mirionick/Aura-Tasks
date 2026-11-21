@@ -10,7 +10,8 @@
  * allo stesso modo: render() la ridisegna insieme alle altre schede. Così anche Motivazione (livello, «La tua settimana»,
  * «I tuoi numeri»), in js/ui-motivation.js, i suoi premi («I tuoi premi» e il foglio del premio), in js/ui-rewards.js, e
  * il negozio (la card e il foglio «Negozio»), in js/ui-shop.js; «Completate», serie e punti restano qui. Quello che è in uso
- * dal negozio (colori dell'aurora, forma dei coriandoli) si applica qui: data-aurora su <html> e i coriandoli.
+ * dal negozio (colori dell'aurora, forma dei coriandoli) si applica qui: data-aurora su <html> e i coriandoli. Il suono in
+ * uso lo suona js/ui-sound.js («Suono» nel focus a tutto schermo e l'ascolto di prova nel negozio).
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
@@ -18,7 +19,7 @@
 
   const { utils, repeat: RP, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
     motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
-    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI, swipeUI: SwipeUI } = Aura;
+    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI, swipeUI: SwipeUI, soundUI: SoundUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -180,6 +181,7 @@
   let rewardsCtl = null;    // «I tuoi premi» e il foglio del premio (js/ui-rewards.js), pronti all'avvio
   let shopCtl = null;       // «Negozio»: la card e il foglio (js/ui-shop.js), pronti all'avvio
   let musicCtl = null;      // musica nel focus: avviso o carosello, riga «Musica», «🎧» (js/ui-music.js), pronti all'avvio
+  let soundCtl = null;      // suoni del focus: «Suono» nel focus e l'ascolto di prova nel negozio (js/ui-sound.js)
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -333,6 +335,7 @@
     if (motivationCtl) motivationCtl.render(now);
     if (rewardsCtl) rewardsCtl.render(now);
     if (shopCtl) shopCtl.render(now);
+    if (soundCtl) soundCtl.render(); // «Suono» nel focus a tutto schermo: il suono in uso e quelli che hai
     applyLook();
     renderHistory(completed, now);
     renderedPassed = T.passedCount(state.tasks, now);
@@ -2515,7 +2518,13 @@
     vibrate,
     getPrefs: () => prefs,
     setPrefs,
-    onSuggestOpening: () => { if (assistantCtl) assistantCtl.sheetOpening(); }
+    onSuggestOpening: () => { if (assistantCtl) assistantCtl.sheetOpening(); },
+    // I suoni del focus (js/ui-sound.js): suonano mentre il focus conta il tempo; scelgono la sessione audio prima dello
+    // sblocco e partono appena l'audio è sbloccato; con il menu «Suono» aperto, Esc chiude il menu.
+    onRunning: running => { if (soundCtl) soundCtl.sync(running); },
+    beforeAudio: () => { if (soundCtl) soundCtl.beforeAudio(); },
+    onAudioUnlocked: () => { if (soundCtl) soundCtl.refresh(); },
+    onCancel: () => Boolean(soundCtl) && soundCtl.closeMenu()
   });
   assistantCtl = AssistantUI.init({
     focusCtl,
@@ -2611,7 +2620,17 @@
     burstConfetti,
     vibrate,
     celebrateRepair,
+    previewSound: (value, onEnd) => soundCtl.preview(value, onEnd),
+    stopSound: () => soundCtl.stopPreview(),
     isActive: () => activeTab === 'motivation'
+  });
+  // Suoni del focus (P-004, passo 4.4): «Suono» nel focus a tutto schermo e l'audio. Il suono in uso (look.sound) passa da
+  // commitState(), come i colori; l'audio è quello del focus.
+  soundCtl = SoundUI.init({
+    getState: () => state,
+    commitState,
+    getAudio: () => focusCtl.getAudio(),
+    unlockAudio: () => focusCtl.unlockAudio()
   });
 
   // Scorrimento sulle card da fare (P-005, passo 5.2): verso destra come la spunta, verso sinistra come il cestino.

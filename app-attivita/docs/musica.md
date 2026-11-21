@@ -1,6 +1,6 @@
 # Musica nel focus (passo 4.2 realizzato, gratuito; da provare sull'iPhone)
 
-Passo 4.2 di [P-004](../../docs/proposte/P-004.md): la musica per concentrarsi, **senza collegare nessun account**. Si sceglie il servizio una volta, nelle Impostazioni; poi in Focus ci sono cinque playlist, una per umore, che si aprono nell'app del servizio. Il collegamento vero con Spotify (canzoni nel carosello, comandi nel focus a tutto schermo) è il passo 4.3, che aspetta la risposta del Product Owner su Spotify Premium; i suoni del focus sono il passo 4.4.
+Passo 4.2 di [P-004](../../docs/proposte/P-004.md): la musica per concentrarsi, **senza collegare nessun account**. Si sceglie il servizio una volta, nelle Impostazioni; poi in Focus ci sono cinque playlist, una per umore, che si aprono nell'app del servizio. Il collegamento vero con Spotify (canzoni nel carosello, comandi nel focus a tutto schermo) è il passo 4.3, che aspetta la risposta del Product Owner su Spotify Premium; i suoni del focus sono il passo 4.4, fatto ([suoni.md](suoni.md)): suonano dentro Aura, e con la musica di un'altra app si provano sull'iPhone.
 
 Logica pura in `js/music.js` (`Aura.music`), con i test in `tests/music.test.js`; la pagina la tocca `js/ui-music.js` (`Aura.musicUI`), avviato da `app.js`.
 

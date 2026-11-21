@@ -55,8 +55,10 @@
   - «Ripara la serie», 150 punti, che si consuma (regole qui sotto);
   - i colori dell'aurora, 400 punti l'uno: Tramonto, Foresta, Oceano, Notte polare. «Aurora» è quello di partenza, gratis. Cambiano il bagliore dell'intestazione di Focus e l'aurora del focus a tutto schermo;
   - le forme dei coriandoli, 250 punti l'una: Stelline, Cuori, Foglie, Fiocchi di neve. «Classici» è quella di partenza, gratis. Valgono per tutti i coriandoli dell'app: traguardi, livelli, premi, acquisti;
+  - i suoni del focus (passo 4.4), 300 punti l'uno: Pioggia e Onde. Silenzio (quello di partenza) e Rumore marrone sono gratis. Suonano nel focus a tutto schermo, scelti con «Suono» (vedi [suoni.md](suoni.md));
   - «Compra punti»: pacchetti da 500, 2.000 e 5.000 punti, con «Presto» e senza prezzo. Un tocco dice «I pacchetti di punti arriveranno con la versione di Aura per gli altri». Nessun pagamento e nessun dato verso fuori (decisione del Product Owner del 20 novembre 2026).
 - **Comprare**: un colore o una forma si compra una volta, poi si usa quando si vuole. Con il saldo che basta, un tocco lo compra e lo mette in uso, con coriandoli e l'avviso «Comprato: Tramonto · −400 punti» e «Annulla», che toglie l'acquisto e rimette quello che era in uso. Un doppio tocco conta una volta sola. Senza punti abbastanza il pulsante è grigio, e un tocco dice «Ancora 120 punti per Tramonto». Un oggetto tuo si usa con un tocco, e quello in uso dice «In uso»; scegliendo una forma di coriandoli, una piccola festa la fa vedere.
+- **I suoni si ascoltano**: un tocco su un suono lo fa sentire per circa 4 secondi, con le barrette della sua anteprima che si muovono, anche senza i punti per comprarlo (il pulsante allora dice «Ascolta Onde, 300 punti: te ne mancano 200», e l'avviso quanti ne mancano). «Annulla» dopo un acquisto e la chiusura del foglio fermano l'ascolto.
 - **Ripara la serie**:
   - si ripara un giorno mancato alla volta: ieri, oppure l'altro ieri se ieri ha almeno un completamento (mai due giorni mancati di fila);
   - il giorno prima di quello mancato ha almeno un completamento: c'era una serie da salvare;

@@ -263,7 +263,7 @@
       tasks: [],
       rewards: [reward(), reward({ id: 'film', title: 'Serata al cinema', emoji: '🎬', cost: 800, createdAt: 2 })],
       stats: { ...P.emptyStats(), totalPoints: 900, days: { [TODAY]: { done: 3, points: 900 } }, spent: [spentEntry()] },
-      look: { aurora: 'aurora', confetti: 'classic', at: 0 }
+      look: { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 }
     };
     const file = storage.backupFile(state, NOW);
     assertEqual(JSON.parse(file.text).data.rewards, state.rewards, 'nel file ci sono i premi');

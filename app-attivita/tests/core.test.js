@@ -249,7 +249,7 @@
   /* ---------- Salvataggio ---------- */
 
   test('storage.parse: nessun dato → elenco vuoto, nessun premio, registro vuoto e i colori di partenza', () => {
-    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats(), look: { aurora: 'aurora', confetti: 'classic', at: 0 } };
+    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats(), look: { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 } };
     assertEqual(storage.parse(null), empty);
     assertEqual(storage.parse(''), empty);
     assertEqual(storage.SCHEMA_VERSION, 7);
@@ -362,7 +362,7 @@
         spent: [{ id: 's', rewardId: 'r', title: 'Gelato', cost: 20, at: 10 }],
         shop: [{ id: 'k', item: 'aurora:sunset', cost: 400, at: 11 }, { id: 'q', item: 'repair', cost: 150, at: 12, day: '1970-01-02' }]
       },
-      look: { aurora: 'sunset', confetti: 'classic', at: 13 }
+      look: { aurora: 'sunset', confetti: 'classic', sound: 'brown', at: 13 }
     };
     assertEqual(storage.parse(storage.serialize(state)), state);
   });
