@@ -25,10 +25,11 @@
 
   /**
    * Registro vuoto. `focus` sono i minuti di focus per giorno (schema v4, vedi js/focus.js): non toccano punti e serie.
-   * `spent` sono i riscatti dei premi (schema v5, vedi js/rewards.js): non tolgono niente a totalPoints.
+   * `spent` sono i riscatti dei premi (schema v5, vedi js/rewards.js) e `shop` gli acquisti del negozio (schema v6, vedi
+   * js/shop.js): nessuno dei due toglie niente a totalPoints.
    */
   function emptyStats() {
-    return { totalPoints: 0, bestStreak: 0, milestones: [], days: {}, focus: {}, spent: [] };
+    return { totalPoints: 0, bestStreak: 0, milestones: [], days: {}, focus: {}, spent: [], shop: [] };
   }
 
   /** Completamenti e punti di un giorno (zero se il giorno non è nel registro). */
@@ -47,25 +48,37 @@
     return { ...stats, days, totalPoints: Math.max(0, stats.totalPoints + pointsDelta) };
   }
 
-  const isActive = (days, day) => Boolean(days[day] && days[day].done > 0);
+  /**
+   * I giorni riparati con «Ripara la serie» (P-004, passo 4.1): un Set di giorni `AAAA-MM-GG`, dagli acquisti del negozio
+   * nel registro (stats.shop, con `item` 'repair'). Per la serie contano come un giorno con un completamento.
+   */
+  function repairedDays(stats) {
+    const shop = stats && Array.isArray(stats.shop) ? stats.shop : [];
+    return new Set(shop.filter(entry => entry && entry.item === 'repair' && utils.isISODate(entry.day)).map(entry => entry.day));
+  }
+
+  const hasDone = (days, day) => Boolean(days[day] && days[day].done > 0);
+  /** Un giorno conta per la serie se ha almeno un completamento, oppure se è tra i giorni riparati (`repaired`, facoltativo). */
+  const isActive = (days, day, repaired) => hasDone(days, day) || Boolean(repaired && repaired.has(day));
 
   /**
-   * Serie in corso: giorni consecutivi con almeno un completamento, contati all'indietro da oggi.
+   * Serie in corso: giorni consecutivi con almeno un completamento (o riparati), contati all'indietro da oggi.
    * Se oggi non c'è ancora niente si parte da ieri: la serie resta viva fino a mezzanotte.
    */
-  function currentStreak(days, today) {
-    let day = isActive(days, today) ? today : utils.addDays(today, -1);
+  function currentStreak(days, today, repaired) {
+    let day = isActive(days, today, repaired) ? today : utils.addDays(today, -1);
     let streak = 0;
-    while (isActive(days, day)) {
+    while (isActive(days, day, repaired)) {
       streak++;
       day = utils.addDays(day, -1);
     }
     return streak;
   }
 
-  /** La serie più lunga di tutto il registro: è il record. */
-  function longestStreak(days) {
-    const active = Object.keys(days).filter(day => isActive(days, day)).sort();
+  /** La serie più lunga di tutto il registro, giorni riparati compresi (`repaired`, facoltativo): è il record. */
+  function longestStreak(days, repaired) {
+    const done = Object.keys(days).filter(day => hasDone(days, day));
+    const active = Array.from(new Set(repaired ? done.concat(Array.from(repaired)) : done)).sort();
     let best = 0;
     let run = 0;
     active.forEach((day, i) => {
@@ -82,34 +95,37 @@
 
   /**
    * Completa (done = true) o rimette da fare (done = false) un'attività, aggiornando punti e registro.
-   * Restituisce { tasks, stats, points, streak, reached }:
+   * Restituisce { tasks, stats, points, streak, reached, next }:
    * - points: i punti dati, o tolti, in questo passaggio;
    * - streak: la serie in corso dopo la modifica;
-   * - reached: i traguardi raggiunti adesso per la prima volta (da festeggiare).
+   * - reached: i traguardi raggiunti adesso per la prima volta (da festeggiare);
+   * - next: completando una ripetizione, la sua prossima volta (Aura.tasks.toggleDone, P-005), altrimenti null.
    * Se non c'è niente da cambiare, `tasks` e `stats` sono gli stessi oggetti ricevuti.
    */
   function setDone(state, id, done, now) {
     const today = utils.todayISO(now);
     const task = state.tasks.find(t => t.id === id);
+    const repaired = repairedDays(state.stats);
     if (!task || task.done === done) {
-      return { tasks: state.tasks, stats: state.stats, points: 0, streak: currentStreak(state.stats.days, today), reached: [] };
+      return { tasks: state.tasks, stats: state.stats, points: 0, streak: currentStreak(state.stats.days, today, repaired), reached: [], next: null };
     }
     // Annullando si toglie esattamente quanto era stato dato, dal giorno in cui era stato dato.
     const points = done ? pointsFor(task) : task.pointsAwarded || 0;
     const day = done ? today : utils.todayISO(task.completedAt);
-    const tasks = T.setDone(state.tasks, id, done, now, done ? points : null);
+    const { tasks, next } = T.toggleDone(state.tasks, id, done, now, done ? points : null);
 
     const changed = changeDay(state.stats, day, done ? 1 : -1, done ? points : -points);
-    const streak = currentStreak(changed.days, today);
+    const streak = currentStreak(changed.days, today, repaired);
     const reached = done ? POINTS.milestones.filter(m => streak >= m && !changed.milestones.includes(m)) : [];
-    const stats = { ...changed, bestStreak: longestStreak(changed.days), milestones: changed.milestones.concat(reached) };
-    return { tasks, stats, points, streak, reached };
+    const stats = { ...changed, bestStreak: longestStreak(changed.days, repaired), milestones: changed.milestones.concat(reached) };
+    return { tasks, stats, points, streak, reached, next };
   }
 
   /**
    * Registro ricostruito dalle attività completate (migrazione alla v2).
    * I traguardi già superati si segnano come raggiunti, senza festa. Da `previous`, il registro di prima (facoltativo),
-   * conserva i riscatti dei premi (`spent`): dalle attività non si possono ricostruire (P-003, passo 3.4).
+   * conserva i riscatti dei premi (`spent`, P-003, passo 3.4) e gli acquisti del negozio (`shop`, con i giorni riparati;
+   * P-004, passo 4.1): dalle attività non si possono ricostruire.
    */
   function rebuildStats(tasks, previous) {
     const stats = tasks
@@ -118,9 +134,10 @@
         const points = Number.isInteger(task.pointsAwarded) ? task.pointsAwarded : pointsFor(task);
         return changeDay(acc, utils.todayISO(task.completedAt), 1, points);
       }, emptyStats());
-    const bestStreak = longestStreak(stats.days);
     const spent = previous && Array.isArray(previous.spent) ? previous.spent : stats.spent;
-    return { ...stats, bestStreak, milestones: POINTS.milestones.filter(m => m <= bestStreak), spent };
+    const shop = previous && Array.isArray(previous.shop) ? previous.shop : stats.shop;
+    const bestStreak = longestStreak(stats.days, repairedDays({ shop }));
+    return { ...stats, bestStreak, milestones: POINTS.milestones.filter(m => m <= bestStreak), spent, shop };
   }
 
   Aura.points = {
@@ -128,6 +145,7 @@
     pointsFor,
     emptyStats,
     dayTotals,
+    repairedDays,
     currentStreak,
     longestStreak,
     nextMilestone,

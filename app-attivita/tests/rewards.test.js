@@ -240,13 +240,13 @@
     [undefined, null, {}, 'testo'].forEach(raw => assertEqual(R.sanitizeSpent(raw), [], JSON.stringify(raw)));
   });
 
-  test('migrazione: i dati della v4 arrivano alla v5 con due elenchi vuoti; il resto è intatto', () => {
+  test('migrazione: i dati della v4 arrivano all\'ultima versione con premi e riscatti vuoti; il resto è intatto', () => {
     const stats = { totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-18': { done: 1, points: 24 } }, focus: { '2026-11-18': 25 }, level: 2 };
     const tasks = [{ id: 'a', title: 'Fatta', duration: 30, energy: 'medium', date: '2026-11-18', time: null, done: true, createdAt: 1, completedAt: 5, pointsAwarded: 24 }];
     const state = storage.parse(JSON.stringify({ version: 4, future: 'ok', tasks, stats }));
-    assertEqual([state.version, storage.SCHEMA_VERSION], [5, 5]);
-    assertEqual([state.tasks, state.rewards, state.future], [tasks, [], 'ok']);
-    assertEqual(state.stats, { ...stats, spent: [] }, 'registro identico, più i riscatti vuoti');
+    assertEqual(state.version, storage.SCHEMA_VERSION);
+    assertEqual([state.tasks, state.rewards, state.future], [tasks.map(task => ({ ...task, repeat: null, seriesId: null })), [], 'ok']);
+    assertEqual(state.stats, { ...stats, spent: [], shop: [] }, 'registro identico, più i riscatti e gli acquisti vuoti');
     assertEqual(storage.parse(JSON.stringify({ version: 1, tasks: [] })).rewards, [], 'anche dalla v1');
   });
 
@@ -262,7 +262,8 @@
       version: storage.SCHEMA_VERSION,
       tasks: [],
       rewards: [reward(), reward({ id: 'film', title: 'Serata al cinema', emoji: '🎬', cost: 800, createdAt: 2 })],
-      stats: { ...P.emptyStats(), totalPoints: 900, days: { [TODAY]: { done: 3, points: 900 } }, spent: [spentEntry()] }
+      stats: { ...P.emptyStats(), totalPoints: 900, days: { [TODAY]: { done: 3, points: 900 } }, spent: [spentEntry()] },
+      look: { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 }
     };
     const file = storage.backupFile(state, NOW);
     assertEqual(JSON.parse(file.text).data.rewards, state.rewards, 'nel file ci sono i premi');

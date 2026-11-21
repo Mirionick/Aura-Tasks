@@ -18,6 +18,8 @@
       createdAt: 1,
       completedAt: null,
       pointsAwarded: null,
+      repeat: null, // v7, attività che si ripetono (P-005, passo 5.1)
+      seriesId: null,
       ...overrides
     };
   }
@@ -106,7 +108,7 @@
   test('validateInput normalizza dati corretti', () => {
     const { value, errors } = T.validateInput({ title: '  Fare   la spesa ', duration: '45', energy: 'low', date: '' });
     assertEqual(errors, {});
-    assertEqual(value, { title: 'Fare la spesa', duration: 45, energy: 'low', date: null, time: null });
+    assertEqual(value, { title: 'Fare la spesa', duration: 45, energy: 'low', date: null, time: null, repeat: null });
   });
 
   test('validateInput segnala ogni campo sbagliato', () => {
@@ -125,7 +127,7 @@
     assert(typeof task.id === 'string' && task.id.length > 0, 'id presente');
     assertEqual({ ...task, id: 'x' }, {
       id: 'x', title: 'Leggere', duration: 20, energy: 'low', date: '2026-10-30', time: null,
-      done: false, createdAt: 1000, completedAt: null, pointsAwarded: null
+      done: false, createdAt: 1000, completedAt: null, pointsAwarded: null, repeat: null, seriesId: null
     });
   });
 
@@ -174,7 +176,7 @@
 
   test('updateTask + editableFields: "Annulla" rimette i campi di prima', () => {
     const list = [make({ id: 'a', title: 'Prima', duration: 15, energy: 'low', date: '2026-10-29', time: '08:00' })];
-    assertEqual(T.editableFields(list[0]), { title: 'Prima', duration: 15, energy: 'low', date: '2026-10-29', time: '08:00' });
+    assertEqual(T.editableFields(list[0]), { title: 'Prima', duration: 15, energy: 'low', date: '2026-10-29', time: '08:00', repeat: null });
     const edited = T.updateTask(list, 'a', { title: 'Dopo', duration: 45, energy: 'high', date: null, time: null });
     const undone = T.updateTask(edited.tasks, 'a', T.editableFields(edited.previous));
     assertEqual(undone.tasks[0], list[0]);
@@ -246,13 +248,14 @@
 
   /* ---------- Salvataggio ---------- */
 
-  test('storage.parse: nessun dato → elenco vuoto, nessun premio e registro vuoto', () => {
-    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats() };
+  test('storage.parse: nessun dato → elenco vuoto, nessun premio, registro vuoto e i colori di partenza', () => {
+    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats(), look: { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 } };
     assertEqual(storage.parse(null), empty);
     assertEqual(storage.parse(''), empty);
-    assertEqual(storage.SCHEMA_VERSION, 5);
+    assertEqual(storage.SCHEMA_VERSION, 7);
     assertEqual(P.emptyStats().focus, {}, 'registro vuoto con i minuti di focus');
     assertEqual(P.emptyStats().spent, [], 'registro vuoto con i riscatti dei premi');
+    assertEqual(P.emptyStats().shop, [], 'registro vuoto con gli acquisti del negozio');
   });
 
   test('storage.parse: testo illeggibile o formato sbagliato → errore', () => {
@@ -287,13 +290,13 @@
 
   test('storage.parse: conserva i campi sconosciuti e non abbassa la versione', () => {
     const raw = JSON.stringify({
-      version: 7,
+      version: 8,
       future: { x: 1 },
       stats: { totalPoints: 10, bestStreak: 1, milestones: [], days: { '2026-10-29': { done: 1, points: 10 } }, level: 2 },
       tasks: [{ id: 'a', title: 'X', duration: 10, energy: 'low', date: null, done: false, createdAt: 1, completedAt: null, extra: 'ok' }]
     });
     const state = storage.parse(raw);
-    assertEqual(state.version, 7);
+    assertEqual(state.version, 8);
     assertEqual(state.future, { x: 1 });
     assertEqual([state.stats.totalPoints, state.stats.level], [10, 2], 'registro e suoi campi sconosciuti');
     assertEqual(state.tasks[0].extra, 'ok');
@@ -356,8 +359,10 @@
       rewards: [{ id: 'r', title: 'Gelato', emoji: '🍦', cost: 20, createdAt: 3 }],
       stats: {
         totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } }, focus: { '1970-01-01': 25 },
-        spent: [{ id: 's', rewardId: 'r', title: 'Gelato', cost: 20, at: 10 }]
-      }
+        spent: [{ id: 's', rewardId: 'r', title: 'Gelato', cost: 20, at: 10 }],
+        shop: [{ id: 'k', item: 'aurora:sunset', cost: 400, at: 11 }, { id: 'q', item: 'repair', cost: 150, at: 12, day: '1970-01-02' }]
+      },
+      look: { aurora: 'sunset', confetti: 'classic', sound: 'brown', at: 13 }
     };
     assertEqual(storage.parse(storage.serialize(state)), state);
   });
@@ -417,7 +422,7 @@
     });
     const state = storage.parse(raw);
     assertEqual(state.version, storage.SCHEMA_VERSION);
-    assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'registro identico, più i minuti di focus (v4) e i riscatti (v5) vuoti');
+    assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'registro identico, più i minuti di focus (v4), i riscatti (v5) e gli acquisti (v6) vuoti');
     assertEqual(state.tasks.map(t => [t.time, t.pointsAwarded]), [[null, 24], [null, null]]);
     assertEqual([state.future, state.tasks[0].extra], ['ok', 1]);
   });
@@ -432,8 +437,8 @@
     ];
     const state = storage.parse(JSON.stringify({ version: 3, future: 'ok', stats, tasks }));
     assertEqual(state.version, storage.SCHEMA_VERSION);
-    assertEqual(state.tasks, tasks, 'attività identiche');
-    assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'punti, serie e campi sconosciuti intatti');
+    assertEqual(state.tasks, tasks.map(task => ({ ...task, repeat: null, seriesId: null })), 'attività identiche, più i campi della v7');
+    assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'punti, serie e campi sconosciuti intatti');
     assertEqual(state.future, 'ok');
   });
 
@@ -470,13 +475,15 @@
 
   // Assistente spento, senza consenso, con i permessi di partenza (vedi docs/assistente.md)
   const ASSISTANT_OFF = { enabled: false, voice: true, autoAdd: true, autoEdit: false, consentAt: null };
+  // Musica nel focus non ancora scelta, senza rimandi (vedi docs/musica.md)
+  const MUSIC_START = { service: null, remind: null, mood: 'lofi', folded: false };
 
   test('storage.sanitizePrefs: valori non validi tornano a quelli di partenza, i campi sconosciuti restano', () => {
-    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null };
+    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null, music: MUSIC_START };
     [null, undefined, 'testo', [], 5].forEach(raw => assertEqual(storage.sanitizePrefs(raw), defaults, 'prefs: ' + JSON.stringify(raw)));
     const messy = storage.sanitizePrefs({ lastTab: 'boh', lastTabAt: -5, suggest: { minutes: 25, energy: 'tanta', extra: 1 }, weeklyGoal: 10 });
-    assertEqual(messy, { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium', extra: 1 }, weeklyGoal: 10, assistant: ASSISTANT_OFF, agendaView: 'month' });
-    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' }, assistant: ASSISTANT_OFF, agendaView: 'week', weeklyGoal: 20 };
+    assertEqual(messy, { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium', extra: 1 }, weeklyGoal: 10, assistant: ASSISTANT_OFF, agendaView: 'month', music: MUSIC_START });
+    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' }, assistant: ASSISTANT_OFF, agendaView: 'week', weeklyGoal: 20, music: { service: 'spotify', remind: null, mood: 'piano', folded: true } };
     assertEqual(storage.sanitizePrefs(good), good, '«120+» (null) è una scelta valida');
   });
 
@@ -491,7 +498,7 @@
     const area = fakeArea();
     assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'niente salvato');
     assert(storage.savePrefs({ lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' } }, area));
-    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null });
+    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null, music: MUSIC_START });
     area.items.set(storage.PREFS_KEY, '{rotto');
     assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'testo illeggibile');
     const broken = fakeArea({}, true);
@@ -502,7 +509,7 @@
     const empty = { log: [], memory: [], open: null, opens: null, left: null };
     const area = fakeArea();
     assertEqual(storage.loadAssistant(area), empty, 'niente salvato');
-    const fields = { title: 'Dentista', duration: 30, energy: 'medium', date: '2026-11-13', time: '15:00' };
+    const fields = { title: 'Dentista', duration: 30, energy: 'medium', date: '2026-11-13', time: '15:00', repeat: null };
     const data = {
       log: [{ id: 'a1', at: 1000, origin: 'siri', said: 'alle 3 dentista', type: 'add', taskId: 'x', title: 'Dentista', before: null, after: fields, undone: false }],
       memory: [{ at: 1000, said: 'alle 3 dentista', reply: 'Aggiunta', did: [{ type: 'add', taskId: 'x', after: fields }] }],

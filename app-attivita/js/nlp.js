@@ -1,13 +1,14 @@
 /*
  * Aura Tasks — inserimento in linguaggio naturale.
  * parseTaskText("domani alle 10 dentista", adesso) → { title: 'Dentista', date: '2026-10-30', time: '10:00', … }.
+ * Con «ogni lunedì», «ogni giorno», «ogni mese»… anche la regola della ripetizione (P-005, passo 5.1).
  * Funzioni pure, a regole, offline. Niente DOM, niente localStorage. `now` è sempre un parametro (test ripetibili).
  * Le regex non usano lookbehind né gruppi con nome: Safari su iPhone meno recenti non li supporta.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils } = Aura;
+  const { utils, repeat: RP } = Aura;
 
   const WEEKDAYS = ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato'];
   const WEEKDAYS_SHORT = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
@@ -198,6 +199,46 @@
     return null;
   }
 
+  /* ---------- Ripetizione (P-005, passo 5.1) ---------- */
+
+  const DAY_WORD = '(?:' + WEEKDAYS.join('|') + '|' + WEEKDAYS_SHORT.join('|') + ')';
+  const DAY_LIST = DAY_WORD + '(?:(?:\\s*,\\s*|\\s+e\\s+)' + DAY_WORD + ')*';
+
+  /** "lunedi" o "lun" → 1 … "domenica" o "dom" → 7, i giorni di Aura.repeat. */
+  function weekdayNumber(word) {
+    const index = WEEKDAYS.indexOf(word) >= 0 ? WEEKDAYS.indexOf(word) : WEEKDAYS_SHORT.indexOf(word);
+    return index === 0 ? 7 : index;
+  }
+
+  /**
+   * «ogni giorno» e «tutti i giorni», «ogni lunedì» (anche «ogni lunedì e giovedì», «ogni lun, mer e ven»),
+   * «ogni settimana» e «ogni mese». Restituisce { kind, days } oppure null. Per «ogni settimana» e «ogni mese» il giorno
+   * viene dopo, dalla data della frase (o da oggi). Va cercata prima della data: «lunedì» da solo è un giorno.
+   */
+  function findRepeat(scan) {
+    const daily = scan.find('(?:ogni giorno|tutti i giorni)');
+    if (daily) {
+      daily.take();
+      return { kind: 'day' };
+    }
+    const days = scan.find('ogni\\s+(' + DAY_LIST + ')');
+    if (days) {
+      days.take();
+      return { kind: 'week', days: days.groups[0].split(/\s*,\s*|\s+e\s+/).map(weekdayNumber) };
+    }
+    const weekly = scan.find('ogni settimana');
+    if (weekly) {
+      weekly.take();
+      return { kind: 'week' };
+    }
+    const monthly = scan.find('ogni mese');
+    if (monthly) {
+      monthly.take();
+      return { kind: 'month' };
+    }
+    return null;
+  }
+
   /* ---------- Energia ---------- */
 
   function findEnergy(scan) {
@@ -227,6 +268,8 @@
   /**
    * Come parseTaskText(), più `dateSaid`: true se la frase nomina un giorno. Con solo l'ora («alle 3 dentista»)
    * il giorno si calcola (oggi, o domani se l'ora è passata) e `dateSaid` è false. Serve all'assistente (js/assistant.js).
+   * Con una ripetizione il giorno è il primo della regola da quel giorno (o da oggi) in poi: «palestra ogni lunedì e
+   * giovedì alle 18» è la prima volta il primo dei due giorni, oggi compreso se le 18 non sono passate.
    */
   function parseDetails(text, now) {
     const source = String(text == null ? '' : text).slice(0, 300);
@@ -236,6 +279,7 @@
 
     const time = findTime(scan, evening);
     const duration = findDuration(scan);
+    const repeatSaid = findRepeat(scan);
     let date = findDate(scan, today);
     const dateSaid = Boolean(date);
     const energy = findEnergy(scan);
@@ -245,17 +289,23 @@
       const current = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
       date = time > current ? today : utils.addDays(today, 1);
     }
-    return { title: cleanTitle(scan.rest()), duration, energy, date, time, dateSaid };
+    let repeat = null;
+    if (repeatSaid) {
+      const from = date || today;
+      repeat = repeatSaid.days ? RP.clean({ every: 'week', days: repeatSaid.days }) : RP.fromKind(repeatSaid.kind, from);
+      date = RP.onOrAfter(repeat, from);
+    }
+    return { title: cleanTitle(scan.rest()), duration, energy, date, time, dateSaid, repeat };
   }
 
   /**
    * Capisce una frase come "domani alle 10 dentista 30 min".
-   * Restituisce { title, duration, energy, date, time }: un campo non riconosciuto vale null
+   * Restituisce { title, duration, energy, date, time, repeat }: un campo non riconosciuto vale null
    * (il titolo vale '' se non resta niente). Prima l'orario, che non va confuso con una durata.
    */
   function parseTaskText(text, now) {
-    const { title, duration, energy, date, time } = parseDetails(text, now);
-    return { title, duration, energy, date, time };
+    const { title, duration, energy, date, time, repeat } = parseDetails(text, now);
+    return { title, duration, energy, date, time, repeat };
   }
 
   Aura.nlp = { parseTaskText, parseDetails };

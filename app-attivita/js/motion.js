@@ -179,9 +179,11 @@
   /**
    * Prepara il fantasma di un elemento appena tolto: torna per un attimo dov'era, nel livello sopra la lista, ed esce.
    * Sfuma (fade), scivola a destra (slide) o in su (up), oppure vola verso il titolo in cui è finito (target).
+   * `slideX`: di quanti px scivola (slide); senza, 28 px a destra. Uno scorrimento del dito (js/ui-swipe.js) lo passa per
+   * continuare il gesto, e allora il fantasma parte veloce e rallenta (ease-out), invece di partire piano.
    * Solo scritture: le posizioni (rect, base, target) sono già state lette, così non si ricalcola la pagina per ogni fantasma.
    */
-  function makeGhost(node, rect, base, target, style) {
+  function makeGhost(node, rect, base, target, style, slideX) {
     const running = flips.get(node);
     if (running) running.cancel();
     const el = node.isConnected ? node.cloneNode(true) : node;
@@ -197,9 +199,10 @@
     el.style.width = rect.width + 'px';
     el.style.height = rect.height + 'px';
 
-    let end = style === 'slide' ? 'translateX(28px)' : style === 'up' ? 'translateY(-8px)' : 'scale(.97)';
+    const flung = style === 'slide' && typeof slideX === 'number';
+    let end = style === 'slide' ? 'translateX(' + (flung ? slideX : 28) + 'px)' : style === 'up' ? 'translateY(-8px)' : 'scale(.97)';
     let duration = ms('exit');
-    let easing = ease('in');
+    let easing = ease(flung ? 'out' : 'in');
     if (target) {
       const dx = target.left + target.width / 2 - (rect.left + rect.width / 2);
       const dy = target.top + target.height / 2 - (rect.top + rect.height / 2);
@@ -223,7 +226,8 @@
    * come fantasmi quelli tolti. `before` viene da snapshot(). Opzioni:
    * - delay: ms prima di partire (per esempio il tempo di chiusura di un foglio);
    * - enterFrom: 'above' per entrare dall'alto;
-   * - slide: chiave dell'elemento che esce scivolando a destra (eliminazione); exit: 'up' per le altre uscite;
+   * - slide: chiave dell'elemento che esce scivolando a destra (eliminazione); slideX: px dello scivolamento, per esempio
+   *   negativi per continuare uno scorrimento verso sinistra (vedi makeGhost); exit: 'up' per le altre uscite;
    * - toCollapsed: false per non far volare verso il titolo gli elementi finiti in un <details> chiuso.
    * Si anima il blocco più grande che si muove insieme (vedi planFlip): meno elementi animati, meno lavoro a ogni fotogramma.
    * Restituisce il piano (vedi planFlip), oppure null se non anima nulla.
@@ -262,7 +266,7 @@
     const sources = plan.exits.map(({ key }) => before.nodes[key]).filter(Boolean);
     const ghosts = plan.exits
       .filter(({ key }) => before.nodes[key] && !sources.some(other => other !== before.nodes[key] && other.contains(before.nodes[key])))
-      .map(({ key, to }) => makeGhost(before.nodes[key], before.rects[key], base, to ? after.rects[to] : null, options.slide === key ? 'slide' : options.exit));
+      .map(({ key, to }) => makeGhost(before.nodes[key], before.rects[key], base, to ? after.rects[to] : null, options.slide === key ? 'slide' : options.exit, options.slideX));
     if (ghosts.length) {
       const fragment = document.createDocumentFragment();
       ghosts.forEach(item => fragment.appendChild(item.el));
