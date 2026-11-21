@@ -650,8 +650,10 @@
       action: 'Annulla',
       duration: special ? 6500 : undefined,
       onAction: () => {
-        // Prima esce la prossima volta, se è ancora da fare: così questa torna da fare con la sua regola.
-        const next = result.next && state.tasks.find(t => t.id === result.next.id && !t.done);
+        // Prima esce la prossima volta, se è ancora quella creata adesso (da fare, né modificata né saltata): così questa
+        // torna da fare con la sua regola. Se nel frattempo è cambiata resta, con le modifiche, e questa torna da fare
+        // senza ripetersi (Aura.tasks.toggleDone): la serie ha sempre una sola volta da fare.
+        const next = result.next && state.tasks.find(t => t.id === result.next.id && !t.done && T.sameFields(t, result.next));
         const tasks = next ? T.removeTask(state.tasks, next.id).tasks : state.tasks;
         const undo = P.setDone({ ...state, tasks }, id, false, Date.now());
         commit(undo.tasks, focus ? F.recordMinutes(undo.stats, focus.day, -focus.minutes) : undo.stats);
