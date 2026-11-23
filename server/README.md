@@ -1,10 +1,11 @@
 # Server di Aura
 
-Un piccolo server su **Cloudflare Workers**, piano gratuito, per tre funzioni dell'app. Tutte sono facoltative:
+Un piccolo server su **Cloudflare Workers**, piano gratuito, per quattro funzioni dell'app. Tutte sono facoltative:
 
 - **Promemoria**: una notifica push prima delle attività con giorno e ora, anche ad app chiusa. Il Cron controlla ogni minuto.
 - **Casella del Comando Rapido di Siri**: il comando scrive la frase dettata; quando apri Aura, l'app la ritira e mostra il foglio "Nuova attività" già compilato.
 - **Assistente** (vedi `app-attivita/docs/assistente.md`): risponde ai messaggi e trascrive la voce con **Workers AI**. Le risposte le usa l'app quando l'utente accende l'assistente; la trascrizione, per ora, solo la pagina di prova della voce.
+- **Connettore per Claude** (vedi `app-attivita/docs/connettore-claude.md`): nelle chat con Claude si dice «mettilo su Aura» e le attività arrivano nella casella di Siri, «Da Claude». Claude può solo aggiungere. Ci si collega una volta con un codice che l'app mostra per 10 minuti.
 
 Ogni dispositivo ha un **codice segreto casuale**, generato dall'app. Senza un codice valido il server rifiuta.
 
@@ -14,7 +15,8 @@ Il server conserva solo:
 - la **sottoscrizione push** del dispositivo;
 - per ogni promemoria: **titolo, ora e momento dell'avviso**, cancellati quando l'attività è passata;
 - le **frasi di Siri**, cancellate quando l'app le ritira (al massimo dopo 30 giorni);
-- per l'assistente: **solo conteggi** per dispositivo e per giorno (messaggi, proposte all'apertura, millisecondi di voce, neuroni), cancellati dopo due giorni.
+- per l'assistente: **solo conteggi** per dispositivo e per giorno (messaggi, proposte all'apertura, millisecondi di voce, neuroni), cancellati dopo due giorni;
+- per il connettore di Claude: le **impronte SHA-256** dei token e dei codici, mai i valori; le date del collegamento e dell'ultimo uso; le registrazioni automatiche di Claude (id, indirizzo di ritorno, nome, date); **solo conteggi** delle frasi per dispositivo e per giorno, cancellati dopo due giorni. Le frasi di Claude stanno nella casella di Siri e se ne vanno come quelle.
 
 Tutto il resto resta sul telefono.
 
@@ -74,6 +76,11 @@ Non riceve mai le attività completate, punti e serie, né i backup. L'assistent
   - `ALLOWED_ORIGINS` indica da quale indirizzo locale arriva l'app;
   - `PUSH_TEST_ORIGIN` ammette un finto servizio push locale (solo nelle prove).
 - ⚠️ **Anche in locale l'assistente chiama Workers AI davvero**, e consuma la quota gratuita dell'account. `npm test` invece usa un'IA finta e non consuma niente.
+- **Prova del connettore con i client MCP ufficiali** (`scripts/prova-connettore.mjs`): accesso completo con il codice e strumento, con `@modelcontextprotocol/client` 2.x (protocollo 2026-07-28 e 2025-11-25) e `@modelcontextprotocol/sdk` 1.x. Il server gira in memoria, senza rete e senza Cloudflare. I due pacchetti servono solo qui e non si salvano in `package.json`:
+  ```
+  npm install --no-save @modelcontextprotocol/client@2.4.0 @modelcontextprotocol/sdk@1.32.2
+  node scripts/prova-connettore.mjs
+  ```
 - **Prova dei modelli** (`scripts/eval-assistant.mjs`): manda una quarantina di frasi italiane a ogni modello candidato e dice quante ne capisce, con neuroni e tempi.
   ```
   npm run db:init:local
@@ -98,6 +105,23 @@ Il codice del dispositivo viaggia nell'intestazione `Authorization: Bearer <codi
 | `POST /api/push/test` | "Prova una notifica" |
 | `POST /api/assistant/transcribe` | Trascrive una registrazione. Il **corpo** è l'audio in testo base64 (`Content-Type: text/plain`), il formato sta in `X-Audio-Type` (`audio/mp4`, `audio/webm`…). Il server controlla solo la lunghezza e passa il corpo a Whisper così com'è. Risponde `{ text, seconds }` |
 | `POST /api/assistant/chat` | Risponde a un messaggio: riceve `{ kind, message, now, context, tasks, recent }`, risponde `{ say, context, actions, left }`. Forma e regole in `app-attivita/docs/assistente.md` |
+| `POST /api/claude/code` | Un codice nuovo per collegare Claude, valido 10 minuti: `{ code, expiresAt }` |
+| `GET /api/claude` · `DELETE /api/claude` | Stato del collegamento (`{ links: [{ createdAt, usedAt }], code }`) · «Scollega Claude» |
+
+`GET /api/inbox` dice da dove viene ogni frase: `source` è `"siri"` oppure `"claude"`. Gli indirizzi per Claude stanno fuori da `/api/` e non hanno CORS: `POST /mcp` (il connettore), i metadati in `/.well-known/…`, la pagina `/oauth/authorize`, `POST /oauth/token` e `POST /oauth/register`. Forma e regole in `app-attivita/docs/connettore-claude.md`.
+
+## Il connettore per Claude
+**Pubblicarlo** (una volta, con il via del Product Owner): `npm run db:init`, che aggiunge le tabelle nuove, **poi** `npm run deploy`. Non servono chiavi né variabili; `MAX_CLAUDE_PER_DAY` è facoltativa (frasi di Claude al giorno per tutto il server, 1.000 se manca).
+
+**Collegarlo**, dal sito di Claude o dalla sua app per il computer:
+1. **Personalizza › Connettori › «+» › «Aggiungi connettore personalizzato»** (Customize › Connectors › Add custom connector).
+2. Nome `Aura`, indirizzo `https://aura.<sottodominio>.workers.dev/mcp`, scritto esattamente così, senza la barra finale.
+3. **«Connetti»**: si apre la pagina di Aura. Il codice si legge in Aura, Impostazioni › Claude › «Mostra il codice».
+4. Scrivi il codice e tocca **«Collega»**: si torna su Claude.
+
+Dopo, il connettore si usa anche dall'app di Claude sul telefono. **«Scollega Claude»** nell'app toglie subito tutti i collegamenti.
+
+**Se non si collega**: `npx wrangler tail aura` mostra il motivo di ogni rifiuto (per esempio «indirizzo di ritorno non ammesso»), mai token, codici né frasi.
 
 ## Il Comando Rapido di Siri (sull'iPhone)
 L'indirizzo e il codice da copiare sono in Aura: campanella → "Comando Rapido di Siri" → "Crea il codice per Siri".
@@ -117,13 +141,15 @@ Di' "Ehi Siri, Aura", poi detta per esempio "domani alle 10 dentista". Quando ap
 - **Limiti del piano gratuito**, ampi per un uso personale:
   - 100.000 richieste al giorno;
   - 10 ms di CPU per richiesta;
-  - D1 permette 100.000 scritture al giorno.
+  - D1 permette 100.000 scritture al giorno. Le frasi di Claude sono al massimo 1.000 al giorno in tutto, cioè circa 10.000 scritture.
   - Il Cron invia al massimo 10 notifiche al minuto.
 
 ## Limiti contro gli abusi
 - **Per indirizzo IP**, con il binding Rate Limiting dei Workers (in `wrangler.toml`). Le regole WAF non valgono su `workers.dev`.
   - `POST /api/devices`: 10 al minuto.
   - `POST /api/push/test`: 10 al minuto, con un contatore suo.
+  - `POST /api/claude/code`, `POST /oauth/authorize` (il codice scritto nella pagina), `POST /oauth/token` e `POST /oauth/register`: 10 al minuto, ognuno con un contatore suo.
+  - Il connettore (`/mcp`), i metadati e la pagina in `GET`: 120 al minuto, con un contatore suo. Le richieste di Claude arrivano tutte dagli indirizzi di Anthropic e contano insieme.
   - `POST /api/inbox`: 20 al minuto.
   - Tutte le altre `/api/…`: 120 al minuto. `OPTIONS` e `/api/health` non contano.
   - Per IPv6 conta la rete /64.

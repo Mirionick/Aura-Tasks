@@ -699,8 +699,10 @@ test('strumento: tetto di tutto il server (MAX_CLAUDE_PER_DAY); Siri continua', 
   assert.deepEqual(s.rows('SELECT device_id = ? AS b, added FROM claude_usage ORDER BY added', 'x').map(row => row.added), [2, 12]);
   assert.equal((await addCall(s, b.access_token, ['B3'])).data.result.content[0].text, MCP_TEXTS.allToday(0));
   // Valori non validi: vale il tetto di sempre.
-  s.env.MAX_CLAUDE_PER_DAY = 'tanti';
-  assert.equal((await addCall(s, b.access_token, ['B3'])).data.result.isError, false);
+  for (const value of ['tanti', '0.5', '-3']) {
+    s.env.MAX_CLAUDE_PER_DAY = value;
+    assert.equal((await addCall(s, b.access_token, ['B3'])).data.result.isError, false, value);
+  }
 });
 
 test('strumento: la scrittura ricontrolla i limiti, se un\'altra frase arriva tra la lettura e la scrittura', async () => {

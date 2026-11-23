@@ -260,8 +260,8 @@ function limitText(counts, count, caps) {
 }
 
 function totalPerDay(env) {
-  const value = Number(env.MAX_CLAUDE_PER_DAY);
-  return value > 0 ? Math.floor(value) : MCP_LIMITS.totalPerDay;
+  const value = Math.floor(Number(env.MAX_CLAUDE_PER_DAY));
+  return value > 0 ? value : MCP_LIMITS.totalPerDay;
 }
 
 const utcDay = now => new Date(now).toISOString().slice(0, 10);
