@@ -346,10 +346,11 @@ async function addToInbox(request, env, deps) {
   }
   if (!text) return plain(INBOX_TEXTS.empty, 400);
   if (text.length > LIMITS.textLength) return plain(INBOX_TEXTS.tooLong, 400);
-  const pending = await env.DB.prepare('SELECT COUNT(*) AS n FROM inbox WHERE device_id = ?').bind(id).first('n');
-  if (pending >= LIMITS.inboxItems) return plain(INBOX_TEXTS.full, 429);
-  await env.DB.prepare('INSERT INTO inbox (id, device_id, text, created_at) VALUES (?, ?, ?, ?)')
-    .bind(randomId(), id, text, deps.now).run();
+  // I posti si contano nella stessa istruzione che scrive: una frase di Claude arrivata nel frattempo non fa superare il tetto.
+  const added = await env.DB.prepare(
+    'INSERT INTO inbox (id, device_id, text, created_at) SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM inbox WHERE device_id = ?) < ?'
+  ).bind(randomId(), id, text, deps.now, id, LIMITS.inboxItems).run();
+  if (!added.meta.changes) return plain(INBOX_TEXTS.full, 429);
   return plain(INBOX_TEXTS.added + text, 201);
 }
 

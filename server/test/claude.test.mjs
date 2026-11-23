@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { LIMITS, handle, runCron } from '../src/index.js';
 import { MCP_LIMITS, TOOL, headerValue } from '../src/mcp.js';
 import { CLAUDE, OAUTH_LIMITS, PAIR_ALPHABET, escapeHtml, newPairCode, normalizePairCode } from '../src/oauth.js';
-import { CLAUDE_PAGE, MCP_TEXTS } from '../src/text.js';
+import { CLAUDE_PAGE, INBOX_TEXTS, MCP_TEXTS } from '../src/text.js';
 import { createD1 } from './helpers/d1.mjs';
 
 const SCHEMA = fileURLToPath(new URL('../schema.sql', import.meta.url));
@@ -735,6 +735,32 @@ test('strumento: la scrittura ricontrolla i limiti, se un\'altra frase arriva tr
   assert.equal(total.data.result.content[0].text, MCP_TEXTS.allToday(1));
   assert.equal(s.rows("SELECT added FROM claude_usage WHERE device_id = '*'")[0].added, 4);
   assert.equal((await addCall(s, bearer, ['A1'])).data.result.isError, false);
+});
+
+test('Siri: anche la sua scrittura ricontrolla i posti, se Claude prende l\'ultimo nel frattempo', async () => {
+  const s = setup();
+  const { access_token: bearer } = await connect(s);
+  for (let i = 0; i < LIMITS.inboxItems - 1; i++) await s.call('POST', '/api/inbox', { code: CODE_A, body: { text: 'Siri ' + i } });
+  // Resta un posto. Proprio mentre Siri sta per scrivere, Claude lo prende.
+  const prepare = s.env.DB.prepare;
+  s.env.DB.prepare = sql => {
+    const statement = prepare(sql);
+    if (!sql.startsWith('INSERT INTO inbox')) return statement;
+    s.env.DB.prepare = prepare;
+    return {
+      bind: (...values) => {
+        const bound = statement.bind(...values);
+        return { ...bound, run: async () => (await addCall(s, bearer, ['Da Claude, ultimo posto']), bound.run()) };
+      }
+    };
+  };
+  const late = await s.call('POST', '/api/inbox', { code: CODE_A, body: { text: 'Siri in ritardo' } });
+  assert.equal(s.env.DB.prepare, prepare, 'la scrittura di Siri è passata di qui');
+  assert.equal(late.status, 429);
+  assert.equal(late.text, INBOX_TEXTS.full);
+  assert.equal(s.rows('SELECT * FROM inbox').length, LIMITS.inboxItems, 'mai più di 30');
+  assert.equal(s.rows("SELECT * FROM inbox WHERE id LIKE 'claude:%'").length, 1);
+  assert.equal(s.rows("SELECT * FROM inbox WHERE text = 'Siri in ritardo'").length, 0);
 });
 
 test('strumento: un token scrive solo nella casella del suo dispositivo', async () => {

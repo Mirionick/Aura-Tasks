@@ -24,7 +24,7 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
 
 **Casella di Siri**
 - Il Comando Rapido manda `POST /api/inbox` con la frase. Il server risponde in testo semplice ("Aggiunto ad Aura: …" oppure l'errore), che il comando mostra in una notifica.
-- Nella stessa casella scrive anche il **connettore per Claude** ([connettore-claude.md](connettore-claude.md)), con id `claude:…`. `GET /api/inbox` dice da dove viene ogni frase (`source`: `"siri"` o `"claude"`); il tetto di 30 frasi in attesa le conta insieme. Fino al passo 6.2 l'app le tratta come quelle di Siri.
+- Nella stessa casella scrive anche il **connettore per Claude** ([connettore-claude.md](connettore-claude.md)), con id `claude:…`. `GET /api/inbox` dice da dove viene ogni frase (`source`: `"siri"` o `"claude"`); il tetto di 30 frasi in attesa le conta insieme, e ogni scrittura lo ricontrolla nella stessa istruzione che scrive. Fino al passo 6.2 l'app le tratta come quelle di Siri.
 - L'app controlla la casella all'avvio, al ritorno nell'app (al massimo ogni 15 secondi) e quando torna internet:
   - le frasi vanno prima nella coda locale (`inbox`);
   - poi l'app le conferma al server, che le cancella;

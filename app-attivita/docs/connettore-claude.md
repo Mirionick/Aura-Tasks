@@ -89,7 +89,7 @@ Corpo al massimo 16 KB; JSON non valido: -32700 (400); richiesta JSON-RPC non va
 - **I limiti**, controllati tutti nella stessa `INSERT … SELECT` che scrive le frasi: una chiamata entra tutta o non entra, e due chiamate insieme non li superano. Prima una lettura sceglie il messaggio giusto.
   - 50 frasi al giorno (UTC) per dispositivo, con tutti i suoi collegamenti: «Scollega Claude» e un collegamento nuovo non azzerano il conto;
   - 1.000 frasi al giorno per tutto il server (variabile facoltativa `MAX_CLAUDE_PER_DAY`): una frase costa una decina di scritture su D1, quindi al massimo circa 10.000 delle 100.000 del piano gratuito;
-  - 30 frasi in attesa per dispositivo, contando anche Siri.
+  - 30 frasi in attesa per dispositivo, contando anche Siri. Anche la scrittura di Siri (`POST /api/inbox`) conta i posti nella stessa `INSERT … SELECT`: una frase di Claude arrivata nel frattempo non fa superare il tetto.
 - Le frasi entrano nella tabella `inbox` con id `claude:` più 16 caratteri casuali: i due punti non ci sono mai negli id di Siri. `GET /api/inbox` aggiunge a ogni frase `source` (`"siri"` o `"claude"`), e `POST /api/inbox/ack` accetta anche questi id.
 
 ### Dati
