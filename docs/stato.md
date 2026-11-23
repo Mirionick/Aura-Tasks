@@ -4,10 +4,10 @@ Fotografia breve di dove siamo, per chi comincia un intervento. La aggiorna chi 
 
 Non ripete gli altri documenti: decisioni, funzioni e verifiche sono in [decisioni.md](decisioni.md), le regole in [AGENTS.md](../AGENTS.md).
 
-**Aggiornato il** 19 novembre 2026, con la PR del passo 3.4 di P-003 («I tuoi premi»).
+**Aggiornato il** 23 novembre 2026, con la PR della proposta P-006 (connettore per Claude).
 
 ## Pubblicato su `main`
-- **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più i passi 0b e 1 di P-002 (il focus a tutto schermo resta fermo; la rotella apre le Impostazioni) e i passi 3.1 (cambio di scheda e aurora nel focus), 3.2 (Agenda a calendario) e 3.3 (Motivazione) di P-003. Cache `aura-tasks-v17` (19 novembre 2026). Con questa PR: passo 3.4 di P-003, cache `aura-tasks-v18` e dati alla versione 5 dello schema.
+- **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più i passi 0b e 1 di P-002 (il focus a tutto schermo resta fermo; la rotella apre le Impostazioni) e i passi 3.1 (cambio di scheda e aurora nel focus), 3.2 (Agenda a calendario), 3.3 (Motivazione) e 3.4 («I tuoi premi») di P-003. Cache `aura-tasks-v18` (20 novembre 2026); dati alla versione 5 dello schema.
 - **Server**: quello pubblicato con il passo 0 dell'assistente (11 novembre 2026); il passo 1 non lo ha cambiato.
 - **CI**: test del server e dell'app in Chrome headless su ogni PR (PR 2, unita il 16 novembre 2026 con `4351b18`), con un minimo di 251 test dell'app (233 prima del passo 3.4 di P-003).
 - **Protezione di `main`** (16 novembre 2026): solo PR, con il controllo «Test backend e frontend» obbligatorio, niente force push né cancellazione, nessuna eccezione. Attivi secret scanning, push protection, avvisi di Dependabot e CodeQL. Codex rivede ogni PR: la revisione parte all'apertura oppure con il commento `@codex review` (così è partita sulla PR 3).
@@ -24,9 +24,11 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 - **PR 8 — passo 3.1 di P-003** (19 novembre 2026, `9626161`): cambio di scheda con un movimento d'insieme e, nel focus a tutto schermo, l'aurora che sale con il tempo. **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «P-003, passo 3.1»).
 - **PR 9 — passo 3.2 di P-003** (19 novembre 2026, `5a76a08`): l'Agenda diventa un calendario del mese o della settimana, con il giorno scelto (orari, spazi liberi, linea dell'ora), «Prossimi giorni» e «Da pianificare» con «Metti a…». **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «P-003, passo 3.2»).
 - **PR 10 — passo 3.3 di P-003** (19 novembre 2026, `8ebc23c`): Motivazione con il livello nell'intestazione, «La tua settimana» (il cielo, l'obiettivo e la costellazione), «I tuoi numeri» e «Completate» chiusa; i distintivi dei livelli 1, 2, 3, 5, 6 e 7. **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «P-003, passo 3.3»).
+- **PR 11 — passo 3.4 di P-003** (20 novembre 2026, `97f9301`): «I tuoi premi» in Motivazione, con il saldo da spendere, il riscatto con coriandoli e «Annulla»; spendere non fa mai scendere di livello. Dati alla versione 5 dello schema. **Da provare sull'iPhone** (vedi [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «P-003, passo 3.4»).
 
 ## In lavorazione
-- **Passo 3.4 di P-003** (livello A, esecutore Claude Project, revisione di ChatGPT / Codex): «I tuoi premi» in Motivazione. Ognuno scrive i suoi premi (nome, emoji da un elenco fisso, prezzo in punti) e li riscatta con il saldo da spendere, con coriandoli e «Annulla»; spendere non fa mai scendere di livello. I dati passano alla versione 5 dello schema (`rewards` e `stats.spent`), nel backup anche premi e riscatti. Specifica in [proposte/P-003.md](proposte/P-003.md), passo 3.4, regole in [punti-e-serie.md](../app-attivita/docs/punti-e-serie.md), «Premi», misure in [tre-modalita.md](../app-attivita/docs/tre-modalita.md), «Risultati del passo 3.4». Provato nel browser; **da provare sull'iPhone** dopo il merge.
+- **Le PR dalla 12 alla 20**, aperte: la proposta P-004 e i suoi passi 4.1, 4.2 e 4.4, la proposta P-005 e i suoi passi 5.1 e 5.2, e due PR di rifiniture. Ognuna aggiorna questo file con il suo stato; si uniscono in ordine, dalla 12.
+- **Proposta P-006** (livello A, revisione di ChatGPT / Codex): il connettore per Claude. Nelle chat con Claude si dice «mettilo su Aura» (o lo propone Claude) e le attività arrivano nella casella di Siri, con l'etichetta «Da Claude». Claude può solo aggiungere. Ci si collega una volta, con un codice che Aura mostra per 10 minuti (OAuth sul server di Aura); il server parla le due versioni del protocollo MCP, 2025-11-25 e 2026-07-28. Due passi: 6.1 il server, 6.2 l'app. Il testo è in [proposte/P-006.md](proposte/P-006.md); si approva con il merge della sua PR, e la costruisce Claude Project.
 
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce. I passi 3 e 4 di P-002 aspettano queste prove.
@@ -39,3 +41,4 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 ## Prossimi passi
 - **P-002**: 0a e passo 2 (Aura con un volto) toccano a ChatGPT / Codex e aspettano che il Product Owner crei l'ambiente di Codex. I passi 3 e 4 aspettano le prove sull'iPhone.
 - **P-003**: dopo il passo 3.4, il 3.5 («Sfide di oggi», ChatGPT / Codex) nell'ordine di [proposte/P-003.md](proposte/P-003.md), senza aspettare il passo 2 di P-002, perché tocca altre parti. Porterà i dati alla versione 6.
+- **P-006**: dopo l'approvazione, il passo 6.1 (server, pubblicato da Claude Code sul PC con il via del Product Owner), poi il 6.2 (app), dopo le PR dell'app già aperte.

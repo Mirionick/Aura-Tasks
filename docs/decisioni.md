@@ -69,6 +69,7 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 | Altre idee, non prioritarie | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
 | Licenza premium | [premium.md](../app-attivita/docs/premium.md) | |
 | Login facoltativo con Google e sincronizzazione | [proposte/P-002.md](proposte/P-002.md), passi 5a e 5b | 5b richiede prima una specifica testabile |
+| Connettore per Claude: «Aggiungi ad Aura» | [proposte/P-006.md](proposte/P-006.md), passi 6.1 e 6.2 | Proposta in revisione: si costruisce dopo l'approvazione. Il passo 6.1 aggiunge tabelle al database, senza migrazione |
 | Aura con un volto, voce, promemoria completi | [proposte/P-002.md](proposte/P-002.md), passi 2–4 | Promemoria senza migrazione D1 (sezione 1) |
 
 ## 4. Verifiche effettivamente eseguite
