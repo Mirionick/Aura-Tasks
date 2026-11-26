@@ -1,7 +1,9 @@
 /*
  * Aura — parti comuni delle richieste: errori con il loro stato HTTP, lettura del corpo con un limite,
- * risposte JSON e in testo semplice, pulizia dei testi. Le usano index.js e assistant.js.
+ * risposte JSON e in testo semplice, pulizia dei testi, impronte e valori casuali.
+ * Le usano index.js, assistant.js, oauth.js e mcp.js.
  */
+import { base64urlEncode } from './webpush.js';
 
 /** Errore con il suo stato HTTP: il messaggio arriva all'app. */
 export class HttpError extends Error {
@@ -45,4 +47,15 @@ export function json(data, status = 200) {
 
 export function plain(text, status = 200) {
   return new Response(text, { status, headers: { ...COMMON_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } });
+}
+
+/** Impronta SHA-256 di un testo, in esadecimale: il server conserva questa, mai codici o token. */
+export async function sha256Hex(text) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** Valore casuale in base64url, da `bytes` byte del generatore crittografico (32 byte = 43 caratteri). */
+export function randomToken(bytes = 32) {
+  return base64urlEncode(crypto.getRandomValues(new Uint8Array(bytes)));
 }

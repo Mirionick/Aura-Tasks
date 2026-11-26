@@ -24,6 +24,7 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
 
 **Casella di Siri**
 - Il Comando Rapido manda `POST /api/inbox` con la frase. Il server risponde in testo semplice ("Aggiunto ad Aura: …" oppure l'errore), che il comando mostra in una notifica.
+- Nella stessa casella scrive anche il **connettore per Claude** ([connettore-claude.md](connettore-claude.md)), con id `claude:…`. `GET /api/inbox` dice da dove viene ogni frase (`source`: `"siri"` o `"claude"`); il tetto di 30 frasi in attesa le conta insieme, e ogni scrittura lo ricontrolla nella stessa istruzione che scrive. Fino al passo 6.2 l'app le tratta come quelle di Siri.
 - L'app controlla la casella all'avvio, al ritorno nell'app (al massimo ogni 15 secondi) e quando torna internet:
   - le frasi vanno prima nella coda locale (`inbox`);
   - poi l'app le conferma al server, che le cancella;
@@ -78,9 +79,9 @@ Su `workers.dev` le regole WAF non valgono, quindi si usa il binding Rate Limiti
 
 | Binding | Limite per IP | Richieste |
 |---|---|---|
-| `RATE_LIMIT_STRICT` | 10 al minuto | `POST /api/devices`; `POST /api/push/test` con un contatore suo |
+| `RATE_LIMIT_STRICT` | 10 al minuto | `POST /api/devices`; `POST /api/push/test` con un contatore suo; per il connettore di Claude `POST /api/claude/code`, `POST /oauth/authorize`, `POST /oauth/token` e `POST /oauth/register`, ognuno con il suo |
 | `RATE_LIMIT_INBOX` | 20 al minuto | `POST /api/inbox` |
-| `RATE_LIMIT_API` | 120 al minuto | tutte le altre `/api/…`; non contano `OPTIONS` e `GET /api/health` |
+| `RATE_LIMIT_API` | 120 al minuto | tutte le altre `/api/…`; non contano `OPTIONS` e `GET /api/health`. Con un contatore suo, il connettore di Claude (`/mcp`, metadati, pagina in `GET`) |
 
 - **Chiave**: `clientKey()`, cioè `CF-Connecting-IP`, che il client non può falsificare. Per IPv6 vale la rete /64, e `::ffff:a.b.c.d` vale come IPv4.
 - **Oltre il limite**: 429 con `Retry-After: 60` e le intestazioni CORS. La casella risponde in testo semplice ("Troppe richieste: riprova tra un minuto."); le altre richieste in JSON ("Troppe richieste da questa rete…").
