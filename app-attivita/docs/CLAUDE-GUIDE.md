@@ -18,6 +18,7 @@ Aura deve permettere di **catturare un impegno in pochi secondi**, con una frase
 - Tutti i dati restano nel `localStorage` del dispositivo.
 - L'unica eccezione a "niente server" è il **server di Aura** (cartella `server/` del repository, Cloudflare Workers, piano gratuito). È facoltativo: se l'utente attiva promemoria o Siri, riceve solo titolo e ora dei promemoria e le frasi dettate a Siri (vedi [docs/promemoria-e-siri.md](promemoria-e-siri.md)).
   - Con l'**assistente** acceso (facoltativo, dopo il consenso; vedi [docs/assistente.md](assistente.md)) il server riceve anche i messaggi scritti ad Aura, le frasi di Siri e l'elenco delle attività da fare, per passarli a Workers AI **senza salvarli**. Le registrazioni della voce arrivano col passo 2: per ora le manda solo la pagina di prova.
+  - Con il **connettore per Claude** (facoltativo; vedi [docs/connettore-claude.md](connettore-claude.md)) il server riceve le frasi che Claude aggiunge, nella casella di Siri. Claude non può leggere niente di Aura.
 
 ## Cosa sa fare oggi
 - **Attività**: ognuna ha titolo, durata stimata in minuti, livello di energia (bassa/media/alta), data facoltativa e **orario** facoltativo.
@@ -141,7 +142,7 @@ Dopo il merge il telefono scarica la nuova versione alla prima apertura con inte
 | `prove/` | Pagine **provvisorie** di prova, fuori da `APP_FILES`. Per ora `voce.html` (con `voce.css` e `voce.js`): prova tecnica di microfono, trascrizione e voce del telefono per l'assistente. Si apre dal link in fondo a Motivazione e sparisce con il passo 2 di [docs/assistente.md](assistente.md) |
 | `tests/` | Test della logica pura (`core.test.js`, `points.test.js`, `nlp.test.js`, `reminders.test.js`, `backup.test.js`, `motion.test.js`, `focus.test.js`, `suggest.test.js`, `assistant.test.js`, `settings.test.js`, `agenda.test.js`, `motivation.test.js`, `rewards.test.js`, `shop.test.js`, `music.test.js`, `repeat.test.js`, `swipe.test.js`): si aprono con `tests/index.html` |
 | `docs/` | Le specifiche delle funzioni, una per file (vedi "Indice delle specifiche"), e questa guida (`docs/CLAUDE-GUIDE.md`) |
-| `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](promemoria-e-siri.md) e `server/README.md` |
+| `../server/` | Il server di Aura (Cloudflare Workers): vedi [docs/promemoria-e-siri.md](promemoria-e-siri.md), [docs/connettore-claude.md](connettore-claude.md) e `server/README.md` |
 | `../AGENTS.md`, `../docs/`, `../.github/` | Per tutti gli agenti: regole condivise (`AGENTS.md`), stato del lavoro, decisioni e proposte (`docs/` alla radice), modello delle Pull Request (`.github/`) |
 | `CLAUDE.md`, `../CLAUDE.md`, `../server/CLAUDE.md`, `../.claude/`, `../CLAUDE-WORKFLOW.md` | Istruzioni per Claude Code: istruzioni di lavoro e vincoli sempre attivi (`CLAUDE.md`), richiami per area (`.claude/rules/`), procedure a richiesta (`.claude/skills/`), permessi (`.claude/settings.json`) e flusso di lavoro con Claude Project |
 
@@ -380,7 +381,10 @@ Note per i controlli automatici con Edge headless:
 - la firma VAPID;
 - tutte le API, sull'SQL vero (D1 simulato con `node:sqlite`);
 - il Cron, con un servizio push finto e i messaggi decifrati;
-- l'assistente, con un'IA finta al posto di Workers AI: limiti, conteggi, ciò che va al modello e ciò che ne torna. Non consuma quota.
+- l'assistente, con un'IA finta al posto di Workers AI: limiti, conteggi, ciò che va al modello e ciò che ne torna. Non consuma quota;
+- il connettore per Claude (`test/claude.test.mjs`): accesso OAuth con il codice di Aura, le due epoche del protocollo MCP, lo strumento e i suoi limiti.
+
+**I client MCP ufficiali** si provano con `server/scripts/prova-connettore.mjs`, fuori da `npm test`: vedi `server/README.md`.
 
 **Workers AI vero** si prova solo con `wrangler dev` (anche in locale consuma la quota gratuita) e con `server/scripts/eval-assistant.mjs`, la prova dei modelli sulle frasi italiane: vedi `server/README.md`.
 
@@ -498,6 +502,7 @@ Ogni funzione ha la sua specifica in un file di `docs/`: comportamento, dati, ca
 | [docs/tre-modalita.md](tre-modalita.md) | Schede Focus, Agenda e Motivazione; animazioni più fluide | in corso: fasi 1 e 2a provate sull'iPhone; passi 3.1, 3.2, 3.3 e 3.4 di P-003 e passo 4.1 di P-004 fatti, da provare sull'iPhone |
 | [docs/illustrazioni.md](illustrazioni.md) | Illustrazioni: flusso, revisione, elenco e prompt per Nano Banana | in corso: 8 nell'app (`empty-focus` da sostituire), 5 da rifare |
 | [docs/assistente.md](assistente.md) | Assistente con l'IA: scrivere o parlare ad Aura, permessi, memoria breve, frasi di Siri, server e limiti | in corso: passi 0 (prova tecnica) e 1 (assistente scritto) pubblicati, da provare sull'iPhone |
+| [docs/connettore-claude.md](connettore-claude.md) | Connettore per Claude: «Aggiungi ad Aura», accesso con il codice di Aura, protocollo MCP, limiti, prove | in corso: passo 6.1 (server) scritto, da pubblicare; passo 6.2 (app) da fare |
 | [docs/impostazioni.md](impostazioni.md) | Rotella e foglio «Impostazioni»: indice con lo stato di ogni funzione, tema nella riga, foglio «Privacy», «Scollega questo dispositivo» con «Annulla» | realizzata, da provare sull'iPhone |
 | [docs/ripetizioni.md](ripetizioni.md) | Attività che si ripetono: regole, foglio, completare, «Salta questa volta», frase e Siri, dati (schema v7) | passo 5.1 di P-005 fatto, da provare sull'iPhone |
 | [docs/scorrimento.md](scorrimento.md) | Scorrimento sulle card: dove, il gesto con le sue misure, completare ed eliminare con «Annulla», accessibilità e movimento | passo 5.2 di P-005 fatto, da provare sull'iPhone |
@@ -554,6 +559,7 @@ Ogni nuova funzione va aggiunta a questa tabella con la sua categoria:
 | Frase del giorno | da decidere |
 | Illustrazioni | da decidere |
 | Assistente con l'IA (scrivere e parlare ad Aura) | da decidere |
+| Connettore per Claude: «Aggiungi ad Aura» (P-006) | gratuita, come la casella di Siri |
 | Impostazioni: indice, tema nella riga, foglio «Privacy», «Scollega questo dispositivo» | gratuita |
 
 Le funzioni di oggi restano gratuite anche dove cambiano posto (vedi [docs/tre-modalita.md](tre-modalita.md)).
