@@ -136,6 +136,11 @@
   --mood-ambient: #ddf2f4; --mood-ambient-ink: #0b6770;
   --mood-jazz: #fcefd6;    --mood-jazz-ink: #8a4d00;
   --mood-nature: #e0f4ec;  --mood-nature-ink: #08704f;
+  /* Anteprime dei suoni del focus nel negozio (P-004, passo 4.4): barrette decorative, il nome è scritto sotto */
+  --sound-none: #b9b5cc;
+  --sound-brown: #a26b45;
+  --sound-rain: #4b7bd8;
+  --sound-waves: #1d9a96;
 
   /* Anteprime nella riga «Tema» delle Impostazioni: rappresentano i due temi, quindi sono uguali in entrambi */
   --preview-light-bg: #f4f3fa;
@@ -276,6 +281,10 @@
   --mood-ambient: rgba(64, 200, 210, .14); --mood-ambient-ink: #74d7df;
   --mood-jazz: rgba(246, 194, 95, .13);   --mood-jazz-ink: #f6c25f;
   --mood-nature: rgba(82, 211, 168, .13); --mood-nature-ink: #5fd8ae;
+  --sound-none: #5d5878;
+  --sound-brown: #d29a6c;
+  --sound-rain: #82a8ff;
+  --sound-waves: #4fd1c8;
 }
 
 /* Colori dell'aurora (P-004, passo 4.1), comprati nel negozio. Il colore in uso va come data-aurora sui due elementi che
@@ -1635,6 +1644,26 @@ button {
 .shop-item[aria-disabled="true"] { cursor: default; }
 .shop-item__preview { position: relative; display: block; height: 56px; overflow: hidden; border-radius: 7px; } /* 16 − 1 − 8: concentrico */
 .shop-item__preview--confetti { background: var(--field-bg); }
+/* Anteprima di un suono (passo 4.4): 12 barrette, alte quanto dice js/ui-shop.js; durante l'ascolto di prova si muovono,
+   ognuna con il suo passo, poi si fermano (niente animazioni infinite a riposo). */
+.shop-item__preview--sound {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: var(--field-bg);
+  --sound-color: var(--sound-none);
+}
+.shop-item__preview--sound[data-sound="brown"] { --sound-color: var(--sound-brown); }
+.shop-item__preview--sound[data-sound="rain"] { --sound-color: var(--sound-rain); }
+.shop-item__preview--sound[data-sound="waves"] { --sound-color: var(--sound-waves); }
+.sound-bar { flex: none; width: 4px; min-height: 3px; border-radius: 2px; background: var(--sound-color); }
+.shop-item__preview--sound.is-playing .sound-bar { animation: sound-bar .7s var(--ease-in-out) infinite alternate; }
+.shop-item__preview--sound.is-playing .sound-bar:nth-child(3n + 2) { animation-duration: .55s; animation-delay: -.2s; }
+.shop-item__preview--sound.is-playing .sound-bar:nth-child(3n) { animation-duration: .85s; animation-delay: -.4s; }
+@keyframes sound-bar {
+  from { transform: scaleY(.45); }
+}
 .shop-item__name { align-self: start; font-size: 15px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
 .shop-item__status {
   display: inline-flex;
@@ -1649,7 +1678,7 @@ button {
   white-space: nowrap;
 }
 .shop-item__status--price { background: var(--points-chip-bg); color: var(--points-chip-text); }
-.shop-item[aria-disabled="true"] .shop-item__status--price { background: var(--field-bg); color: var(--text-3); }
+.shop-item:not(.is-owned):not(.is-ready) .shop-item__status--price { background: var(--field-bg); color: var(--text-3); }
 .shop-item__status--use { background: var(--accent-soft); color: var(--accent-text); }
 .shop-item__status--used { padding: 0; color: var(--accent-text); }
 .shop-item__status--used::before { content: "✓"; margin-right: 4px; }
@@ -3170,10 +3199,93 @@ button.setting:not(:disabled):active { background: var(--hover); }
 }
 .focus__music:active { transform: scale(.94); }
 .focus__music:focus-visible { outline: 2px solid var(--hero-text); outline-offset: 2px; }
+/* «Suono» (P-004, passo 4.4): in alto a sinistra, di fronte a «🎧», uguale a lui. Sotto, il menu dei suoni che hai, su un
+   fondo pieno (il testo si legge anche sopra l'aurora che scorre, senza sfocature che costano). Si apre con un piccolo
+   ingresso dall'angolo; «Riduci movimento» lo toglie. */
+.focus__sound {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: max(14px, env(safe-area-inset-left, 0px));
+  z-index: 2;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  text-align: left;
+}
+.focus__sound-btn {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--glass);
+  color: var(--hero-text);
+  transition: background-color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
+}
+.focus__sound-btn .icon { width: 22px; height: 22px; }
+.focus__sound-btn:active { transform: scale(.94); }
+.focus__sound-btn[aria-expanded="true"] { background: var(--glass-hover); }
+.focus__sound-btn:focus-visible { outline: 2px solid var(--hero-text); outline-offset: 2px; }
+.focus__sound-menu {
+  width: max-content;
+  min-width: 13.5rem;
+  max-width: calc(100vw - 28px);
+  padding: 6px;
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  background: var(--hero-top);
+  box-shadow: var(--shadow-toast);
+  transform-origin: top left;
+  animation: sound-menu-in var(--dur-quick) var(--ease-out);
+}
+@keyframes sound-menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(.97); }
+}
+.focus__sound-title {
+  padding: 6px 10px 4px;
+  color: var(--hero-text-2);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.focus__sound-options { display: grid; gap: 2px; }
+.sound-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 0 10px 0 12px;
+  border-radius: 12px;
+  color: var(--hero-text);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--dur-color) var(--ease-out);
+}
+.sound-option.is-checked { background: var(--glass); }
+.sound-option__input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.sound-option__name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.sound-option__check { width: 18px; height: 18px; stroke-width: 2.6; opacity: 0; }
+.sound-option.is-checked .sound-option__check { opacity: 1; }
+.sound-option:has(.sound-option__input:focus-visible) { outline: 2px solid var(--hero-text); outline-offset: -2px; }
+.focus__sound-note {
+  max-width: 15rem;
+  padding: 6px 10px 6px 12px;
+  color: var(--hero-text-2);
+  font-size: 13px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
 @media (hover: hover) {
   .focus__btn:hover,
   .focus__exit:hover,
-  .focus__music:hover { background: var(--glass-hover); }
+  .focus__music:hover,
+  .focus__sound-btn:hover,
+  .sound-option:hover { background: var(--glass-hover); }
 }
 /* Schermi bassi (iPhone SE, Safari con le sue barre): tutto più raccolto, così titolo, anello e comandi stanno in una schermata */
 @media (max-height: 700px) {

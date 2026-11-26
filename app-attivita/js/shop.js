@@ -1,7 +1,8 @@
 /*
  * Aura Tasks — «Negozio» (P-004, passo 4.1; vedi docs/punti-e-serie.md, «Negozio»).
  * Solo funzioni pure: gli oggetti in vendita, gli acquisti nel registro (stats.shop), quello che è in uso (state.look),
- * «Ripara la serie», la pulizia dei dati letti e le frasi. Si paga con il saldo da spendere, lo stesso dei premi
+ * «Ripara la serie», la pulizia dei dati letti e le frasi. Dal passo 4.4 vende anche i suoni del focus (vedi
+ * docs/suoni.md): il suono in uso è look.sound, e i suoni li fa js/sound.js. Si paga con il saldo da spendere, lo stesso dei premi
  * (Aura.rewards.balance): spendere non toglie niente a stats.totalPoints, quindi il livello e il riquadro Punti non
  * scendono mai. Niente DOM, niente localStorage: l'interfaccia sta in js/ui-shop.js.
  */
@@ -14,8 +15,9 @@
    * Il catalogo e le regole, in un posto solo:
    * - repair: «Ripara la serie», con il prezzo e il limite: al massimo `limit` giorni riparati negli ultimi `period`
    *   giorni, oggi compreso. Si ripara un giorno mancato di ieri o dell'altro ieri (vedi repairOffer);
-   * - looks: i colori dell'aurora e le forme dei coriandoli. Il primo di ogni gruppo è quello di partenza, gratis; gli
-   *   altri si comprano una volta e poi si usano quando si vuole. L'id di un oggetto è `gruppo:valore`;
+   * - looks: i colori dell'aurora, le forme dei coriandoli e i suoni del focus (passo 4.4). Il primo di ogni gruppo è
+   *   quello di partenza; quelli che costano 0 sono di tutti (per i suoni, «Silenzio» e «Rumore marrone»); gli altri si
+   *   comprano una volta e poi si usano quando si vuole. L'id di un oggetto è `gruppo:valore`;
    * - packs: i pacchetti di punti, che si vedono ma non si comprano ancora: arriveranno con la versione per gli altri.
    */
   const SHOP = {
@@ -35,18 +37,26 @@
         { value: 'hearts', name: 'Cuori', cost: 250 },
         { value: 'leaves', name: 'Foglie', cost: 250 },
         { value: 'snow', name: 'Fiocchi di neve', cost: 250 }
+      ],
+      // Il suono del focus a tutto schermo: si parte senza, così il focus resta silenzioso come prima.
+      sound: [
+        { value: 'none', name: 'Silenzio', cost: 0 },
+        { value: 'brown', name: 'Rumore marrone', cost: 0 },
+        { value: 'rain', name: 'Pioggia', cost: 300 },
+        { value: 'waves', name: 'Onde', cost: 300 }
       ]
     },
     packs: [500, 2000, 5000]
   };
-  const GROUPS = ['aurora', 'confetti'];
+  const GROUPS = ['aurora', 'confetti', 'sound'];
   const MINUS = '−'; // il segno meno tipografico, come nell'avviso «−400 punti»
   // Come è scritto l'id di un oggetto ('repair', 'aurora:sunset'…), anche di uno che il catalogo non conosce ancora.
   const ITEM_PATTERN = /^[a-z0-9-]+(:[a-z0-9-]+)?$/;
   const ITEM_MAX = 40;
 
-  // Gli oggetti che si comprano (tutti tranne quelli di partenza), con il loro id.
-  const LOOK_ITEMS = GROUPS.flatMap(group => SHOP.looks[group].slice(1).map(look => ({ ...look, id: group + ':' + look.value, group })));
+  // Gli oggetti che si comprano (quelli che costano qualcosa), con il loro id.
+  const LOOK_ITEMS = GROUPS.flatMap(group => SHOP.looks[group].filter(look => look.cost > 0)
+    .map(look => ({ ...look, id: group + ':' + look.value, group })));
   const ITEM_IDS = new Set([SHOP.repair.id].concat(LOOK_ITEMS.map(item => item.id)));
 
   const pointsLabel = count => (count === 1 ? '1 punto' : utils.formatNumber(count) + ' punti');
@@ -54,12 +64,15 @@
   const shopOf = stats => (stats && Array.isArray(stats.shop) ? stats.shop : []);
   const hasDone = (days, day) => Boolean(days[day] && days[day].done > 0);
 
-  /** Il valore di partenza di un gruppo («aurora», «classic»). */
+  /** Il valore di partenza di un gruppo («aurora», «classic», «none»). */
   const firstOf = group => SHOP.looks[group][0].value;
 
-  /** Quello che è in uso all'inizio: i valori di partenza; `at` = 0, mai cambiato. */
+  /** true se `value` del gruppo non costa niente: è di tutti, senza comprarlo. */
+  const isFree = (group, value) => SHOP.looks[group].some(item => item.value === value && item.cost === 0);
+
+  /** Quello che è in uso all'inizio: i valori di partenza (nessun suono); `at` = 0, mai cambiato. */
   function defaultLook() {
-    return { aurora: firstOf('aurora'), confetti: firstOf('confetti'), at: 0 };
+    return { aurora: firstOf('aurora'), confetti: firstOf('confetti'), sound: firstOf('sound'), at: 0 };
   }
 
   /** Un oggetto del catalogo per id ('repair', 'aurora:sunset'…): { id, group, value, name, cost }, oppure null. */
@@ -68,14 +81,14 @@
     return LOOK_ITEMS.find(item => item.id === id) || null;
   }
 
-  /** Gli id dei colori e delle forme comprati. */
+  /** Gli id dei colori, delle forme e dei suoni comprati. */
   function ownedIds(shop) {
     return new Set(shop.filter(entry => entry && entry.item !== SHOP.repair.id).map(entry => entry.item));
   }
 
-  /** true se `value` del gruppo si può usare: è quello di partenza oppure è stato comprato. */
+  /** true se `value` del gruppo si può usare: è gratis (come quello di partenza) oppure è stato comprato. */
   function isOwned(stats, group, value) {
-    return value === firstOf(group) || ownedIds(shopOf(stats)).has(group + ':' + value);
+    return isFree(group, value) || ownedIds(shopOf(stats)).has(group + ':' + value);
   }
 
   /* ---------- Pulizia dei dati letti ---------- */
@@ -113,26 +126,29 @@
   }
 
   /**
-   * Quello che è in uso (state.look), ripulito con gli acquisti già ripuliti (`shop`): per ogni gruppo un valore comprato,
-   * altrimenti quello di partenza; `at` è quando è cambiato l'ultima volta (0 = mai). I campi sconosciuti vengono
-   * conservati.
+   * Quello che è in uso (state.look), ripulito con gli acquisti già ripuliti (`shop`): per ogni gruppo un valore gratis o
+   * comprato, altrimenti quello di partenza; `at` è quando è cambiato l'ultima volta (0 = mai). I campi sconosciuti
+   * vengono conservati, dopo i gruppi e `at`: così l'ordine è sempre lo stesso, anche per i dati di prima del passo 4.4,
+   * che non hanno `sound`.
    */
   function sanitizeLook(raw, shop) {
     const base = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
     const owned = ownedIds(Array.isArray(shop) ? shop : []);
-    const look = { ...base };
+    const look = {};
     GROUPS.forEach(group => {
       const value = base[group];
-      look[group] = typeof value === 'string' && owned.has(group + ':' + value) ? value : firstOf(group);
+      const usable = typeof value === 'string' && (isFree(group, value) || owned.has(group + ':' + value));
+      look[group] = usable ? value : firstOf(group);
     });
     look.at = Number.isFinite(base.at) && base.at >= 0 ? base.at : 0;
+    Object.keys(base).forEach(key => { if (!(key in look)) look[key] = base[key]; });
     return look;
   }
 
   /* ---------- Comprare e usare ---------- */
 
   /**
-   * Compra un colore o una forma: aggiunge al registro { id, item, cost, at }. Restituisce { stats, entry }, oppure null se
+   * Compra un colore, una forma o un suono: aggiunge al registro { id, item, cost, at }. Restituisce { stats, entry }, oppure null se
    * l'oggetto non è in vendita, è già tuo o il saldo non basta. `now` è l'istante (ms).
    */
   function buy(stats, itemId, now) {
@@ -143,8 +159,8 @@
   }
 
   /**
-   * Usa un colore o una forma tuoi (o quelli di partenza): il `look` nuovo, con `at` = `now`; lo stesso `look` se è già in
-   * uso; null se non è tuo o non esiste.
+   * Usa un colore, una forma o un suono tuoi (o quelli gratis): il `look` nuovo, con `at` = `now`; lo stesso `look` se è già
+   * in uso; null se non è tuo o non esiste.
    */
   function use(look, stats, group, value, now) {
     if (!GROUPS.includes(group) || !SHOP.looks[group].some(item => item.value === value) || !isOwned(stats, group, value)) return null;
@@ -218,9 +234,9 @@
   /* ---------- Per la pagina ---------- */
 
   /**
-   * Gli oggetti del foglio del negozio, per gruppo: { aurora: [...], confetti: [...] }. Ognuno è { id, group, value, name,
-   * cost, owned, inUse, ready, missing }: `ready` vuol dire che si può comprare (non è tuo e il saldo basta), `missing` i
-   * punti che mancano (0 se è tuo).
+   * Gli oggetti del foglio del negozio, per gruppo: { aurora: [...], confetti: [...], sound: [...] }. Ognuno è { id, group,
+   * value, name, cost, owned, inUse, ready, missing }: `ready` vuol dire che si può comprare (non è tuo e il saldo basta),
+   * `missing` i punti che mancano (0 se è tuo).
    */
   function catalog(state) {
     const available = RW.balance(state.stats);
@@ -228,9 +244,9 @@
     const look = state.look || defaultLook();
     const groups = {};
     GROUPS.forEach(group => {
-      groups[group] = SHOP.looks[group].map((item, index) => {
+      groups[group] = SHOP.looks[group].map(item => {
         const id = group + ':' + item.value;
-        const mine = index === 0 || owned.has(id);
+        const mine = item.cost === 0 || owned.has(id);
         return {
           id,
           group,

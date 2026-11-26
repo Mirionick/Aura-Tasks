@@ -1,10 +1,10 @@
 /*
  * Aura Tasks — «Negozio» nella scheda Motivazione (P-004, passo 4.1; vedi docs/punti-e-serie.md, «Negozio»).
  * La card: il saldo da spendere (lo stesso di «I tuoi premi»), «Ripara la serie» quando si può e «Apri il negozio».
- * Il foglio: «Ripara la serie», i colori dell'aurora, le forme dei coriandoli e i pacchetti di punti, che si vedono ma non
- * si comprano ancora («Presto»). Tocca la pagina come app.js, che con init() gli passa quello che serve: stato,
- * salvataggio (commitState), avvisi (anche dentro il foglio, hostToast), fogli e coriandoli. La logica sta in
- * js/shop.js; qui solo disegno e gesti.
+ * Il foglio: «Ripara la serie», i colori dell'aurora, le forme dei coriandoli, i suoni del focus (passo 4.4: un tocco li fa
+ * ascoltare) e i pacchetti di punti, che si vedono ma non si comprano ancora («Presto»). Tocca la pagina come app.js, che
+ * con init() gli passa quello che serve: stato, salvataggio (commitState), avvisi (anche dentro il foglio, hostToast),
+ * fogli, coriandoli e l'ascolto dei suoni (js/ui-sound.js). La logica sta in js/shop.js; qui solo disegno e gesti.
  */
 (function (Aura) {
   'use strict';
@@ -14,12 +14,20 @@
   const byId = id => document.getElementById(id);
   const TAP_GUARD_MS = 450; // dopo un acquisto, un secondo tocco sullo stesso oggetto così vicino è un doppio tocco
   const STAR = '★';
+  // L'anteprima di un suono: 12 barrette, alte quanto dice qui (%): piatte il silenzio, fitte e alte il rumore marrone,
+  // a punte la pioggia, a onda le onde. Durante l'ascolto di prova si muovono.
+  const BARS = {
+    none: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    brown: [46, 58, 72, 64, 80, 70, 62, 76, 66, 54, 60, 48],
+    rain: [22, 48, 18, 64, 30, 40, 72, 20, 52, 34, 60, 26],
+    waves: [30, 42, 58, 74, 84, 78, 60, 44, 34, 40, 54, 66]
+  };
 
   let ctx = null;
   const els = {};
   let shownBalance = null; // saldo mostrato: quando cambia con la scheda aperta, la pillola fa un piccolo salto
   let shownItems = '';     // impronta degli oggetti mostrati: si aggiornano solo quando cambiano
-  const itemEls = new Map(); // id dell'oggetto → { button, status }: disegnati una volta, poi aggiornati sul posto
+  const itemEls = new Map(); // id dell'oggetto → { button, status, preview }: disegnati una volta, poi aggiornati sul posto
   const guarded = new Set(); // oggetti (e 'repair') appena comprati: i doppi tocchi vengono ignorati
 
   const span = (className, text) => {
@@ -87,6 +95,7 @@
     if (!itemEls.size) {
       els.aurora.replaceChildren(...groups.aurora.map(buildItem));
       els.confetti.replaceChildren(...groups.confetti.map(buildItem));
+      els.sound.replaceChildren(...groups.sound.map(buildItem));
     }
     SH.GROUPS.forEach(group => groups[group].forEach(updateItem));
   }
@@ -100,14 +109,21 @@
     const preview = span('shop-item__preview shop-item__preview--' + item.group);
     preview.setAttribute('aria-hidden', 'true');
     if (item.group === 'aurora') preview.dataset.aurora = item.value;
-    else {
+    else if (item.group === 'sound') {
+      preview.dataset.sound = item.value;
+      (BARS[item.value] || BARS.none).forEach(height => {
+        const bar = span('sound-bar');
+        bar.style.height = height + '%'; // CSSOM: la CSP blocca gli attributi style, non questo
+        preview.append(bar);
+      });
+    } else {
       preview.dataset.shape = item.value;
       for (let i = 0; i < 6; i++) preview.append(span('confetti__piece'));
     }
     const status = span('shop-item__status');
     button.append(preview, span('shop-item__name', item.name), status);
     li.append(button);
-    itemEls.set(item.id, { button, status });
+    itemEls.set(item.id, { button, status, preview });
     return li;
   }
 
@@ -137,12 +153,15 @@
       kind = 'price';
       label = item.ready ? 'Compra ' + item.name + ' per ' + pointsLabel(item.cost)
         : item.name + ', ' + pointsLabel(item.cost) + ': te ne mancano ' + utils.formatNumber(item.missing);
+      // Un suono si ascolta anche senza i punti per comprarlo: il pulsante fa qualcosa, e lo dice
+      if (!item.ready && item.group === 'sound') label = 'Ascolta ' + label;
     }
     setClass(button, 'shop-item' + (item.owned ? ' is-owned' : '') + (item.inUse ? ' is-used' : '') + (item.ready ? ' is-ready' : ''));
     setClass(status, 'shop-item__status shop-item__status--' + kind);
     if (status.textContent !== text) status.textContent = text;
     if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
-    if (!item.owned && !item.ready) button.setAttribute('aria-disabled', 'true');
+    // Grigio ma toccabile (aria-disabled): un tocco dice quanto manca. Non i suoni, che con un tocco si ascoltano.
+    if (!item.owned && !item.ready && item.group !== 'sound') button.setAttribute('aria-disabled', 'true');
     else button.removeAttribute('aria-disabled');
   }
 
@@ -179,9 +198,21 @@
   }
 
   /**
-   * Tocco su un oggetto: se è tuo lo usa (i coriandoli si provano subito); se il saldo basta lo compra e lo usa, con
-   * coriandoli e l'avviso «Comprato: Tramonto · −400 punti» con «Annulla», che toglie l'acquisto e rimette quello che era
-   * in uso; altrimenti l'avviso dice quanti punti mancano.
+   * Un suono si ascolta per qualche secondo (js/ui-sound.js), con le barrette della sua anteprima che si muovono; «Silenzio»
+   * ferma l'ascolto. Va chiamata dentro il tocco: sblocca l'audio.
+   */
+  function listen(value) {
+    const entry = itemEls.get('sound:' + value);
+    // L'ascolto di prima finisce qui dentro (e la sua anteprima si ferma); poi si muove quella nuova, se suona davvero.
+    const playing = ctx.previewSound(value, () => { if (entry) entry.preview.classList.remove('is-playing'); });
+    if (playing && entry) entry.preview.classList.add('is-playing');
+  }
+
+  /**
+   * Tocco su un oggetto: se è tuo lo usa (i coriandoli si provano subito, i suoni si ascoltano); se il saldo basta lo compra
+   * e lo usa, con coriandoli e l'avviso «Comprato: Tramonto · −400 punti» con «Annulla», che toglie l'acquisto e rimette
+   * quello che era in uso; altrimenti l'avviso dice quanti punti mancano (e un suono si ascolta lo stesso, prima di
+   * comprarlo).
    */
   function onItem(id, button) {
     if (guarded.has(id)) return;
@@ -196,12 +227,14 @@
       const from = centerOf(button);
       if (look !== state.look && !ctx.commitState({ look })) return;
       if (group === 'confetti') confettiFrom(from); // la forma nuova, subito
+      if (group === 'sound') listen(value);         // il suono, subito
       return;
     }
     if (!item) return;
     const result = SH.buy(state.stats, id, now);
     if (!result) {
       toast(SH.missingText(item.name, item.cost, R.balance(state.stats)));
+      if (group === 'sound') listen(value); // si può ascoltare prima di comprarlo
       return;
     }
     guarded.add(id);
@@ -212,6 +245,7 @@
     if (!ctx.commitState({ stats: result.stats, look })) return;
     ctx.vibrate([16, 50, 24]);
     confettiFrom(from);
+    if (group === 'sound') listen(value);
     toast(SH.boughtText(result.entry), {
       action: 'Annulla',
       duration: 6500,
@@ -224,6 +258,7 @@
     const current = ctx.getState();
     const stats = SH.undo(current.stats, entry.id);
     if (stats === current.stats) return;
+    if (group === 'sound') ctx.stopSound(); // il suono tolto non si ascolta più
     const look = current.look[group] === value ? { ...current.look, [group]: previous, at: Date.now() } : current.look;
     ctx.commitState({ stats, look: SH.sanitizeLook(look, stats.shop) });
   }
@@ -292,6 +327,7 @@
       sheetRepairButton: byId('shop-sheet-repair-btn'),
       aurora: byId('shop-aurora'),
       confetti: byId('shop-confetti'),
+      sound: byId('shop-sound'),
       packs: byId('shop-packs')
     });
     const repairLabel = 'Ripara · ' + utils.formatNumber(SH.SHOP.repair.cost) + ' ' + STAR;
@@ -302,7 +338,7 @@
     els.open.addEventListener('click', openShop);
     els.repairButton.addEventListener('click', () => onRepair(els.repairButton));
     els.sheetRepairButton.addEventListener('click', () => onRepair(els.sheetRepairButton));
-    [els.aurora, els.confetti].forEach(list => list.addEventListener('click', event => {
+    [els.aurora, els.confetti, els.sound].forEach(list => list.addEventListener('click', event => {
       const button = event.target.closest('[data-item]');
       if (button) onItem(button.dataset.item, button);
     }));
@@ -310,6 +346,7 @@
       if (event.target.closest('[data-pack]')) toast(SH.PACKS_TEXT);
     });
     ctx.setupSheet(els.sheet);
+    els.sheet.addEventListener('close', () => ctx.stopSound()); // chiuso il negozio, l'ascolto di prova finisce
     return { render };
   }
 

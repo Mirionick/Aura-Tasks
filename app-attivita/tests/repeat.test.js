@@ -275,7 +275,7 @@
       tasks: [repeating({ done: true, completedAt: NOW, pointsAwarded: 44 }), repeating({ id: 'b', date: '2026-11-19' })],
       rewards: [],
       stats: P.emptyStats(),
-      look: { aurora: 'aurora', confetti: 'classic', at: 0 }
+      look: { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 }
     };
     const file = storage.backupFile(state, NOW);
     assertEqual(JSON.parse(file.text).data.tasks.map(task => [task.repeat, task.seriesId]), [[MON_THU, 'a'], [MON_THU, 'a']]);

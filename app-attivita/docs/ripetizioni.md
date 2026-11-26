@@ -29,7 +29,7 @@ Logica pura in `js/repeat.js` (`Aura.repeat`): le regole, il giorno della prossi
 - La prossima arriva da sola: stesso titolo, durata, energia e ora, la stessa serie (`seriesId`), nel **primo giorno della regola dopo il più tardi tra il suo giorno e oggi**. Completata in anticipo (quella di lunedì, il sabato prima) non cade lo stesso lunedì; completata in ritardo, la prossima non va nel passato.
 - L'avviso dice quando torna: «Completata · +24 punti · torna domani», «… · torna giovedì» (entro una settimana), «… · torna lunedì 7 dicembre» (più in là; con l'anno, se è un altro).
 - **Una sola da fare per serie**: un doppio tocco, o un'altra volta della stessa serie già da fare, non crea una seconda prossima.
-- **«Annulla»** toglie la prossima (se è ancora da fare) e poi la spunta: tutto torna com'era, punti compresi.
+- **«Annulla»** toglie la prossima (se è ancora da fare e non è cambiata) e poi la spunta: tutto torna com'era, punti compresi. Se nel frattempo la prossima è stata modificata (può succedere solo da un'altra scheda di Aura: nella stessa, salvare una modifica mette il suo avviso al posto di questo), resta con le modifiche, e questa torna da fare senza ripetersi: la serie ha sempre una sola volta da fare.
 - **Togliere la spunta** più tardi, da «Completate»: se la serie ha già la sua prossima da fare, quella completata torna da fare come attività normale, senza regola; se non ce l'ha più (per esempio è stata eliminata), torna da fare con la sua regola.
 
 ## Saltare, mancare, modificare, eliminare

@@ -2,7 +2,8 @@
  * Aura Tasks — fogli «Cosa faccio adesso?» e Focus a tutto schermo.
  * Tocca la pagina come app.js, che con init() gli passa quello che serve: stato, commit, fogli, avvisi, preferenze.
  * La logica sta in js/suggest.js e js/focus.js; il focus in corso si salva con Aura.storage (aura-tasks:focus),
- * così ricaricando la pagina riprende.
+ * così ricaricando la pagina riprende. L'audio (AudioContext) nasce qui, per il suono di fine; lo usano anche i suoni del
+ * focus (js/ui-sound.js), che sanno da qui quando il focus conta il tempo (ctx.onRunning).
  */
 (function (Aura) {
   'use strict';
@@ -334,6 +335,7 @@
     const breathe = running && M.canAnimate() && breathFits !== false;
     els.focusSheet.classList.toggle('is-breathing', breathe);
     if (breathe) watchBreath();
+    if (ctx.onRunning) ctx.onRunning(running); // i suoni del focus suonano solo mentre conta il tempo
   }
 
   let breathFits = null; // null = da misurare; false = l'aurora pesa troppo qui, e resta ferma
@@ -537,10 +539,14 @@
     }
   }
 
-  /** Crea (se manca) e sblocca l'audio: va fatto dentro un tocco, altrimenti iPhone non lascia suonare dopo. */
+  /**
+   * Crea (se manca) e sblocca l'audio: va fatto dentro un tocco, altrimenti iPhone non lascia suonare dopo. Prima, i suoni
+   * del focus scelgono il tipo di sessione audio (ctx.beforeAudio); dopo, se un suono aspettava, parte (ctx.onAudioUnlocked).
+   */
   function unlockAudio() {
     const Context = window.AudioContext || window.webkitAudioContext;
     if (!Context) return;
+    if (ctx.beforeAudio) ctx.beforeAudio();
     try {
       if (!audio) audio = new Context();
       resumeAudio();
@@ -550,7 +556,9 @@
       silence.start(0);
     } catch (err) {
       audio = null; // niente audio: alla fine resta la scritta «Tempo finito»
+      return;
     }
+    if (ctx.onAudioUnlocked) ctx.onAudioUnlocked();
   }
 
   /**
@@ -608,8 +616,15 @@
     els.focusBox = els.focusSheet.querySelector('.focus'); // il contenitore che scorre quando lo schermo è troppo basso
 
     ctx.setupSheet(els.suggestSheet);
-    // Il focus non si chiude toccando fuori (è a tutto schermo): Esc e «indietro» valgono «Esci».
-    ctx.setupSheet(els.focusSheet, { onCancel: exitFocus, backdropClose: false });
+    // Il focus non si chiude toccando fuori (è a tutto schermo): Esc e «indietro» valgono «Esci». Con il menu «Suono»
+    // aperto, invece, chiudono il menu (ctx.onCancel lo chiude e risponde true).
+    ctx.setupSheet(els.focusSheet, {
+      onCancel: () => {
+        if (ctx.onCancel && ctx.onCancel()) return;
+        exitFocus();
+      },
+      backdropClose: false
+    });
 
     els.suggestMinutes.addEventListener('click', event => {
       const chip = event.target.closest('[data-minutes]');
@@ -662,6 +677,8 @@
 
     return {
       openSuggest, startFocus, prepareAudio, sync, resume,
+      // per i suoni del focus (js/ui-sound.js): l'audio, se c'è già, e il suo sblocco dentro un tocco
+      getAudio: () => audio, unlockAudio,
       // per l'assistente
       showSuggested, setSessionChoice, ruleProposal, refreshSuggestion, isSuggestOpen, setSuggestTitle, currentChoice
     };
