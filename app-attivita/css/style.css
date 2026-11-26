@@ -42,6 +42,7 @@
 
   --danger: #c8283f;
   --danger-soft: #fdebee;
+  --on-swipe: #ffffff; /* testo sul colore pieno dello scorrimento: verde «Fatto» (--low), rosso «Elimina» (--danger) */
 
   /* Energia: testo e sfondo tenue (contrasto AA verificato) */
   --low: #0a7a5c;
@@ -197,6 +198,7 @@
 
   --danger: #ff8597;
   --danger-soft: rgba(255, 133, 151, .12);
+  --on-swipe: #0b0a14; /* verde e rosso chiari: il testo scuro, come lo sfondo */
 
   --low: #52d3a8;
   --low-soft: rgba(82, 211, 168, .13);
@@ -1180,6 +1182,47 @@ button {
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
 }
+
+/* Scorrimento sulle card (P-005, passo 5.2; js/ui-swipe.js). Con il dito la pagina scorre in verticale come sempre; di
+   lato si muove la card, e dietro si scopre lo sfondo: verso destra «Fatto», verso sinistra «Elimina». Oltre la soglia lo
+   strato pieno appare (opacity) e l'icona si ingrandisce un attimo (transform). pinch-zoom: lo zoom resta. */
+.task:not(.is-done) { touch-action: pan-y pinch-zoom; }
+.task--swiping { will-change: transform; }
+.task-list.is-swiping { position: relative; } /* riferimento dello sfondo, che sta sotto la card */
+.content.is-swiping { overflow-x: clip; }     /* la card che esce di lato non allarga la pagina */
+
+.swipe {
+  position: absolute;
+  margin: 0;
+  overflow: hidden;
+  list-style: none;
+  border-radius: var(--radius);
+  pointer-events: none;
+}
+.swipe__layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 22px;
+  color: var(--low);
+  background: var(--low-soft);
+}
+.swipe__layer--full {
+  color: var(--on-swipe);
+  background: var(--low);
+  opacity: 0;
+  transition: opacity var(--dur-color) var(--ease-out);
+}
+.swipe[data-side="delete"] .swipe__layer { justify-content: flex-end; color: var(--danger); background: var(--danger-soft); }
+.swipe[data-side="delete"] .swipe__layer--full { color: var(--on-swipe); background: var(--danger); }
+.swipe.is-armed .swipe__layer--full { opacity: 1; }
+.swipe__action { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 750; white-space: nowrap; }
+.swipe__action .icon { width: 22px; height: 22px; stroke-width: 2.4; }
+.swipe[data-side="delete"] .swipe__action--done,
+.swipe:not([data-side="delete"]) .swipe__action--delete { display: none; }
+.swipe.is-armed .swipe__action .icon { animation: swipe-pop var(--dur-move) var(--ease-spring); }
+@keyframes swipe-pop { 45% { transform: scale(1.3); } }
 
 /* Sezione "Completate" */
 .completed { margin-top: 28px; }
