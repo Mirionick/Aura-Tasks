@@ -8,7 +8,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW, shop: SH, music: MU } = Aura;
+  const { utils, repeat: RP, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW, shop: SH, music: MU } = Aura;
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
@@ -26,7 +26,7 @@
     damaged: 'Il backup è danneggiato: mancano le attività.'
   };
   // Per cambiare lo schema: aumenta questo numero e aggiungi un passo in migrate() (vedi CLAUDE.md).
-  const SCHEMA_VERSION = 6;
+  const SCHEMA_VERSION = 7;
 
   const isCount = value => Number.isInteger(value) && value >= 0;
 
@@ -61,6 +61,11 @@
       // partenza). Li aggiungono sanitizeStats() e fromData(); il resto resta intatto.
       state.version = 6;
     }
+    if (state.version === 6) {
+      // v7: attività che si ripetono (P-005, passo 5.1): `repeat` e `seriesId` nelle attività. Li aggiunge sanitizeTask()
+      // (null, quindi le attività che c'erano non si ripetono); il resto resta intatto.
+      state.version = 7;
+    }
     return state;
   }
 
@@ -83,10 +88,13 @@
     const pointsAwarded = !done ? null : isCount(raw.pointsAwarded) ? raw.pointsAwarded : P.pointsFor({ duration, energy });
 
     const date = utils.isISODate(raw.date) ? raw.date : null;
+    const id = typeof raw.id === 'string' && raw.id ? raw.id : utils.uid();
+    // Ripetizione (v7): regola valida solo con un giorno; serie non valida → l'id dell'attività (vedi Aura.repeat.sanitize).
+    const { repeat, seriesId } = RP.sanitize({ id, date, repeat: raw.repeat, seriesId: raw.seriesId });
 
     return {
       ...raw,
-      id: typeof raw.id === 'string' && raw.id ? raw.id : utils.uid(),
+      id,
       title,
       duration,
       energy,
@@ -95,7 +103,9 @@
       done,
       createdAt,
       completedAt: done ? (Number.isFinite(raw.completedAt) ? raw.completedAt : createdAt) : null,
-      pointsAwarded
+      pointsAwarded,
+      repeat,
+      seriesId
     };
   }
 

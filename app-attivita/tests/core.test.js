@@ -18,6 +18,8 @@
       createdAt: 1,
       completedAt: null,
       pointsAwarded: null,
+      repeat: null, // v7, attività che si ripetono (P-005, passo 5.1)
+      seriesId: null,
       ...overrides
     };
   }
@@ -106,7 +108,7 @@
   test('validateInput normalizza dati corretti', () => {
     const { value, errors } = T.validateInput({ title: '  Fare   la spesa ', duration: '45', energy: 'low', date: '' });
     assertEqual(errors, {});
-    assertEqual(value, { title: 'Fare la spesa', duration: 45, energy: 'low', date: null, time: null });
+    assertEqual(value, { title: 'Fare la spesa', duration: 45, energy: 'low', date: null, time: null, repeat: null });
   });
 
   test('validateInput segnala ogni campo sbagliato', () => {
@@ -125,7 +127,7 @@
     assert(typeof task.id === 'string' && task.id.length > 0, 'id presente');
     assertEqual({ ...task, id: 'x' }, {
       id: 'x', title: 'Leggere', duration: 20, energy: 'low', date: '2026-10-30', time: null,
-      done: false, createdAt: 1000, completedAt: null, pointsAwarded: null
+      done: false, createdAt: 1000, completedAt: null, pointsAwarded: null, repeat: null, seriesId: null
     });
   });
 
@@ -174,7 +176,7 @@
 
   test('updateTask + editableFields: "Annulla" rimette i campi di prima', () => {
     const list = [make({ id: 'a', title: 'Prima', duration: 15, energy: 'low', date: '2026-10-29', time: '08:00' })];
-    assertEqual(T.editableFields(list[0]), { title: 'Prima', duration: 15, energy: 'low', date: '2026-10-29', time: '08:00' });
+    assertEqual(T.editableFields(list[0]), { title: 'Prima', duration: 15, energy: 'low', date: '2026-10-29', time: '08:00', repeat: null });
     const edited = T.updateTask(list, 'a', { title: 'Dopo', duration: 45, energy: 'high', date: null, time: null });
     const undone = T.updateTask(edited.tasks, 'a', T.editableFields(edited.previous));
     assertEqual(undone.tasks[0], list[0]);
@@ -250,7 +252,7 @@
     const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats(), look: { aurora: 'aurora', confetti: 'classic', at: 0 } };
     assertEqual(storage.parse(null), empty);
     assertEqual(storage.parse(''), empty);
-    assertEqual(storage.SCHEMA_VERSION, 6);
+    assertEqual(storage.SCHEMA_VERSION, 7);
     assertEqual(P.emptyStats().focus, {}, 'registro vuoto con i minuti di focus');
     assertEqual(P.emptyStats().spent, [], 'registro vuoto con i riscatti dei premi');
     assertEqual(P.emptyStats().shop, [], 'registro vuoto con gli acquisti del negozio');
@@ -288,13 +290,13 @@
 
   test('storage.parse: conserva i campi sconosciuti e non abbassa la versione', () => {
     const raw = JSON.stringify({
-      version: 7,
+      version: 8,
       future: { x: 1 },
       stats: { totalPoints: 10, bestStreak: 1, milestones: [], days: { '2026-10-29': { done: 1, points: 10 } }, level: 2 },
       tasks: [{ id: 'a', title: 'X', duration: 10, energy: 'low', date: null, done: false, createdAt: 1, completedAt: null, extra: 'ok' }]
     });
     const state = storage.parse(raw);
-    assertEqual(state.version, 7);
+    assertEqual(state.version, 8);
     assertEqual(state.future, { x: 1 });
     assertEqual([state.stats.totalPoints, state.stats.level], [10, 2], 'registro e suoi campi sconosciuti');
     assertEqual(state.tasks[0].extra, 'ok');
@@ -435,7 +437,7 @@
     ];
     const state = storage.parse(JSON.stringify({ version: 3, future: 'ok', stats, tasks }));
     assertEqual(state.version, storage.SCHEMA_VERSION);
-    assertEqual(state.tasks, tasks, 'attività identiche');
+    assertEqual(state.tasks, tasks.map(task => ({ ...task, repeat: null, seriesId: null })), 'attività identiche, più i campi della v7');
     assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'punti, serie e campi sconosciuti intatti');
     assertEqual(state.future, 'ok');
   });
@@ -507,7 +509,7 @@
     const empty = { log: [], memory: [], open: null, opens: null, left: null };
     const area = fakeArea();
     assertEqual(storage.loadAssistant(area), empty, 'niente salvato');
-    const fields = { title: 'Dentista', duration: 30, energy: 'medium', date: '2026-11-13', time: '15:00' };
+    const fields = { title: 'Dentista', duration: 30, energy: 'medium', date: '2026-11-13', time: '15:00', repeat: null };
     const data = {
       log: [{ id: 'a1', at: 1000, origin: 'siri', said: 'alle 3 dentista', type: 'add', taskId: 'x', title: 'Dentista', before: null, after: fields, undone: false }],
       memory: [{ at: 1000, said: 'alle 3 dentista', reply: 'Aggiunta', did: [{ type: 'add', taskId: 'x', after: fields }] }],

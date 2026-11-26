@@ -13,7 +13,7 @@
   function task(overrides) {
     return {
       id: 't', title: 'Prova', duration: 30, energy: 'medium', date: null, time: null,
-      done: false, createdAt: 1, completedAt: null, pointsAwarded: null,
+      done: false, createdAt: 1, completedAt: null, pointsAwarded: null, repeat: null, seriesId: null,
       ...overrides
     };
   }
@@ -135,7 +135,7 @@
     const v5 = { version: 5, tasks: [{ ...done, time: '18:00' }], rewards: [], stats: { ...stats, focus: {}, spent: [] } };
     [[v2, null], [v3, '18:00'], [v4, '18:00'], [v5, '18:00']].forEach(([data, time]) => {
       const { state, error } = storage.readBackup(wrap(data));
-      assertEqual([error, state.version, state.tasks[0].time, state.tasks[0].pointsAwarded], [null, 6, time, 24], 'v' + data.version);
+      assertEqual([error, state.version, state.tasks[0].time, state.tasks[0].pointsAwarded], [null, storage.SCHEMA_VERSION, time, 24], 'v' + data.version);
       assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'registro della v' + data.version);
       assertEqual([state.rewards, state.look], [[], { aurora: 'aurora', confetti: 'classic', at: 0 }], 'nessun premio e i colori di partenza nella v' + data.version);
     });

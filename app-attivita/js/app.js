@@ -16,7 +16,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
+  const { utils, repeat: RP, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
     motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
     motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI } = Aura;
 
@@ -98,6 +98,11 @@
     timeInput: byId('task-time'),
     timeLabel: byId('time-label'),
     timeClear: byId('time-clear'),
+    repeatField: byId('repeat-field'),
+    repeatChips: byId('repeat-chips'),
+    repeatDays: byId('repeat-days'),
+    repeatHint: byId('repeat-hint'),
+    repeatSkip: byId('repeat-skip'),
     timeHint: byId('time-hint'),
     inboxNote: byId('inbox-note'),
     inboxNoteText: byId('inbox-note-text'),
@@ -151,7 +156,7 @@
   };
 
   const DATED_SECTIONS = ['overdue', 'upcoming']; // nelle altre sezioni la data è già nel titolo
-  const ERROR_FIELDS = ['title', 'duration', 'energy', 'date', 'time'];
+  const ERROR_FIELDS = ['title', 'duration', 'energy', 'date', 'time', 'repeat'];
   const FIELD_INPUTS = { title: els.title, duration: els.duration, date: els.dateInput, time: els.timeInput };
   // Le schede: nome, titolo nell'intestazione (Agenda e Motivazione, che al posto della frase ha il livello) e la loro <section>.
   const TABS = {
@@ -532,6 +537,10 @@
     } else {
       atMeta.remove();
     }
+    // ↻ accanto all'ora, solo sulla ripetizione da fare: il lettore di schermo legge la regola (P-005, passo 5.1).
+    const repeatMeta = node.querySelector('.meta--repeat');
+    if (!task.done && task.repeat) repeatMeta.querySelector('.sr-only').textContent = RP.spokenLabel(task.repeat);
+    else repeatMeta.remove();
     node.querySelector('.meta__time').textContent = utils.formatDuration(task.duration);
 
     const pill = node.querySelector('.pill');
@@ -628,13 +637,18 @@
     else if (ready) message = RW.readyText(ready) + ' · ' + points;
     else if (firstToday) message = (result.streak === 1 ? '🔥 Serie iniziata · ' : '🔥 ' + daysLabel(result.streak) + ' di fila · ') + points;
     if (focus) message += ' · ' + utils.formatDuration(focus.minutes) + ' di focus';
+    // Una ripetizione: l'avviso dice quando torna (P-005, passo 5.1).
+    if (result.next) message += ' · torna ' + RP.returnLabel(result.next.date, utils.todayISO());
     const special = Boolean(milestone || progress.level || progress.reached || ready);
 
     showToast(message, {
       action: 'Annulla',
       duration: special ? 6500 : undefined,
       onAction: () => {
-        const undo = P.setDone(state, id, false, Date.now());
+        // Prima esce la prossima volta, se è ancora da fare: così questa torna da fare con la sua regola.
+        const next = result.next && state.tasks.find(t => t.id === result.next.id && !t.done);
+        const tasks = next ? T.removeTask(state.tasks, next.id).tasks : state.tasks;
+        const undo = P.setDone({ ...state, tasks }, id, false, Date.now());
         commit(undo.tasks, focus ? F.recordMinutes(undo.stats, focus.day, -focus.minutes) : undo.stats);
       }
     });
@@ -937,6 +951,9 @@
 
   let editingId = null; // attività che si sta modificando; null = nuova attività. Si imposta a ogni apertura.
   let focusAfterEdit = null; // card che riceve il focus quando il foglio si è chiuso dopo una modifica
+  let repeatRule = null;    // «Si ripete»: la regola scelta nel foglio, oppure null («Mai»)
+  let repeatFollows = true; // true se la regola prende il giorno dalla data: cambiando data, cambia anche lei
+  let repeatKept = false;   // una volta completata: il campo non si vede e la regola resta quella salvata
 
   /** Svuota il foglio. In modifica cambiano titolo e pulsante, e spariscono la frase libera e la riga di Siri. */
   function resetAddSheet(editing) {
@@ -953,6 +970,10 @@
     els.dateInput.min = utils.todayISO();
     phraseBase = null;
     els.phraseSummary.textContent = PHRASE_HINT;
+    repeatRule = null;
+    repeatFollows = true;
+    repeatKept = false;
+    els.repeatField.hidden = false;
   }
 
   /**
@@ -988,6 +1009,7 @@
     if (!task || busy.has(id)) return; // card in animazione (completamento o eliminazione)
     resetAddSheet(true);
     editingId = id;
+    repeatKept = task.done; // prima di writeFields(), che passa da syncDate()
     const fields = T.editableFields(task);
     // Un'attività in ritardo tiene il suo giorno: il calendario non deve escluderlo.
     if (fields.date && fields.date < els.dateInput.min) els.dateInput.min = fields.date;
@@ -996,8 +1018,12 @@
       duration: String(fields.duration),
       energy: fields.energy,
       date: fields.date || '',
-      time: fields.time || ''
+      time: fields.time || '',
+      repeat: fields.repeat
     });
+    // Una volta completata tiene la sua regola, ma la regola vive in quella da fare: qui «Si ripete» non si vede.
+    els.repeatField.hidden = task.done;
+    syncRepeat();
     if (task.done) {
       const points = task.pointsAwarded || 0;
       els.editNoteText.textContent = 'Completata · ' + (points === 1 ? 'il suo punto non cambia' : 'i suoi ' + utils.formatNumber(points) + ' punti non cambiano');
@@ -1031,6 +1057,45 @@
     focusCtl.startFocus(id); // dentro il tocco: sblocca anche il suono di fine
   }
 
+  /**
+   * «Salta questa volta» nel foglio di modifica (P-005, passo 5.1): salva le modifiche fatte (se sono valide), poi la
+   * ripetizione passa al giorno di Aura.repeat.afterSkip(), senza punti. «Annulla» la rimette nel suo giorno.
+   */
+  function onSkipFromEdit() {
+    const id = editingId;
+    if (!id) return;
+    const { value, errors } = T.validateInput(readFields());
+    setErrors(errors);
+    const firstError = ERROR_FIELDS.find(field => errors[field]);
+    if (firstError) {
+      if (FIELD_INPUTS[firstError]) FIELD_INPUTS[firstError].focus();
+      return;
+    }
+    const today = utils.todayISO();
+    const edited = T.updateTask(state.tasks, id, value);
+    const skipped = T.skipOccurrence(edited.tasks, id, today);
+    if (!skipped.previous) {
+      closeSheet(els.addSheet);
+      return;
+    }
+    editedId = id;
+    const saved = commit(skipped.tasks, undefined, { delay: M.ms('exit') });
+    focusAfterEdit = saved ? id : null;
+    closeSheet(els.addSheet);
+    if (!saved) return;
+    const previousDate = skipped.previous.date;
+    const moved = state.tasks.find(t => t.id === id);
+    const where = moved && !isVisibleIn(moved, activeTab, today) ? ' · ora in ' + TABS[T.tabOf(moved, today)].name : '';
+    showToast('Spostata a ' + RP.dayLabel(skipped.date, today) + where, {
+      action: 'Annulla',
+      onAction: () => {
+        const task = state.tasks.find(t => t.id === id);
+        if (task && !task.done && task.date === skipped.date) commit(state.tasks.map(t => (t.id === id ? { ...t, date: previousDate } : t)));
+      }
+    });
+    revealTask(id);
+  }
+
   /* ---------- Frase libera ---------- */
 
   const PHRASE_HINT = 'Giorno, ora, durata ed energia: i campi sotto si compilano da soli.';
@@ -1042,7 +1107,9 @@
       duration: els.duration.value,
       energy: els.form.elements.energy.value,
       date: els.dateInput.value,
-      time: els.timeInput.value
+      time: els.timeInput.value,
+      // Una volta completata tiene la regola salvata; senza giorno, però, non si ripete (una regola vuole un giorno).
+      repeat: repeatKept && !utils.isISODate(els.dateInput.value) ? null : repeatRule
     };
   }
 
@@ -1053,9 +1120,11 @@
     if (radio) radio.checked = true;
     els.dateInput.value = values.date;
     els.timeInput.value = values.time;
+    repeatRule = values.repeat || null;
+    repeatFollows = followsDate(repeatRule, values.date);
     syncDuration();
     syncEnergyHint();
-    syncDate(); // abilita l'ora solo se c'è un giorno
+    syncDate(); // abilita l'ora solo se c'è un giorno; senza giorno «Si ripete» torna «Mai»
   }
 
   function applyPhrase() {
@@ -1067,6 +1136,7 @@
     if (parsed.energy) next.energy = parsed.energy;
     if (parsed.date) next.date = parsed.date;
     if (parsed.time) next.time = parsed.time;
+    if (parsed.repeat) next.repeat = parsed.repeat;
     writeFields(next);
     setErrors({});
     els.phraseSummary.textContent = phraseSummary(parsed);
@@ -1077,6 +1147,7 @@
     if (!els.phrase.value.trim()) return PHRASE_HINT;
     const parts = [];
     if (parsed.date) parts.push(utils.formatDateLabel(parsed.date, utils.todayISO()));
+    if (parsed.repeat) parts.push(RP.label(parsed.repeat).toLowerCase());
     if (parsed.time) parts.push('alle ' + parsed.time);
     if (parsed.duration) parts.push(utils.formatDuration(parsed.duration));
     if (parsed.energy) parts.push('energia ' + T.ENERGY[parsed.energy].label.toLowerCase());
@@ -1118,6 +1189,81 @@
     els.timeField.disabled = !valid;
     if (!valid) els.timeInput.value = '';
     syncTime();
+    // Anche la ripetizione: senza giorno torna «Mai»; cambiando giorno, una regola che lo segue si sposta con lui. Non
+    // per una volta completata (repeatKept): la sua regola, che il foglio non mostra, resta quella salvata, così se torna
+    // da fare riparte con la regola giusta (vedi readFields()).
+    if (repeatKept) {
+      // niente da cambiare
+    } else if (!valid) {
+      repeatRule = null;
+    } else if (repeatRule && repeatFollows) {
+      const derived = RP.fromKind(repeatRule.every, value);
+      if (!RP.same(derived, repeatRule)) repeatRule = derived; // uguale: resta quella di prima, con i suoi campi
+    }
+    syncRepeat();
+  }
+
+  /* ---------- «Si ripete» (P-005, passo 5.1) ---------- */
+
+  /** true se la regola è quella che la data darebbe da sola (un solo giorno della settimana, o il giorno del mese). */
+  function followsDate(rule, date) {
+    if (!rule || !utils.isISODate(date)) return true;
+    return rule.every === 'day' || RP.same(rule, RP.fromKind(rule.every, date));
+  }
+
+  function syncRepeat() {
+    const kind = repeatRule ? repeatRule.every : 'none';
+    els.repeatChips.querySelectorAll('[data-repeat]').forEach(chip => {
+      chip.setAttribute('aria-pressed', String(chip.dataset.repeat === kind));
+    });
+    const weekly = kind === 'week';
+    els.repeatDays.hidden = !weekly;
+    els.repeatDays.querySelectorAll('[data-day]').forEach(button => {
+      button.setAttribute('aria-pressed', String(weekly && repeatRule.days.includes(Number(button.dataset.day))));
+    });
+    const date = els.dateInput.value;
+    const today = utils.todayISO();
+    const hint = repeatRule && utils.isISODate(date)
+      ? RP.label(repeatRule) + ' · dopo questa, ' + RP.dayLabel(RP.afterDone(repeatRule, date, today), today)
+      : '';
+    // Solo se cambia: la riga è una regione «live», e riscriverla uguale (a ogni lettera della frase) la ripeterebbe
+    if (els.repeatHint.textContent !== hint) els.repeatHint.textContent = hint;
+    const task = editingId ? state.tasks.find(t => t.id === editingId) : null;
+    els.repeatSkip.hidden = !(task && !task.done && repeatRule);
+  }
+
+  /** Una chip di «Si ripete». Senza un giorno, la data diventa il primo giorno giusto da oggi (oggi compreso). */
+  function pickRepeat(kind) {
+    phraseBase = null; // una scelta fatta a mano: la frase non la riporta indietro
+    setError('repeat', null);
+    if (kind === 'none') {
+      repeatRule = null;
+      syncRepeat();
+      return;
+    }
+    if (repeatRule && repeatRule.every === kind) return;
+    const date = els.dateInput.value;
+    if (utils.isISODate(date)) {
+      repeatRule = RP.fromKind(kind, date);
+    } else {
+      const today = utils.todayISO();
+      repeatRule = RP.fromKind(kind, today);
+      els.dateInput.value = RP.onOrAfter(repeatRule, today);
+    }
+    repeatFollows = true;
+    syncDate();
+  }
+
+  /** Un giorno della settimana acceso o spento; almeno uno resta acceso. */
+  function toggleRepeatDay(day) {
+    if (!repeatRule || repeatRule.every !== 'week') return;
+    phraseBase = null;
+    const on = repeatRule.days.includes(day);
+    if (on && repeatRule.days.length === 1) return;
+    const days = on ? repeatRule.days.filter(d => d !== day) : repeatRule.days.concat(day);
+    repeatRule = RP.clean({ ...repeatRule, days });
+    repeatFollows = followsDate(repeatRule, els.dateInput.value);
+    syncRepeat();
   }
 
   function syncTime() {
@@ -1154,13 +1300,7 @@
 
   function onSubmit(event) {
     event.preventDefault();
-    const { value, errors } = T.validateInput({
-      title: els.title.value,
-      duration: els.duration.value,
-      energy: els.form.elements.energy.value,
-      date: els.dateInput.value,
-      time: els.timeInput.value
-    });
+    const { value, errors } = T.validateInput(readFields());
     setErrors(errors);
     const firstError = ERROR_FIELDS.find(field => errors[field]);
     if (firstError) {
@@ -1867,6 +2007,10 @@
   function showNextInboxItem() {
     if (inboxShowing || !remote.inbox.length || document.querySelector('dialog[open]')) return;
     if (assistantCtl && assistantCtl.takesSiri()) {
+      // Una frase con «ogni …» si apre nel foglio, dove la ripetizione si capisce: l'assistente non sa ancora crearle (P-005).
+      remote.inbox.forEach(item => {
+        if (!inboxForSheet.has(item.id) && nlp.parseTaskText(item.text, new Date()).repeat) inboxForSheet.add(item.id);
+      });
       const items = remote.inbox.filter(item => !inboxForSheet.has(item.id));
       if (items.length && document.readyState !== 'complete') {
         // Le richieste all'IA partono dopo il caricamento: il primo disegno resta senza attese.
@@ -1915,7 +2059,10 @@
       const card = cardOf(focusAfterEdit);
       const button = card && card.querySelector('.task__edit');
       focusAfterEdit = null;
-      if (button) button.focus({ preventScroll: true });
+      // Finita in un'altra scheda (per esempio saltata a lunedì, da Focus): il focus resta nella pagina, all'inizio,
+      // invece di perdersi; l'avviso dice dove è andata
+      if (button && button.getClientRects().length) button.focus({ preventScroll: true });
+      else els.main.focus({ preventScroll: true });
     }
     if (dialog === els.addSheet && inboxShowing && inboxShowing !== ASSISTANT_BUSY) {
       const id = inboxShowing;
@@ -2102,6 +2249,15 @@
   });
   els.editFocus.addEventListener('pointerdown', () => focusCtl.prepareAudio()); // l'audio si prepara mentre il dito è ancora giù
   els.editFocus.addEventListener('click', onFocusFromEdit);
+  els.repeatSkip.addEventListener('click', onSkipFromEdit);
+  els.repeatChips.addEventListener('click', event => {
+    const chip = event.target.closest('[data-repeat]');
+    if (chip) pickRepeat(chip.dataset.repeat);
+  });
+  els.repeatDays.addEventListener('click', event => {
+    const button = event.target.closest('[data-day]');
+    if (button) toggleRepeatDay(Number(button.dataset.day));
+  });
 
   // Barra delle schede: un tocco sulla scheda già aperta torna in cima.
   els.tabbar.addEventListener('click', event => {

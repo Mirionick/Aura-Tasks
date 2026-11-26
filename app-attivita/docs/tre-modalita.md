@@ -567,6 +567,10 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - **Schema v6**: `migrate()` cambia solo il numero di versione; `sanitizeStats()` aggiunge `shop: []` e `fromData()` aggiunge `look` con «Aurora» e «Classici», puliti da `Aura.shop.sanitizeShop()` e `sanitizeLook()`.
   - Il saldo da spendere toglie anche gli acquisti; i giorni riparati contano per la serie, il record e i traguardi, non per i punti.
   - I backup di tutte le versioni di prima si importano ancora; acquisti e `look` finiscono nel backup.
+- **Attività che si ripetono** (P-005, passo 5.1; regole in [ripetizioni.md](ripetizioni.md)): in ogni attività `repeat` (la regola, oppure `null`) e `seriesId` (lo stesso in tutte le volte di una serie).
+  - **Schema v7**: `migrate()` cambia solo il numero di versione; `sanitizeTask()` aggiunge `repeat: null` e `seriesId: null`, puliti da `Aura.repeat.sanitize()`. Le attività che c'erano non si ripetono.
+  - Una sola volta da fare per serie: in Focus o in Agenda si vede come ogni attività, con ↻ sulla card.
+  - I backup di tutte le versioni di prima si importano ancora; regole e serie finiscono nel backup.
 
 ## Collegamenti e notifiche
 - `?add=`, casella di Siri, promemoria, modifica e backup restano come oggi. Il foglio "Nuova attività" si apre sopra la scheda in cui si è.

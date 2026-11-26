@@ -18,7 +18,7 @@ TEST_PAGE = "/tests/index.html"
 TIMEOUT_SECONDS = 60
 # Minimo di test frontend atteso: alzarlo quando vengono aggiunti nuovi test.
 # Se scende, probabilmente un file di test non è stato caricato o è stato rimosso.
-MIN_EXPECTED_TESTS = 296
+MIN_EXPECTED_TESTS = 324
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
