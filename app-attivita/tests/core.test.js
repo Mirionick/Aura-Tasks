@@ -246,13 +246,14 @@
 
   /* ---------- Salvataggio ---------- */
 
-  test('storage.parse: nessun dato → elenco vuoto, nessun premio e registro vuoto', () => {
-    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats() };
+  test('storage.parse: nessun dato → elenco vuoto, nessun premio, registro vuoto e i colori di partenza', () => {
+    const empty = { version: storage.SCHEMA_VERSION, tasks: [], rewards: [], stats: P.emptyStats(), look: { aurora: 'aurora', confetti: 'classic', at: 0 } };
     assertEqual(storage.parse(null), empty);
     assertEqual(storage.parse(''), empty);
-    assertEqual(storage.SCHEMA_VERSION, 5);
+    assertEqual(storage.SCHEMA_VERSION, 6);
     assertEqual(P.emptyStats().focus, {}, 'registro vuoto con i minuti di focus');
     assertEqual(P.emptyStats().spent, [], 'registro vuoto con i riscatti dei premi');
+    assertEqual(P.emptyStats().shop, [], 'registro vuoto con gli acquisti del negozio');
   });
 
   test('storage.parse: testo illeggibile o formato sbagliato → errore', () => {
@@ -356,8 +357,10 @@
       rewards: [{ id: 'r', title: 'Gelato', emoji: '🍦', cost: 20, createdAt: 3 }],
       stats: {
         totalPoints: 24, bestStreak: 1, milestones: [], days: { '1970-01-01': { done: 1, points: 24 } }, focus: { '1970-01-01': 25 },
-        spent: [{ id: 's', rewardId: 'r', title: 'Gelato', cost: 20, at: 10 }]
-      }
+        spent: [{ id: 's', rewardId: 'r', title: 'Gelato', cost: 20, at: 10 }],
+        shop: [{ id: 'k', item: 'aurora:sunset', cost: 400, at: 11 }, { id: 'q', item: 'repair', cost: 150, at: 12, day: '1970-01-02' }]
+      },
+      look: { aurora: 'sunset', confetti: 'classic', at: 13 }
     };
     assertEqual(storage.parse(storage.serialize(state)), state);
   });
@@ -417,7 +420,7 @@
     });
     const state = storage.parse(raw);
     assertEqual(state.version, storage.SCHEMA_VERSION);
-    assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'registro identico, più i minuti di focus (v4) e i riscatti (v5) vuoti');
+    assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'registro identico, più i minuti di focus (v4), i riscatti (v5) e gli acquisti (v6) vuoti');
     assertEqual(state.tasks.map(t => [t.time, t.pointsAwarded]), [[null, 24], [null, null]]);
     assertEqual([state.future, state.tasks[0].extra], ['ok', 1]);
   });
@@ -433,7 +436,7 @@
     const state = storage.parse(JSON.stringify({ version: 3, future: 'ok', stats, tasks }));
     assertEqual(state.version, storage.SCHEMA_VERSION);
     assertEqual(state.tasks, tasks, 'attività identiche');
-    assertEqual(state.stats, { ...stats, focus: {}, spent: [] }, 'punti, serie e campi sconosciuti intatti');
+    assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'punti, serie e campi sconosciuti intatti');
     assertEqual(state.future, 'ok');
   });
 
@@ -470,13 +473,15 @@
 
   // Assistente spento, senza consenso, con i permessi di partenza (vedi docs/assistente.md)
   const ASSISTANT_OFF = { enabled: false, voice: true, autoAdd: true, autoEdit: false, consentAt: null };
+  // Musica nel focus non ancora scelta, senza rimandi (vedi docs/musica.md)
+  const MUSIC_START = { service: null, remind: null, mood: 'lofi', folded: false };
 
   test('storage.sanitizePrefs: valori non validi tornano a quelli di partenza, i campi sconosciuti restano', () => {
-    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null };
+    const defaults = { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null, music: MUSIC_START };
     [null, undefined, 'testo', [], 5].forEach(raw => assertEqual(storage.sanitizePrefs(raw), defaults, 'prefs: ' + JSON.stringify(raw)));
     const messy = storage.sanitizePrefs({ lastTab: 'boh', lastTabAt: -5, suggest: { minutes: 25, energy: 'tanta', extra: 1 }, weeklyGoal: 10 });
-    assertEqual(messy, { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium', extra: 1 }, weeklyGoal: 10, assistant: ASSISTANT_OFF, agendaView: 'month' });
-    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' }, assistant: ASSISTANT_OFF, agendaView: 'week', weeklyGoal: 20 };
+    assertEqual(messy, { lastTab: 'focus', lastTabAt: 0, suggest: { minutes: 30, energy: 'medium', extra: 1 }, weeklyGoal: 10, assistant: ASSISTANT_OFF, agendaView: 'month', music: MUSIC_START });
+    const good = { lastTab: 'agenda', lastTabAt: 1793258400000, suggest: { minutes: null, energy: 'high' }, assistant: ASSISTANT_OFF, agendaView: 'week', weeklyGoal: 20, music: { service: 'spotify', remind: null, mood: 'piano', folded: true } };
     assertEqual(storage.sanitizePrefs(good), good, '«120+» (null) è una scelta valida');
   });
 
@@ -491,7 +496,7 @@
     const area = fakeArea();
     assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'niente salvato');
     assert(storage.savePrefs({ lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' } }, area));
-    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null });
+    assertEqual(storage.loadPrefs(area), { lastTab: 'motivation', lastTabAt: 1000, suggest: { minutes: 45, energy: 'low' }, assistant: ASSISTANT_OFF, agendaView: 'month', weeklyGoal: null, music: MUSIC_START });
     area.items.set(storage.PREFS_KEY, '{rotto');
     assertEqual(storage.loadPrefs(area).lastTab, 'focus', 'testo illeggibile');
     const broken = fakeArea({}, true);

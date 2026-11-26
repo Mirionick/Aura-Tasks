@@ -8,16 +8,17 @@
  * La rotella con i fogli «Impostazioni» e «Privacy» sta in js/ui-settings.js, avviato allo stesso modo.
  * L'Agenda a calendario (calendario, giorno scelto, «Prossimi giorni», «Da pianificare») sta in js/ui-agenda.js, avviato
  * allo stesso modo: render() la ridisegna insieme alle altre schede. Così anche Motivazione (livello, «La tua settimana»,
- * «I tuoi numeri»), in js/ui-motivation.js, e i suoi premi («I tuoi premi» e il foglio del premio), in js/ui-rewards.js;
- * «Completate», serie e punti restano qui.
+ * «I tuoi numeri»), in js/ui-motivation.js, i suoi premi («I tuoi premi» e il foglio del premio), in js/ui-rewards.js, e
+ * il negozio (la card e il foglio «Negozio»), in js/ui-shop.js; «Completate», serie e punti restano qui. Quello che è in uso
+ * dal negozio (colori dell'aurora, forma dei coriandoli) si applica qui: data-aurora su <html> e i coriandoli.
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
  */
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, nlp, points: P, focus: F, rewards: RW, storage, theme, reminders: RM, remote: R, motion: M,
-    settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
-    motivationUI: MotivationUI, rewardsUI: RewardsUI } = Aura;
+  const { utils, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
+    motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
+    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -144,7 +145,9 @@
     toast: byId('toast'),
     toastText: byId('toast-text'),
     toastAction: byId('toast-action'),
-    taskTemplate: byId('task-template')
+    taskTemplate: byId('task-template'),
+    // Dove va il colore dell'aurora in uso (applyLook): l'aurora del focus a tutto schermo e il bagliore della scheda Focus
+    auroraTargets: [document.querySelector('.focus__aura'), document.querySelector('.hero__tint--focus')].filter(Boolean)
   };
 
   const DATED_SECTIONS = ['overdue', 'upcoming']; // nelle altre sezioni la data è già nel titolo
@@ -169,6 +172,8 @@
   let agendaCtl = null;   // scheda Agenda a calendario (js/ui-agenda.js), pronta all'avvio
   let motivationCtl = null; // livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), pronti all'avvio
   let rewardsCtl = null;    // «I tuoi premi» e il foglio del premio (js/ui-rewards.js), pronti all'avvio
+  let shopCtl = null;       // «Negozio»: la card e il foglio (js/ui-shop.js), pronti all'avvio
+  let musicCtl = null;      // musica nel focus: avviso o carosello, riga «Musica», «🎧» (js/ui-music.js), pronti all'avvio
   let renderedDay = null;
   let renderedPassed = 0; // attività di oggi con l'ora già passata all'ultimo disegno: quando cambia si ridisegna
   let highlightId = null; // attività appena aggiunta, da evidenziare al prossimo disegno
@@ -309,6 +314,8 @@
     if (assistantCtl) assistantCtl.renderStrip({ focusCount: focusSections.length });
     else els.suggestButton.hidden = focusSections.length === 0;
     syncHeroCta();
+    // Sotto la striscia, l'avviso o il carosello della musica (js/ui-music.js): solo quando la striscia si vede
+    if (musicCtl) musicCtl.render(!els.suggestButton.hidden);
     renderSections(els.sections, focusSections, now);
     renderCompletedToday(T.completedOn(state.tasks, today), now);
     renderEmpty(focusSections.length === 0, completed.length, agendaCount, today);
@@ -318,6 +325,8 @@
     // poi «Completate»
     if (motivationCtl) motivationCtl.render(now);
     if (rewardsCtl) rewardsCtl.render(now);
+    if (shopCtl) shopCtl.render(now);
+    applyLook();
     renderHistory(completed, now);
     renderedPassed = T.passedCount(state.tasks, now);
 
@@ -341,13 +350,30 @@
 
   const daysLabel = count => (count === 1 ? '1 giorno' : count + ' giorni');
 
+  /** La serie in corso, con i giorni riparati nel negozio («Ripara la serie», js/shop.js). */
+  const streakOf = (stats, today) => P.currentStreak(stats.days, today, P.repairedDays(stats));
+
+  /**
+   * Quello che è in uso dal negozio: il colore dell'aurora va, come data-aurora, sui due elementi che lo usano, l'aurora del
+   * focus a tutto schermo e il bagliore della scheda Focus (vedi css/style.css). Non su <html>: lì un cambio ricalcolerebbe
+   * lo stile di tutta la pagina, proprio mentre partono i coriandoli dell'acquisto. La forma dei coriandoli la legge
+   * burstConfetti().
+   */
+  function applyLook() {
+    const aurora = (state.look && state.look.aurora) || SH.defaultLook().aurora;
+    els.auroraTargets.forEach(node => {
+      if (node.dataset.aurora !== aurora) node.dataset.aurora = aurora;
+    });
+  }
+
   /**
    * Serie (accesa se oggi c'è già un completamento) e punti: in piccolo nell'intestazione di Focus,
-   * in grande in quella di Motivazione, con record, nota e barra del traguardo.
+   * in grande in quella di Motivazione, con record, nota e barra del traguardo. Quando la serie si può riparare nel
+   * negozio, la nota lo dice.
    */
   function renderRewards(today, todayTotals) {
     const { stats } = state;
-    const streak = P.currentStreak(stats.days, today);
+    const streak = streakOf(stats, today);
     const lit = todayTotals.done > 0;
     const next = P.nextMilestone(streak);
     const isRecord = streak >= 3 && streak >= stats.bestStreak;
@@ -361,7 +387,8 @@
     els.streakRecord.hidden = !isRecord && !(stats.bestStreak > streak && stats.bestStreak >= 2);
     els.streakRecordText.textContent = isRecord ? 'record!' : 'record ' + stats.bestStreak;
     els.streakProgress.style.transform = 'scaleX(' + (next ? streak / next : 1) + ')';
-    if (!lit) els.streakNote.textContent = streak > 0 ? 'Tienila accesa oggi' : 'Accendila oggi';
+    if (SH.repairOffer(stats, today)) els.streakNote.textContent = 'Puoi ripararla nel negozio';
+    else if (!lit) els.streakNote.textContent = streak > 0 ? 'Tienila accesa oggi' : 'Accendila oggi';
     else els.streakNote.textContent = next ? 'Traguardo: ' + daysLabel(next) : 'Tutti i traguardi!';
 
     els.pointsToday.textContent = '+' + utils.formatNumber(todayTotals.points) + ' oggi';
@@ -456,7 +483,7 @@
     els.empty.hidden = !isEmpty;
     if (!isEmpty) return;
     const allDone = completedCount > 0;
-    const streak = P.currentStreak(state.stats.days, today);
+    const streak = streakOf(state.stats, today);
     const lit = P.dayTotals(state.stats, today).done > 0;
     const upcoming = agendaCount === 1 ? 'Hai 1 attività nei prossimi giorni.' : 'Hai ' + agendaCount + ' attività nei prossimi giorni.';
     els.emptyAgendaLink.hidden = agendaCount === 0;
@@ -614,6 +641,17 @@
   }
 
   /**
+   * Dopo «Ripara la serie» (js/ui-shop.js): la fiamma si riaccende; se la serie riparata tocca un traguardo, il riquadro
+   * fa la festa dei traguardi. Solo dove serie e punti si vedono.
+   */
+  function celebrateRepair(reached) {
+    const targets = rewardTargets();
+    if (!targets) return;
+    M.flash(targets.streak, reached.length ? 'is-celebrating' : 'is-igniting');
+    if (reached.length && targets.glow) M.flash(targets.glow, 'is-celebrating');
+  }
+
+  /**
    * Completa un'attività senza la spunta: «Fatto» di «Cosa faccio adesso?» e «Completa» del focus.
    * Stessi punti, stessa festa e stesso «Annulla» della spunta. `focus` ({ minutes, day }) registra i minuti di focus
    * nello stesso salvataggio; `delay` è il tempo di chiusura del foglio, così la card si vede scivolare.
@@ -679,15 +717,20 @@
 
   const CONFETTI_PIECES = 28;
 
-  /** Pioggia di coriandoli per i traguardi: dura poco più di un secondo, poi sparisce. */
-  function burstConfetti(x, y) {
+  /**
+   * Pioggia di coriandoli per i traguardi: dura poco più di un secondo, poi sparisce. La forma è quella in uso dal negozio
+   * (data-shape; «classic» = rettangoli e cerchi). `host` è un foglio aperto, se i coriandoli partono da lì: un foglio
+   * copre la pagina, quindi vanno dentro il foglio (restano fissi sullo schermo, come nella pagina).
+   */
+  function burstConfetti(x, y, host) {
     if (!M.canAnimate()) return;
     const layer = document.createElement('div');
     layer.className = 'confetti';
     layer.setAttribute('aria-hidden', 'true');
+    layer.dataset.shape = (state.look && state.look.confetti) || SH.defaultLook().confetti;
     layer.style.left = x + 'px';
     layer.style.top = y + 'px';
-    document.body.appendChild(layer);
+    (host && host.open ? host : document.body).appendChild(layer);
 
     const animations = [];
     for (let i = 0; i < CONFETTI_PIECES; i++) {
@@ -745,7 +788,22 @@
   let announceTimer = null; // riscrittura del testo per i lettori di schermo
   let toastHandler = null;
 
+  /**
+   * L'avviso sta nella pagina oppure dentro `host`, un foglio aperto: un foglio copre la pagina e la rende inerte, quindi
+   * l'avviso si vede (e il lettore di schermo lo legge) solo se è dentro il foglio. js/ui-shop.js ce lo porta appena apre
+   * il suo foglio, così la regione live (role="status") c'è già prima del primo messaggio.
+   */
+  function hostToast(host) {
+    const target = host && host.open ? host : document.body;
+    if (els.toast.parentNode !== target) target.appendChild(els.toast);
+  }
+
+  /**
+   * `options`: `action` e `onAction` (il pulsante, per esempio «Annulla»), `duration` (ms) e `host`, un foglio aperto
+   * (vedi hostToast). Quando il foglio comincia a chiudersi, l'avviso torna nella pagina (closeSheet).
+   */
   function showToast(message, options = {}) {
+    hostToast(options.host);
     const action = options.action || null;
     const duration = options.duration || (action ? 5000 : 2600);
     clearTimeout(toastTimer);
@@ -811,6 +869,9 @@
     const onEnd = event => {
       if (event.target === dialog) finish();
     };
+    // Un avviso dentro il foglio torna subito nella pagina: resta fermo al suo posto mentre il foglio scende (dentro il
+    // foglio scenderebbe con lui e poi ricomparirebbe più in alto)
+    if (els.toast.parentNode === dialog) hostToast(null);
     dialog.classList.add('is-closing');
     dialog.addEventListener('animationend', onEnd);
     timer = setTimeout(finish, M.ms('exit') + M.ms('quick')); // rete di sicurezza se animationend non arriva
@@ -1200,14 +1261,14 @@
       title: 'Importare questo backup?',
       source: 'Nel file',
       when: 'Esportato: ',
-      text: 'Attività, punti, serie e premi di adesso verranno sostituiti. Prima ne salvo una copia su questo dispositivo.',
+      text: 'Attività, punti, serie, premi e acquisti del negozio di adesso verranno sostituiti. Prima ne salvo una copia su questo dispositivo.',
       ok: 'Sostituisci'
     },
     restore: {
       title: 'Ripristinare i dati di prima dell\'importazione?',
       source: 'Nella copia',
       when: 'Salvata: ',
-      text: 'Attività, punti, serie e premi di adesso verranno sostituiti da quelli della copia.',
+      text: 'Attività, punti, serie, premi e acquisti del negozio di adesso verranno sostituiti da quelli della copia.',
       ok: 'Ripristina'
     }
   };
@@ -1218,9 +1279,11 @@
   const tasksLabel = count => count + ' attività';
   const pointsLabel = points => (points === 1 ? '1 punto' : utils.formatNumber(points) + ' punti');
   const prizesLabel = count => (count === 1 ? '1 premio' : count + ' premi');
-  // «12 attività · 1240 punti», più « · 3 premi» se ce ne sono
+  const purchasesLabel = count => (count === 1 ? '1 acquisto' : count + ' acquisti');
+  // «12 attività · 1240 punti», più « · 3 premi» e « · 2 acquisti» (nel negozio) se ce ne sono
   const dataLabel = data => tasksLabel(data.tasks.length) + ' · ' + pointsLabel(data.stats.totalPoints) +
-    (data.rewards && data.rewards.length ? ' · ' + prizesLabel(data.rewards.length) : '');
+    (data.rewards && data.rewards.length ? ' · ' + prizesLabel(data.rewards.length) : '') +
+    (data.stats.shop && data.stats.shop.length ? ' · ' + purchasesLabel(data.stats.shop.length) : '');
   const momentLabel = ms => (ms ? utils.formatMoment(ms, utils.todayISO()) : 'data sconosciuta');
 
   /** Il foglio riparte sempre dallo stato normale: una scelta lasciata a metà si perde (non si conta sull'evento close). */
@@ -1845,6 +1908,7 @@
    * Dopo una modifica, il focus torna sulla card (utile da tastiera e con il lettore di schermo).
    */
   function onSheetClosed(dialog) {
+    if (els.toast.parentNode === dialog) document.body.appendChild(els.toast); // l'avviso resta, nella pagina
     if (assistantCtl) assistantCtl.sheetClosed(dialog);
     if (settingsCtl) settingsCtl.sync(); // tornando a «Impostazioni» da un altro foglio, le righe sono aggiornate
     if (dialog === els.addSheet && focusAfterEdit) {
@@ -2288,6 +2352,18 @@
     openBackup: openBackupSheet,
     disconnect: disconnectDevice
   });
+  // La musica nel focus, senza account: l'avviso o il carosello in Focus, il foglio «Quando te lo ricordo?», la riga
+  // «Musica» nelle Impostazioni e «🎧» nel focus a tutto schermo. Tutto nelle preferenze (prefs.music), fuori dal backup.
+  musicCtl = MusicUI.init({
+    getPrefs: () => prefs,
+    setPrefs,
+    openSheet,
+    closeSheet,
+    setupSheet,
+    setAutofocus,
+    showToast,
+    openSettings: options => settingsCtl.open(options)
+  });
 
   // L'Agenda a calendario: legge la vista salvata (mese o settimana) e scrive la scheda a ogni render().
   agendaCtl = AgendaUI.init({
@@ -2320,6 +2396,20 @@
     setAutofocus,
     burstConfetti,
     vibrate,
+    isActive: () => activeTab === 'motivation'
+  });
+  // «Negozio»: la card in Motivazione e il foglio. Acquisti, riparazioni e oggetti in uso passano da commitState().
+  shopCtl = ShopUI.init({
+    getState: () => state,
+    commitState,
+    showToast,
+    hostToast,
+    openSheet,
+    setupSheet,
+    setAutofocus,
+    burstConfetti,
+    vibrate,
+    celebrateRepair,
     isActive: () => activeTab === 'motivation'
   });
 
