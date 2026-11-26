@@ -3,11 +3,18 @@
  * - Casella del Comando Rapido di Siri: il comando scrive una frase, l'app la ritira quando si apre.
  * - Promemoria Web Push: l'app manda l'elenco dei promemoria, il Cron (ogni minuto) invia quelli arrivati all'ora.
  * - Assistente con l'IA (Workers AI): trascrizione della voce e risposte, in assistant.js.
+ * - Connettore per Claude (P-006): accesso OAuth con il codice dell'app in oauth.js, strumento MCP in mcp.js.
+ *   Le sue frasi entrano nella stessa casella di Siri, con id «claude:…».
  * Ogni dispositivo si presenta con un codice segreto casuale generato dall'app ("Authorization: Bearer <codice>"):
  * il server ne conserva solo l'impronta SHA-256. Le chiavi VAPID arrivano dai secrets di Cloudflare.
  */
 import { ASSISTANT_LIMITS, chat, forgetUsage, pruneUsage, transcribe } from './assistant.js';
 import { HttpError, checkLength, cleanText, json, plain, readBody, readJson } from './http.js';
+import { forgetClaudeUsage, handleMcp, pruneClaudeUsage } from './mcp.js';
+import {
+  CLAUDE, authorizationServerMetadata, authorizePage, authorizeSubmit, authorizeTooMany, claudeStatus, createPairCode,
+  forgetClaudeStatements, oauthCleanupStatements, protectedResourceMetadata, register, token, unlinkClaude
+} from './oauth.js';
 import { base64urlDecode, base64urlEncode, createSigner, importVapidKeys, isUncompressedKey, sendPush } from './webpush.js';
 import { INBOX_TEXTS, LIMIT_TEXTS, TEST_MESSAGE, reminderBody } from './text.js';
 
@@ -36,6 +43,7 @@ export const LIMITS = {
 const PUSH_HOSTS = ['push.apple.com', 'fcm.googleapis.com', 'push.services.mozilla.com', 'notify.windows.com'];
 const CODE = /^[A-Za-z0-9_-]{32,64}$/;
 const ITEM_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const INBOX_ID = /^(?:claude:)?[A-Za-z0-9_-]{1,64}$/; // le frasi di Claude hanno id «claude:…»
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export default {
@@ -52,6 +60,8 @@ export default {
 /** Gestisce una richiesta. `deps` = { now, fetch }: nei test sono finti. */
 export async function handle(request, env, deps) {
   const origin = request.headers.get('Origin');
+  const { pathname } = new URL(request.url);
+  if (!pathname.startsWith('/api/')) return handleOpen(request, env, deps, pathname, origin);
   const allowed = allowedOrigin(origin, env);
   // Le pagine di altri siti non possono usare il server. Siri e curl non mandano Origin: per loro decide il codice.
   if (origin && !allowed) return json({ error: 'Origine non ammessa' }, 403);
@@ -102,6 +112,10 @@ const ROUTES = {
   'DELETE /api/push/subscription': deleteSubscription,
   'PUT /api/reminders': putReminders,
   'POST /api/push/test': sendTestPush,
+  // Connettore per Claude: l'app chiede il codice da mostrare, legge lo stato, scollega.
+  'POST /api/claude/code': async (request, env, deps) => createPairCode(env, deps, await requireDevice(request, env, deps)),
+  'GET /api/claude': async (request, env, deps) => claudeStatus(env, deps, await requireDevice(request, env, deps)),
+  'DELETE /api/claude': async (request, env, deps) => unlinkClaude(env, deps, await requireDevice(request, env, deps)),
   // Assistente: prima il codice del dispositivo, che serve solo a contare e non arriva mai al modello.
   'POST /api/assistant/transcribe': async (request, env, deps) => transcribe(request, env, deps, await requireDevice(request, env, deps)),
   'POST /api/assistant/chat': async (request, env, deps) => chat(request, env, deps, await requireDevice(request, env, deps))
@@ -115,6 +129,59 @@ function route(request, env, deps) {
   throw new HttpError(known ? 405 : 404, known ? 'Metodo non ammesso' : 'Indirizzo sconosciuto');
 }
 
+/* ---------- Connettore per Claude: indirizzi fuori da /api/ ---------- */
+
+/**
+ * Li chiama Claude dai server di Anthropic (connettore, token, registrazione) oppure il browser di chi
+ * collega Claude (la pagina con il codice). Niente CORS: le pagine di altri siti non li possono leggere.
+ * Origin ammessa: per i metadati e la pagina in GET qualsiasi; per il modulo della pagina la sua stessa origine;
+ * per il resto nessuna oppure quella di Claude.
+ */
+const OPEN_ROUTES = {
+  'GET /.well-known/oauth-protected-resource': { handler: protectedResourceMetadata, origin: 'any' },
+  'GET /.well-known/oauth-protected-resource/mcp': { handler: protectedResourceMetadata, origin: 'any' },
+  'GET /.well-known/oauth-authorization-server': { handler: authorizationServerMetadata, origin: 'any' },
+  'GET /oauth/authorize': { handler: authorizePage, origin: 'any' },
+  'POST /oauth/authorize': { handler: authorizeSubmit, origin: 'self', page: true },
+  'POST /oauth/token': { handler: token, origin: 'claude' },
+  'POST /oauth/register': { handler: register, origin: 'claude' },
+  'POST /mcp': { handler: mcp, origin: 'claude' },
+  'GET /mcp': { handler: mcp, origin: 'claude' },
+  'DELETE /mcp': { handler: mcp, origin: 'claude' }
+};
+
+function mcp(request, env, deps) {
+  return handleMcp(request, env, deps, { inboxItems: LIMITS.inboxItems });
+}
+
+async function handleOpen(request, env, deps, pathname, origin) {
+  const entry = OPEN_ROUTES[request.method + ' ' + pathname];
+  if (!entry) {
+    const known = Object.keys(OPEN_ROUTES).some(key => key.endsWith(' ' + pathname));
+    return json({ error: known ? 'Metodo non ammesso' : 'Indirizzo sconosciuto' }, known ? 405 : 404);
+  }
+  if (!openOriginAllowed(entry.origin, origin, request)) return json({ error: 'Origine non ammessa' }, 403);
+  const rule = rateLimitFor(request.method, pathname);
+  if (!await withinLimit(request, env, rule)) {
+    const response = entry.page ? await authorizeTooMany(request, env) : json({ error: LIMIT_TEXTS.tooMany }, 429);
+    response.headers.set('Retry-After', '60');
+    return response;
+  }
+  try {
+    return await entry.handler(request, env, deps);
+  } catch (err) {
+    if (err instanceof HttpError) return json({ error: err.message }, err.status);
+    console.error('Errore interno:', err && err.name); // mai dati: né codici, né token, né frasi
+    return json({ error: 'Errore interno del server' }, 500);
+  }
+}
+
+function openOriginAllowed(rule, origin, request) {
+  if (!origin || rule === 'any') return true;
+  if (rule === 'self') return origin === new URL(request.url).origin;
+  return CLAUDE.origins.includes(origin);
+}
+
 /* ---------- Limiti di richieste per indirizzo IP ---------- */
 
 /** Quale limite vale per una richiesta: binding (vedi wrangler.toml) e prefisso del contatore; null se nessuno. */
@@ -123,6 +190,11 @@ function rateLimitFor(method, pathname) {
   if (method === 'POST' && pathname === '/api/devices') return { binding: 'RATE_LIMIT_STRICT', prefix: 'devices' };
   if (method === 'POST' && pathname === '/api/push/test') return { binding: 'RATE_LIMIT_STRICT', prefix: 'push-test' };
   if (method === 'POST' && pathname === '/api/inbox') return { binding: 'RATE_LIMIT_INBOX', prefix: 'inbox' };
+  if (method === 'POST' && pathname === '/api/claude/code') return { binding: 'RATE_LIMIT_STRICT', prefix: 'claude-code' };
+  if (method === 'POST' && pathname === '/oauth/authorize') return { binding: 'RATE_LIMIT_STRICT', prefix: 'claude-pair' };
+  if (method === 'POST' && pathname === '/oauth/register') return { binding: 'RATE_LIMIT_STRICT', prefix: 'oauth-register' };
+  if (method === 'POST' && pathname === '/oauth/token') return { binding: 'RATE_LIMIT_STRICT', prefix: 'oauth-token' }; // ogni rinnovo è una scrittura
+  if (!pathname.startsWith('/api/')) return { binding: 'RATE_LIMIT_API', prefix: 'claude' }; // connettore, token, metadati
   if (pathname.startsWith('/api/assistant/')) return { binding: 'RATE_LIMIT_ASSISTANT', prefix: 'assistant' };
   return { binding: 'RATE_LIMIT_API', prefix: 'api' };
 }
@@ -222,7 +294,7 @@ async function registerDevice(request, env, deps) {
 }
 
 /**
- * "Scollega": via casella, sottoscrizione, promemoria e conteggi dell'assistente; il dispositivo diventa un segno
+ * "Scollega": via casella, sottoscrizione, promemoria, conteggi dell'assistente e collegamenti di Claude; il dispositivo diventa un segno
  * anonimo che conserva created_at. Il codice smette subito di valere, e registrarsi e scollegarsi di continuo non aggira il tetto.
  */
 async function deleteDevice(request, env, deps) {
@@ -232,6 +304,8 @@ async function deleteDevice(request, env, deps) {
     env.DB.prepare('DELETE FROM subscriptions WHERE device_id = ?').bind(id),
     env.DB.prepare('DELETE FROM inbox WHERE device_id = ?').bind(id),
     forgetUsage(env, id),
+    ...forgetClaudeStatements(env, [id]),
+    forgetClaudeUsage(env, id),
     env.DB.prepare('UPDATE devices SET id = ? WHERE id = ?').bind(markerId(), id)
   ]);
   return json({ ok: true });
@@ -272,10 +346,11 @@ async function addToInbox(request, env, deps) {
   }
   if (!text) return plain(INBOX_TEXTS.empty, 400);
   if (text.length > LIMITS.textLength) return plain(INBOX_TEXTS.tooLong, 400);
-  const pending = await env.DB.prepare('SELECT COUNT(*) AS n FROM inbox WHERE device_id = ?').bind(id).first('n');
-  if (pending >= LIMITS.inboxItems) return plain(INBOX_TEXTS.full, 429);
-  await env.DB.prepare('INSERT INTO inbox (id, device_id, text, created_at) VALUES (?, ?, ?, ?)')
-    .bind(randomId(), id, text, deps.now).run();
+  // I posti si contano nella stessa istruzione che scrive: una frase di Claude arrivata nel frattempo non fa superare il tetto.
+  const added = await env.DB.prepare(
+    'INSERT INTO inbox (id, device_id, text, created_at) SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM inbox WHERE device_id = ?) < ?'
+  ).bind(randomId(), id, text, deps.now, id, LIMITS.inboxItems).run();
+  if (!added.meta.changes) return plain(INBOX_TEXTS.full, 429);
   return plain(INBOX_TEXTS.added + text, 201);
 }
 
@@ -304,11 +379,12 @@ async function readPhrase(request) {
   return raw;
 }
 
-/** Le frasi in attesa, dalla più vecchia. */
+/** Le frasi in attesa, dalla più vecchia, con da dove vengono (`source`: "siri" o "claude"). */
 async function listInbox(request, env, deps) {
   const id = await requireDevice(request, env, deps);
   const { results } = await env.DB.prepare(
-    'SELECT id, text, created_at AS createdAt FROM inbox WHERE device_id = ? ORDER BY created_at, rowid LIMIT ?'
+    "SELECT id, text, created_at AS createdAt, CASE WHEN id LIKE 'claude:%' THEN 'claude' ELSE 'siri' END AS source " +
+    'FROM inbox WHERE device_id = ? ORDER BY created_at, rowid LIMIT ?'
   ).bind(id, LIMITS.inboxItems).all();
   return json({ items: results });
 }
@@ -318,7 +394,7 @@ async function ackInbox(request, env, deps) {
   const id = await requireDevice(request, env, deps);
   const body = await readJson(request, LIMITS.smallBody);
   if (!body || !Array.isArray(body.ids)) throw new HttpError(400, 'Dati non validi');
-  const ids = body.ids.filter(value => typeof value === 'string' && ITEM_ID.test(value)).slice(0, 100);
+  const ids = body.ids.filter(value => typeof value === 'string' && INBOX_ID.test(value)).slice(0, 100);
   const result = await env.DB.prepare('DELETE FROM inbox WHERE device_id = ? AND id IN (SELECT value FROM json_each(?))')
     .bind(id, JSON.stringify(ids)).run();
   return json({ ok: true, deleted: result.meta.changes });
@@ -482,13 +558,17 @@ function ttlFor(at, now) {
 
 /**
  * Pulizia oraria: frasi dimenticate, promemoria passati, segni anonimi di oltre un giorno, dispositivi non più visti,
- * conteggi dell'assistente dei giorni passati.
+ * conteggi dell'assistente dei giorni passati, codici e collegamenti di Claude scaduti.
  */
 async function cleanup(env, now) {
   const oldDevices = 'SELECT id FROM devices WHERE seen_at < ?';
   const deviceLimit = now - LIMITS.deviceDays * DAY;
   await env.DB.batch([
     pruneUsage(env, now),
+    pruneClaudeUsage(env, now),
+    ...oauthCleanupStatements(env, now),
+    env.DB.prepare('DELETE FROM claude_links WHERE device_id IN (' + oldDevices + ')').bind(deviceLimit),
+    env.DB.prepare('DELETE FROM claude_codes WHERE device_id IN (' + oldDevices + ')').bind(deviceLimit),
     env.DB.prepare("DELETE FROM devices WHERE id LIKE 'segno:%' AND created_at < ?").bind(now - DAY),
     env.DB.prepare('DELETE FROM inbox WHERE created_at < ?').bind(now - LIMITS.inboxDays * DAY),
     env.DB.prepare('DELETE FROM reminders WHERE at < ?').bind(now - LIMITS.late),
