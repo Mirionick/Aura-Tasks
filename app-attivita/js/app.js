@@ -50,6 +50,7 @@
     historyList: byId('history-list'),
     greeting: byId('greeting'),
     today: byId('today-label'),
+    statsRow: document.querySelector('.stats--inline'),
     statOpen: byId('stat-open'),
     statTime: byId('stat-time'),
     statDone: byId('stat-done'),
@@ -283,6 +284,7 @@
     tabScroll[previous] = window.scrollY;
     activeTab = tab;
     syncTabs();
+    fitStats(); // in Focus la riga dei numeri torna visibile: su due righe se serve, prima di misurare l'intestazione
     measureHero();
     window.scrollTo(0, tabScroll[tab]);
     rememberTab();
@@ -2191,6 +2193,44 @@
     updateScrim();
   }
 
+  /**
+   * Numeri di oggi (Da fare, Tempo, Fatte oggi): in una riga se etichette e valori ci stanno interi, altrimenti su due
+   * righe (.is-stacked), mai con l'etichetta accorciata. Conta la larghezza naturale di etichette e valori, la stessa
+   * nei due modi, quindi la scelta non va avanti e indietro. Gira da un ResizeObserver sulla riga e sui valori: dopo il
+   * layout e prima che la pagina si disegni, senza letture forzate dentro render().
+   */
+  function fitStats() {
+    const row = els.statsRow;
+    if (!row || !row.clientWidth) return; // nascosta: si misura quando si vede
+    const items = row.children;
+    let need = (items.length - 1) * (parseFloat(getComputedStyle(row).columnGap) || 0);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const cs = getComputedStyle(item);
+      need += item.querySelector('.stat__label').scrollWidth + item.querySelector('.stat__value').scrollWidth
+        + (parseFloat(cs.columnGap) || 0) + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+        + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)
+        + 1; // scrollWidth è arrotondato: un pixel di margine per riquadro
+    }
+    const stacked = need > row.clientWidth;
+    if (stacked === row.classList.contains('is-stacked')) return;
+    row.classList.toggle('is-stacked', stacked);
+    measureHero(); // l'intestazione cambia altezza: la fascia della barra di stato va rimisurata
+  }
+
+  function watchStats() {
+    if (!els.statsRow) return;
+    if (typeof ResizeObserver !== 'function') {
+      fitStats();
+      window.addEventListener('resize', fitStats);
+      return;
+    }
+    fitStats(); // subito, prima che si misuri l'intestazione all'apertura
+    const observer = new ResizeObserver(fitStats);
+    observer.observe(els.statsRow);
+    els.statsRow.querySelectorAll('.stat__value').forEach(value => observer.observe(value)); // i numeri cambiano larghezza
+  }
+
   function updateScrim() {
     const visible = els.scrim.offsetHeight > 0 && window.scrollY > scrimThreshold;
     if (visible === scrimVisible) return;
@@ -2593,6 +2633,7 @@
 
   syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti
   render();
+  watchStats();
   measureHero();
   registerServiceWorker();
   // All'apertura la fiamma accesa fa qualche guizzo, poi si ferma (niente animazioni infinite).
