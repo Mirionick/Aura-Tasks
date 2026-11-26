@@ -8,13 +8,13 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW, shop: SH } = Aura;
+  const { utils, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW, shop: SH, music: MU } = Aura;
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
   // Dati di prima dell'ultima importazione di un backup, per poterli ripristinare: una sola copia, sovrascritta ogni volta.
   const BEFORE_IMPORT_KEY = 'aura-tasks:before-import';
-  // Preferenze (ultima scheda, scelte di «Cosa faccio adesso?», assistente) e focus in corso: senza versione e fuori dal backup.
+  // Preferenze (ultima scheda, scelte di «Cosa faccio adesso?», assistente, musica) e focus in corso: senza versione e fuori dal backup.
   const PREFS_KEY = 'aura-tasks:prefs';
   const FOCUS_KEY = 'aura-tasks:focus';
   // Assistente: elenco «Cosa ha fatto l'assistente», memoria breve, copia della proposta all'apertura. Fuori dal backup.
@@ -278,7 +278,8 @@
    * Preferenze ripulite: ultima scheda usata e quando (lastTab, lastTabAt), scelte di «Cosa faccio adesso?» (suggest),
    * interruttori e permessi dell'assistente (assistant, vedi Aura.assistant.sanitizePrefs), vista del calendario
    * dell'Agenda (agendaView: 'month' o 'week', vedi Aura.agenda), obiettivo della settimana in Motivazione (weeklyGoal:
-   * 5, 10, 15, 20, 30 o 50; null = nessun obiettivo, vedi Aura.motivation).
+   * 5, 10, 15, 20, 30 o 50; null = nessun obiettivo, vedi Aura.motivation), musica nel focus (music: servizio scelto,
+   * rimando dell'avviso, ultimo umore, carosello ridotto; vedi Aura.music). Le preferenze non vanno nel backup.
    * I valori non validi tornano a quelli di partenza; i campi sconosciuti vengono conservati.
    */
   function sanitizePrefs(raw) {
@@ -296,7 +297,8 @@
       },
       assistant: A.sanitizePrefs(base.assistant),
       agendaView: AG.AGENDA.views.includes(base.agendaView) ? base.agendaView : AG.AGENDA.views[0],
-      weeklyGoal: MO.sanitizeGoal(base.weeklyGoal)
+      weeklyGoal: MO.sanitizeGoal(base.weeklyGoal),
+      music: MU.sanitize(base.music)
     };
   }
 
