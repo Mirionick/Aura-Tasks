@@ -23,6 +23,7 @@ Una voce sta in una sola sezione e, quando cambia stato, si sposta. Il resto non
 | **P-004 v3: negozio e musica nel focus** | Passi 4.1 (negozio con i punti ★), 4.2 (musica senza account), 4.3 (Spotify collegato) e 4.4 (suoni del focus), in [proposte/P-004.md](proposte/P-004.md). Approvata con il merge della PR che la introduce. | 26 novembre 2026 |
 | **P-006 v2: connettore per Claude, «Aggiungi ad Aura»** | Collegamento con un codice mostrato dall'app (OAuth), strumento che può solo aggiungere frasi alla casella, limiti (10 per volta, 50 al giorno per dispositivo, 30 in attesa con Siri, 1.000 al giorno per tutto il server), passi 6.1 e 6.2 in [proposte/P-006.md](proposte/P-006.md). Approvata con il merge della PR che la introduce. | 23 novembre 2026 |
 | **Test dell'app nel browser** | I test dell'app si eseguono in un browser reale, aprendo `app-attivita/tests/index.html`. | 13 novembre 2026 |
+| **Tutto dentro Aura** | Il Product Owner: «voglio un sistema centralizzato non che faccia affidamento a cose esterne». Quindi niente esportazione `.ics` nel Calendario del telefono, perché il calendario è l'Agenda; niente promemoria del backup, perché i dati passeranno da un telefono all'altro con l'account Google o un account di Aura. Sì alle attività che si ripetono e allo scorrimento sulle card, in [proposte/P-005.md](proposte/P-005.md). | 20 novembre 2026 |
 
 Le decisioni prese prima di questo registro restano scritte nelle specifiche delle funzioni.
 
@@ -72,7 +73,7 @@ Sono nell'app o nel server pubblicati. Il comportamento è nella specifica: qui 
 | Assistente, passo 2: voce | [assistente.md](../app-attivita/docs/assistente.md) | |
 | Assistente, passo 3: organizzare la giornata | [assistente.md](../app-attivita/docs/assistente.md) | Da specificare prima |
 | Web Share Target e scorciatoie (Android) | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
-| Promemoria nel calendario (`.ics`) | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
+| Attività che si ripetono; scorrimento sulle card per completare o eliminare; prossime ripetizioni in Agenda (facoltativo) | [proposte/P-005.md](proposte/P-005.md), passi 5.1, 5.2 e 5.3 | Proposta in revisione: si costruisce dopo l'approvazione. Il passo 5.1 porta una versione nuova dello schema |
 | Altre idee, non prioritarie | [funzioni-future.md](../app-attivita/docs/funzioni-future.md) | |
 | Licenza premium | [premium.md](../app-attivita/docs/premium.md) | |
 | Login facoltativo con Google e sincronizzazione | [proposte/P-002.md](proposte/P-002.md), passi 5a e 5b | 5b richiede prima una specifica testabile |
