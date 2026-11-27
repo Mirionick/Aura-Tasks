@@ -60,6 +60,9 @@ class ScanLine(unittest.TestCase):
             HOME: "cartella personale",
             "vedi (/" + "Users/nome/Desktop/aura)": "cartella personale",
             "\"/" + "root/.config\"": "cartella personale",
+            "Merge branch 'x' of /" + "tmp/aura-pr into y": "cartella temporanea o di un disco",
+            "/" + "mnt/c/Users/nome": "cartella temporanea o di un disco",
+            "/" + "var/folders/ab/cd": "cartella temporanea o di un disco",
             "~" + "/Documents/Aura": "cartella personale con la tilde",
             "~" + BS + "Documenti" + BS + "Aura": "cartella personale con la tilde",
             "NOMECO" + "~1" + BS + "AppData": "nome breve di Windows con la tilde",
@@ -78,7 +81,8 @@ class ScanLine(unittest.TestCase):
     def test_il_testo_normale_passa(self) -> None:
         for line in [
             "https://github.com/Mirionick/Aura-Tasks/pull/27",
-            "https://example.com/home/pagina e https://example.com/Users/elenco",
+            "https://example.com/home/pagina e https://example.com/Users/elenco e https://example.com/tmp/x",
+            "#!/usr/bin/env python3",
             "Ore 9:30, alle 10:00; const time = '09:25';",
             "il percorso relativo app-attivita/js/app.js e $env:TEMP",
             "a ~ b, x & ~1, ~/ da solo",
@@ -157,6 +161,17 @@ class AddedLines(GitRepo):
         self.git("checkout", "-q", "main")
         self.write("c.txt", HOME + "\n")
         main = self.commit("altro su main")
+        self.assertEqual(cc.check_added_lines(self.repo, main, head, []), [])
+
+    def test_una_riga_tolta_su_main_non_sembra_aggiunta_dalla_pr(self) -> None:
+        self.write("a.txt", "uno\n" + HOME + "\n")  # c'era già prima della PR
+        self.commit("base")
+        self.git("checkout", "-q", "-b", "pr")
+        self.write("b.txt", "pulito\n")
+        head = self.commit("pr")
+        self.git("checkout", "-q", "main")
+        self.write("a.txt", "uno\n")  # main la toglie: confrontando con main, la PR sembrerebbe rimetterla
+        main = self.commit("tolta su main")
         self.assertEqual(cc.check_added_lines(self.repo, main, head, []), [])
 
     def test_il_valore_trovato_non_si_stampa(self) -> None:
@@ -240,6 +255,14 @@ class CacheVersion(GitRepo):
         head = self.change({"app-attivita/docs/x.md": "due\n", "app-attivita/tests/t.js": "due\n",
                             "app-attivita/CLAUDE.md": "nuovo\n", "server/src/index.js": "due\n", "README.md": "x\n"})
         self.assertIsNone(cc.check_cache_version(self.repo, self.base, head))
+
+    def test_una_pr_di_soli_documenti_mentre_main_cambia_l_app(self) -> None:
+        head = self.change({"app-attivita/docs/x.md": "due\n"})
+        self.git("checkout", "-q", "main")
+        self.write("app-attivita/js/a.js", "da main\n")
+        self.write("app-attivita/sw.js", sw("aura-tasks-v11"))
+        main = self.commit("un'altra PR, unita prima")  # l'app cambia su main, non nella PR
+        self.assertIsNone(cc.check_cache_version(self.repo, main, head))
 
     def test_file_tolti_o_nuovi_contano(self) -> None:
         self.git("rm", "-q", "app-attivita/js/a.js")

@@ -41,6 +41,7 @@ PATHS = [
     ("percorso di Windows", re.compile(r"\b[A-Za-z]:\\[A-Za-z0-9_$.~-]")),
     ("percorso di Windows", re.compile(r"\b[A-Za-z]:/(?:Users|Documents and Settings)/", re.IGNORECASE)),
     ("cartella personale", re.compile(r"(?<![\w.~-])/(?:home|Users|root)/[^/\s\"'`<>)]+")),
+    ("cartella temporanea o di un disco", re.compile(r"(?<![\w.~-])/(?:tmp|mnt|private/var|var/folders)/[^/\s\"'`<>)]+")),
     ("cartella personale con la tilde", re.compile(r"(?<![\w/])~[\\/][A-Za-z]")),
     ("nome breve di Windows con la tilde", re.compile(r"\b[A-Z0-9]{1,6}~[0-9]\b")),
 ]
