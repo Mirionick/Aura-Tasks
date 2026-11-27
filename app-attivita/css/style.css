@@ -17,6 +17,15 @@
 
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
+  /* «Dimensione testo» dell'iPhone (vedi html, in «2. Base»): le misure del testo si scrivono calc(N * var(--px)), dove N
+     è la misura in px con il testo normale. --px vale 1 px con il testo normale (17 px) e cresce con quello scelto
+     sull'iPhone, fino a 28 px, il primo dei testi grandi di Accessibilità: oltre si ferma, perché le schermate restino
+     usabili. Restano in px le icone, le emoji e i simboli nei riquadri fissi, la barra delle schede (come quella di iOS)
+     e il timer del focus, che segue già lo schermo. */
+  --px: calc(min(1rem, 28px) / 17);
+  /* Le parti strette, come i sette giorni del calendario, crescono meno: fino a 21 px, il testo «molto grande» */
+  --px-ui: calc(min(1rem, 21px) / 17);
+
   /* Superfici */
   --bg: #f4f3fa;
   --surface: #ffffff;
@@ -357,11 +366,19 @@
 
 [hidden] { display: none !important; }
 
+/* Il testo segue «Dimensione testo» dell'iPhone: su iOS la misura di base è quella del testo normale del sistema
+   (-apple-system-body, 17 px se non è cambiata), altrove 17 px che seguono la misura scelta nel browser.
+   -webkit-touch-callout c'è solo su iOS: sul Mac -apple-system-body vale 13 px e rimpicciolirebbe l'app. */
 html {
+  font-size: 106.25%;
   background: var(--bg);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   overflow-anchor: none; /* come Safari: quando la lista cambia lo scorrimento resta dov'è, e le card scivolano (js/motion.js) */
+}
+
+@supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+  html { font: -apple-system-body; }
 }
 
 html.is-locked { overflow: hidden; }
@@ -371,7 +388,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   font-family: var(--font);
-  font-size: 16px;
+  font-size: calc(16 * var(--px));
   line-height: 1.45;
   color: var(--text);
   background: var(--bg);
@@ -499,6 +516,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   min-height: var(--tap);
   margin-bottom: 4px;
 }
@@ -524,12 +542,12 @@ button {
 .brand__halo { fill: var(--glass); stroke: var(--glass-border); stroke-width: 1; }
 .brand__core { fill: var(--hero-text); }
 .brand__check { fill: none; stroke: var(--hero-top); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-.brand__name { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.brand__name { font-size: calc(17 * var(--px-ui)); font-weight: 700; letter-spacing: -.01em; } /* come i titoli della barra di iOS: accanto ha i due pulsanti */
 
-.hero__greeting { font-size: 15px; font-weight: 600; color: var(--hero-text-2); }
+.hero__greeting { font-size: calc(15 * var(--px)); font-weight: 600; color: var(--hero-text-2); }
 
 .hero__date {
-  font-size: clamp(22px, 6.2vw, 26px);
+  font-size: clamp(calc(22 * var(--px)), 6.2vw, calc(26 * var(--px)));
   font-weight: 800;
   line-height: 1.15;
   letter-spacing: -.02em;
@@ -537,12 +555,12 @@ button {
 
 /* Agenda e Motivazione: intestazione più bassa, con il nome della scheda */
 .hero__title {
-  font-size: clamp(24px, 6.6vw, 28px);
+  font-size: clamp(calc(24 * var(--px)), 6.6vw, calc(28 * var(--px)));
   font-weight: 800;
   line-height: 1.15;
   letter-spacing: -.02em;
 }
-.hero__subtitle { margin-top: 2px; font-size: 15px; font-weight: 600; color: var(--hero-text-2); }
+.hero__subtitle { margin-top: 2px; font-size: calc(15 * var(--px)); font-weight: 600; color: var(--hero-text-2); }
 .hero__tab + .stats--rewards { margin-top: 16px; }
 
 /* Motivazione (P-003, passo 3.3): il livello, con distintivo, nome, barra e quanto manca, sopra serie e punti */
@@ -569,13 +587,13 @@ button {
   border-radius: 999px;
   background: var(--points-chip-bg);
   color: var(--points-chip-text);
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 .lvl__text { flex: 1; min-width: 0; }
-.lvl__name { font-size: 19px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
-.lvl__step { margin-left: 4px; color: var(--hero-text-2); font-size: 13px; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
+.lvl__name { font-size: calc(19 * var(--px)); font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+.lvl__step { margin-left: 4px; color: var(--hero-text-2); font-size: calc(13 * var(--px)); font-weight: 600; letter-spacing: 0; white-space: nowrap; }
 /* La barra verso il prossimo livello: il riempimento cresce con transform (scaleX), il bordo arrotondato lo dà il binario */
 .lvl__bar { display: block; height: 8px; margin: 6px 0 4px; overflow: hidden; border-radius: 4px; background: var(--progress-track); }
 .lvl__fill {
@@ -586,7 +604,7 @@ button {
   transform-origin: left center;
   transition: transform var(--dur-reward) var(--ease-out);
 }
-.lvl__note { color: var(--hero-text-2); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lvl__note { color: var(--hero-text-2); font-size: calc(13 * var(--px)); font-weight: 600; font-variant-numeric: tabular-nums; }
 .lvl + .stats--rewards { margin-top: 0; }
 
 /* Focus, intestazione compatta: nella riga del saluto ci sono serie e punti, in due chip */
@@ -611,7 +629,7 @@ button {
   border: 0;
   background: none;
   color: var(--hero-text);
-  font-size: 14px;
+  font-size: calc(14 * var(--px));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   transition: transform var(--dur-tap) var(--ease-out);
@@ -674,7 +692,7 @@ button {
 }
 
 .stat__label {
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 600;
   color: var(--hero-text-2);
   white-space: nowrap;
@@ -684,7 +702,7 @@ button {
 
 .stat__value {
   margin: 2px 0 0;
-  font-size: 20px;
+  font-size: calc(20 * var(--px));
   font-weight: 800;
   letter-spacing: -.01em;
   font-variant-numeric: tabular-nums;
@@ -695,7 +713,7 @@ button {
 .stats--inline { display: flex; gap: 6px; margin-top: 8px; }
 .stats--inline .stat { display: flex; flex: 1 1 auto; align-items: baseline; gap: 6px; padding: 6px 10px; border-radius: 12px; line-height: 1.25; }
 .stats--inline .stat__label { flex: 0 1 auto; min-width: 0; }
-.stats--inline .stat__value { flex: none; margin: 0; font-size: 16px; white-space: nowrap; }
+.stats--inline .stat__value { flex: none; margin: 0; font-size: calc(16 * var(--px)); white-space: nowrap; }
 /* Dove in una riga non ci starebbero interi (schermi stretti, numeri lunghi), i tre riquadri vanno su due righe:
    etichetta sopra e valore sotto, come Serie e Punti. Lo decide fitStats() in app.js, che misura; column-gap resta 6px
    perché la misura lo usa in tutti e due i modi. Se neanche così c'è posto (320 px con il testo spaziato), l'etichetta
@@ -708,8 +726,14 @@ button {
   .stat__more { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
 
-/* Serie e punti: seconda riga di riquadri. Solo flex in riga e grid (niente flex: 1 in colonna, vedi Safari) */
-.stats--rewards { position: relative; grid-template-columns: 1fr 1fr; margin-top: 8px; }
+/* Serie e punti: seconda riga di riquadri. Solo flex in riga e grid (niente flex: 1 in colonna, vedi Safari).
+   Con il testo grande vanno uno sotto l'altro: due colonne finché ognuna è larga almeno 136 px di testo normale.
+   A 320 px le colonne sono di 140, quindi con il testo normale restano due su ogni schermo. */
+.stats--rewards {
+  position: relative;
+  grid-template-columns: repeat(auto-fit, minmax(max(calc((100% - 8px) / 2), min(100%, calc(136 * var(--px)))), 1fr));
+  margin-top: 8px;
+}
 .stats--rewards .stat { position: relative; overflow: hidden; isolation: isolate; }
 
 /* Bagliore della serie ai traguardi: un livello con l'ombra già disegnata che sfuma (opacity).
@@ -726,7 +750,7 @@ button {
   pointer-events: none;
 }
 
-.stats--rewards .stat__label { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.stats--rewards .stat__label { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 6px; } /* senza posto, il record va sotto il nome */
 .stat__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .stat__badge {
@@ -735,21 +759,20 @@ button {
   border-radius: 999px;
   background: var(--badge-bg);
   color: var(--hero-text);
-  font-size: 11px;
+  font-size: calc(11 * var(--px));
   font-weight: 700;
 }
 
 .stats--rewards .stat__value { display: flex; align-items: center; gap: 6px; transform-origin: left center; }
 .stat__icon { flex: none; width: 22px; height: 22px; }
 
+/* La nota va a capo tra le parole invece di accorciarsi (a 320 px «Traguardo: 14 giorni» non sta in una riga) */
 .stat__note {
   margin: 1px 0 0;
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 600;
   color: var(--hero-text-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-wrap: balance;
   font-variant-numeric: tabular-nums;
 }
 
@@ -801,20 +824,22 @@ button {
 }
 .content:focus { outline: none; }
 
-/* Striscia della proposta: in cima a Focus, larga quanto la lista, alta 48 px fissi su due righe (la frase e il titolo).
+/* Striscia della proposta: in cima a Focus, larga quanto la lista, alta 48 px su due righe (la frase e il titolo).
    Sta a cavallo del bordo dell'intestazione (metà sopra, metà sotto), che le lascia il posto con .hero--cta (lo usa anche
    il calendario dell'Agenda):
    così all'apertura si vedono più card. Il margine negativo è il margine della lista (14 px) più la metà della striscia.
-   L'altezza non cambia mai, neanche quando arriva la proposta dell'IA: nessuna card si sposta. */
-.hero--cta { padding-bottom: 32px; }
+   L'altezza non cambia mai, neanche quando arriva la proposta dell'IA: nessuna card si sposta. Con il testo grande
+   (vedi --px) è più alta: le due righe più 12 px di bordi e margini. */
+:root { --cta-h: max(48px, calc(34 * var(--px) + 12px)); }
+.hero--cta { padding-bottom: calc(8px + var(--cta-h) / 2); }
 .suggest-cta {
   position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  height: 48px;
-  margin: -38px 0 10px;
+  height: var(--cta-h);
+  margin: calc(-14px - var(--cta-h) / 2) 0 10px;
   padding: 5px 12px 5px 5px; /* 1 px di bordo + 5 + icona da 36 + 5 + 1 = 48 */
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
@@ -846,8 +871,8 @@ button {
 .suggest-cta__text.is-fading { opacity: 0; }
 .suggest-cta__kicker,
 .suggest-cta__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.suggest-cta__kicker { font-size: 12.5px; font-weight: 700; line-height: 15px; color: var(--accent-text); }
-.suggest-cta__title { font-size: 16px; font-weight: 800; line-height: 19px; letter-spacing: -.01em; }
+.suggest-cta__kicker { font-size: calc(12.5 * var(--px)); font-weight: 700; line-height: calc(15 * var(--px)); color: var(--accent-text); }
+.suggest-cta__title { font-size: calc(16 * var(--px)); font-weight: 800; line-height: calc(19 * var(--px)); letter-spacing: -.01em; }
 .suggest-cta__go { color: var(--text-3); }
 @media (hover: hover) {
   .suggest-cta:hover { border-color: var(--border-strong); }
@@ -890,14 +915,15 @@ button {
   height: 36px;
   border-radius: 50%;
   background: var(--accent-soft);
-  font-size: 19px;
+  font-size: 19px; /* px fisso: emoji nel cerchio da 36 px */
   line-height: 1;
 }
 .music-note__text { display: grid; flex: 1; min-width: 0; }
+/* Con il testo normale stanno in una riga; con quello grande vanno a capo (la card cresce) invece di accorciarsi */
 .music-note__kicker,
-.music-note__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.music-note__kicker { font-size: 12.5px; font-weight: 700; line-height: 15px; color: var(--accent-text); }
-.music-note__title { font-size: 15px; font-weight: 800; line-height: 19px; letter-spacing: -.01em; }
+.music-note__title { text-wrap: balance; }
+.music-note__kicker { font-size: calc(12.5 * var(--px)); font-weight: 700; line-height: calc(15 * var(--px)); color: var(--accent-text); }
+.music-note__title { font-size: calc(15 * var(--px)); font-weight: 800; line-height: calc(19 * var(--px)); letter-spacing: -.01em; }
 .music-note__close { margin-right: 2px; color: var(--text-3); }
 
 .music { margin: 0 0 20px; }
@@ -920,7 +946,7 @@ button {
   border-radius: 999px;
   background: none;
   color: var(--accent-text);
-  font-size: 14px;
+  font-size: calc(14 * var(--px));
   font-weight: 700;
 }
 .music__fold:active { background: var(--hover); }
@@ -976,12 +1002,12 @@ button {
 .mood[data-mood="ambient"] { --mood-bg: var(--mood-ambient); --mood-ink: var(--mood-ambient-ink); }
 .mood[data-mood="jazz"] { --mood-bg: var(--mood-jazz); --mood-ink: var(--mood-jazz-ink); }
 .mood[data-mood="nature"] { --mood-bg: var(--mood-nature); --mood-ink: var(--mood-nature-ink); }
-.mood__emoji { align-self: start; font-size: 24px; line-height: 1; }
+.mood__emoji { align-self: start; font-size: 24px; line-height: 1; } /* px fisso: emoji */
 .mood > .icon { align-self: start; width: 14px; height: 14px; color: var(--mood-ink); stroke-width: 2.4; }
 .mood__name,
 .mood__app { grid-column: 1 / -1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mood__name { font-size: 16px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
-.mood__app { color: var(--mood-ink); font-size: 12.5px; font-weight: 700; line-height: 16px; }
+.mood__name { font-size: calc(16 * var(--px)); font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+.mood__app { color: var(--mood-ink); font-size: calc(12.5 * var(--px)); font-weight: 700; line-height: calc(16 * var(--px)); }
 /* Oltre 640 px la lista non arriva più ai bordi dello schermo: le cinque card stanno tutte in fila, larghe uguali */
 @media (min-width: 641px) {
   .music__list { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 4px 0; overflow: visible; }
@@ -997,15 +1023,16 @@ button {
 
 .section__header {
   display: flex;
+  flex-wrap: wrap; /* con il testo grande l'informazione va sotto il titolo */
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 2px 12px;
   margin-bottom: 8px;
   padding: 0 4px;
 }
 
 .section__title {
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -1014,7 +1041,7 @@ button {
 .section__title--overdue { color: var(--danger); } /* sul titolo stesso, così anche il suo fantasma resta rosso */
 
 .section__info {
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   color: var(--text-3);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -1140,7 +1167,7 @@ button {
 
 .task__title {
   display: block;
-  font-size: 16px;
+  font-size: calc(16 * var(--px));
   font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -1154,7 +1181,7 @@ button {
   align-items: center;
   gap: 6px 12px;
   margin-top: 6px;
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   color: var(--text-2);
 }
 
@@ -1171,7 +1198,7 @@ button {
   gap: 5px;
   padding: 2px 9px 2px 7px;
   border-radius: 999px;
-  font-size: 12.5px;
+  font-size: calc(12.5 * var(--px));
   font-weight: 700;
   line-height: 1.5;
 }
@@ -1232,7 +1259,7 @@ button {
 .swipe[data-side="delete"] .swipe__layer { justify-content: flex-end; color: var(--danger); background: var(--danger-soft); }
 .swipe[data-side="delete"] .swipe__layer--full { color: var(--on-swipe); background: var(--danger); }
 .swipe.is-armed .swipe__layer--full { opacity: 1; }
-.swipe__action { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 750; white-space: nowrap; }
+.swipe__action { display: inline-flex; align-items: center; gap: 8px; font-size: calc(15 * var(--px)); font-weight: 750; white-space: nowrap; }
 .swipe__action .icon { width: 22px; height: 22px; stroke-width: 2.4; }
 .swipe[data-side="delete"] .swipe__action--done,
 .swipe:not([data-side="delete"]) .swipe__action--delete { display: none; }
@@ -1251,7 +1278,7 @@ button {
   border-radius: var(--radius-sm);
   list-style: none;
   cursor: pointer;
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -1273,12 +1300,12 @@ button {
   display: inline-grid;
   place-items: center;
   min-width: 22px;
-  height: 22px;
+  min-height: 22px;
   padding: 0 7px;
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 700;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
@@ -1293,8 +1320,8 @@ button {
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
-.block__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; margin-bottom: 10px; }
-.block__title { min-width: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.block__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; margin-bottom: 10px; }
+.block__title { min-width: 0; font-size: calc(17 * var(--px)); font-weight: 800; letter-spacing: -.01em; }
 /* L'obiettivo: testo dell'accento, con l'area di tocco piena che sporge un poco nel margine del riquadro */
 .block__action {
   flex: none;
@@ -1306,7 +1333,7 @@ button {
   background: none;
   color: var(--accent-text);
   font: inherit;
-  font-size: 14px;
+  font-size: calc(14 * var(--px));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1317,7 +1344,7 @@ button {
 @media (hover: hover) {
   .block__action:hover { background: var(--accent-soft); }
 }
-.block__note { margin-top: 10px; color: var(--text-3); font-size: 13px; line-height: 1.45; }
+.block__note { margin-top: 10px; color: var(--text-3); font-size: calc(13 * var(--px)); line-height: 1.45; }
 
 /* Il cielo della settimana: SVG con le stelle sopra un gradiente notturno, uguale come forma nei due temi */
 .sky__frame {
@@ -1330,8 +1357,8 @@ button {
 }
 .sky__svg { display: block; width: 100%; height: auto; }
 /* «N di M» sta sopra le stelle: con line-height 1 resta più basso di MOTIVATION.sky.top anche a 320 px */
-.sky__count { position: absolute; top: 8px; left: 12px; color: var(--sky-text); font-size: 13px; font-weight: 600; line-height: 1; pointer-events: none; }
-.sky__count strong { color: var(--sky-star); font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sky__count { position: absolute; top: 8px; left: 12px; color: var(--sky-text); font-size: calc(13 * var(--px)); font-weight: 600; line-height: 1; pointer-events: none; }
+.sky__count strong { color: var(--sky-star); font-size: calc(22 * var(--px)); font-weight: 800; font-variant-numeric: tabular-nums; }
 .sky__halo-in { stop-color: var(--sky-star); stop-opacity: .55; }
 .sky__halo-out { stop-color: var(--sky-star); stop-opacity: 0; }
 .sky-band { fill: var(--sky-band); }
@@ -1345,14 +1372,14 @@ button {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   margin-top: 6px;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 700;
   text-align: center;
 }
-.sky__days b { display: block; color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
+.sky__days b { display: block; color: var(--text); font-size: calc(14 * var(--px)); font-variant-numeric: tabular-nums; }
 .sky__day.is-today,
 .sky__day.is-today b { color: var(--accent-text); }
-.sky__recap { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 13px; line-height: 1.5; }
+.sky__recap { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--text-2); font-size: calc(13 * var(--px)); line-height: 1.5; }
 .sky__tag {
   display: inline-block;
   margin-right: 4px;
@@ -1360,12 +1387,13 @@ button {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 800;
 }
 
 /* I tuoi numeri: sei riquadri, tre per riga (due sugli schermi stretti) */
-.nums__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+/* Tre colonne; con il testo grande due, quando una colonna sarebbe più stretta di 100 px (--px): mai quattro o cinque */
+.nums__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(calc((100% - 16px) / 3), min(100%, calc(100 * var(--px)))), 1fr)); gap: 8px; margin: 0; }
 /* Le etichette lunghe vanno a capo: i valori restano allineati in basso */
 .num {
   display: flex;
@@ -1378,9 +1406,9 @@ button {
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
-.num dt { color: var(--text-3); font-size: 12px; font-weight: 700; line-height: 1.25; }
-.num dd { margin: 4px 0 0; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nums__hint { margin-top: 8px; padding: 0 4px; color: var(--text-3); font-size: 13px; line-height: 1.45; }
+.num dt { color: var(--text-3); font-size: calc(12 * var(--px)); font-weight: 700; line-height: 1.25; }
+.num dd { margin: 4px 0 0; font-size: calc(15 * var(--px)); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nums__hint { margin-top: 8px; padding: 0 4px; color: var(--text-3); font-size: calc(13 * var(--px)); line-height: 1.45; }
 @media (max-width: 359px) {
   .nums__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -1399,21 +1427,22 @@ button {
   border-radius: 999px;
   background: var(--points-chip-bg);
   color: var(--points-chip-text);
-  font-size: 14px;
+  font-size: calc(14 * var(--px));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .prizes__star { width: 15px; height: 15px; flex: none; fill: currentColor; }
-.prizes__empty { margin: 0 0 4px; color: var(--text-2); font-size: 14px; line-height: 1.45; }
+.prizes__empty { margin: 0 0 4px; color: var(--text-2); font-size: calc(14 * var(--px)); line-height: 1.45; }
 .prizes__list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.prize { display: flex; align-items: center; gap: 10px; }
+/* Con il testo grande, quando il nome resterebbe più stretto di 110 px (--px), «Riscatta» va sulla riga sotto, a destra */
+.prize { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 /* Emoji, nome, barra e stato: un pulsante solo, che apre il foglio del premio */
 .prize__open {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 1 1 auto;
+  flex: 1 1 calc(60px + 110 * var(--px)); /* emoji e spazio, più il nome: vedi .prize */
   min-width: 0;
   min-height: 64px;
   padding: 6px 0;
@@ -1431,20 +1460,21 @@ button {
   height: 48px;
   border-radius: 14px;
   background: var(--field-bg);
-  font-size: 26px;
+  font-size: 26px; /* px fisso: emoji nel riquadro fisso */
   line-height: 1;
   transition: transform var(--dur-tap) var(--ease-out);
 }
 .prize__open:active .prize__emoji { transform: scale(.94); }
 .prize__text { display: grid; gap: 5px; flex: 1 1 auto; min-width: 0; }
-.prize__title { font-size: 16px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.prize__title { font-size: calc(16 * var(--px)); font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
 .prize__bar { display: block; height: 6px; overflow: hidden; border-radius: 999px; background: var(--field-bg); }
 .prize__fill { display: block; height: 100%; border-radius: inherit; background: var(--star); transform-origin: left center; }
-.prize__status { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; text-wrap: pretty; }
+.prize__status { color: var(--text-3); font-size: calc(13 * var(--px)); font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; text-wrap: pretty; }
 .prize.is-ready .prize__status { color: var(--low); }
 /* «Riscatta»: pieno con il saldo che basta; altrimenti grigio, ma toccabile (aria-disabled): un tocco dice quanto manca */
 .prize__redeem {
   flex: none;
+  margin-left: auto;
   min-width: 92px;
   min-height: var(--tap);
   padding: 0 14px;
@@ -1452,7 +1482,7 @@ button {
   border-radius: 12px;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: var(--on-accent);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 750;
   transition: transform var(--dur-tap) var(--ease-out);
 }
@@ -1470,7 +1500,7 @@ button {
   border-radius: 12px;
   background: none;
   color: var(--text-2);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 700;
   text-align: left;
 }
@@ -1492,7 +1522,7 @@ button {
   list-style: none;
   cursor: pointer;
   color: var(--text-2);
-  font-size: 14px;
+  font-size: calc(14 * var(--px));
   font-weight: 700;
   -webkit-user-select: none;
   user-select: none;
@@ -1500,15 +1530,15 @@ button {
 .prizes__summary::-webkit-details-marker { display: none; }
 .prizes__history[open] .completed__chevron { transform: rotate(180deg); }
 .prizes__log { display: grid; margin: 0 0 4px; padding: 0 4px; list-style: none; }
-.prizes__entry { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 14px; }
-.prizes__entry-emoji { flex: none; font-size: 18px; line-height: 1; }
+.prizes__entry { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: calc(14 * var(--px)); }
+.prizes__entry-emoji { flex: none; font-size: 18px; line-height: 1; } /* px fisso: emoji */
 .prizes__entry-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .prizes__entry-meta { flex: none; color: var(--text-3); font-variant-numeric: tabular-nums; }
 /* Sugli schermi da 320 px più spazio per il nome: l'emoji e «Riscatta» un poco più stretti */
 @media (max-width: 359px) {
   .prize { gap: 8px; }
   .prize__open { gap: 10px; }
-  .prize__emoji { width: 40px; height: 40px; border-radius: 12px; font-size: 22px; }
+  .prize__emoji { width: 40px; height: 40px; border-radius: 12px; font-size: 22px; } /* px fisso: emoji nel riquadro fisso */
   .prize__redeem { min-width: 0; padding: 0 12px; }
 }
 
@@ -1541,8 +1571,8 @@ button {
 .shop-repair.is-ready .flame__outer { fill: var(--flame-outer); }
 .shop-repair.is-ready .flame__core { fill: var(--flame-core); }
 .shop-repair__text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
-.shop-repair__title { font-size: 15px; font-weight: 750; line-height: 1.3; text-wrap: balance; }
-.shop-repair__note { color: var(--text-2); font-size: 13px; line-height: 1.4; text-wrap: pretty; }
+.shop-repair__title { font-size: calc(15 * var(--px)); font-weight: 750; line-height: 1.3; text-wrap: balance; }
+.shop-repair__note { color: var(--text-2); font-size: calc(13 * var(--px)); line-height: 1.4; text-wrap: pretty; }
 .shop-repair__btn {
   grid-column: 1 / -1;
   min-height: var(--tap);
@@ -1551,7 +1581,7 @@ button {
   border-radius: 12px;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: var(--on-accent);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 750;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -1590,8 +1620,8 @@ button {
   border-radius: 50%;
 }
 .shop-open__text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
-.shop-open__title { font-size: 16px; font-weight: 750; line-height: 1.25; text-wrap: balance; }
-.shop-open__note { color: var(--text-3); font-size: 13px; font-weight: 600; line-height: 1.35; text-wrap: pretty; }
+.shop-open__title { font-size: calc(16 * var(--px)); font-weight: 750; line-height: 1.25; text-wrap: balance; }
+.shop-open__note { color: var(--text-3); font-size: calc(13 * var(--px)); font-weight: 600; line-height: 1.35; text-wrap: pretty; }
 .shop-open__chevron { flex: none; color: var(--text-3); transform: rotate(-90deg); }
 @media (hover: hover) {
   .shop-open:hover .shop-open__title { color: var(--accent-text); }
@@ -1616,8 +1646,8 @@ button {
   .shop-sheet__balance { order: 3; }
 }
 .shop-group + .shop-group { margin-top: 20px; }
-.shop-group__title { margin: 0 0 4px; font-size: 15px; font-weight: 800; text-wrap: balance; }
-.shop-group__note { margin: 0 0 10px; color: var(--text-3); font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+.shop-group__title { margin: 0 0 4px; font-size: calc(15 * var(--px)); font-weight: 800; text-wrap: balance; }
+.shop-group__note { margin: 0 0 10px; color: var(--text-3); font-size: calc(13 * var(--px)); line-height: 1.45; text-wrap: pretty; }
 .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .shop-grid--packs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 @media (min-width: 480px) {
@@ -1664,7 +1694,7 @@ button {
 @keyframes sound-bar {
   from { transform: scaleY(.45); }
 }
-.shop-item__name { align-self: start; font-size: 15px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.shop-item__name { align-self: start; font-size: calc(15 * var(--px)); font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
 .shop-item__status {
   display: inline-flex;
   align-items: center;
@@ -1672,7 +1702,7 @@ button {
   min-height: 26px;
   padding: 0 10px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1688,7 +1718,8 @@ button {
 }
 /* I pacchetti di punti: una, due o tre stelle, «Presto» */
 .shop-item--pack { padding: 6px 6px 8px; }
-.shop-item--pack .shop-item__name { font-size: 14px; }
+.shop-item--pack .shop-item__name { font-size: calc(14 * var(--px-ui)); } /* tre colonne strette: crescono meno */
+.shop-item--pack .shop-item__status { font-size: calc(13 * var(--px-ui)); }
 .shop-item__preview--pack {
   display: flex;
   align-items: center;
@@ -1698,13 +1729,13 @@ button {
   border-radius: 9px; /* 16 − 1 − 6: concentrico con il pacchetto */
   background: var(--medium-soft);
   color: var(--medium);
-  font-size: 18px;
+  font-size: 18px; /* px fisso: simbolo nel riquadro fisso */
   line-height: 1;
 }
 /* Sugli schermi da 320 px un poco più di spazio per i nomi e per «Ripara» */
 @media (max-width: 359px) {
-  .shop-item__name { font-size: 14px; }
-  .shop-item--pack .shop-item__name { font-size: 13px; } /* «2000 punti» su una riga anche nelle tre colonne strette */
+  .shop-item__name { font-size: calc(14 * var(--px)); }
+  .shop-item--pack .shop-item__name { font-size: calc(13 * var(--px-ui)); } /* «2000 punti» su una riga anche nelle tre colonne strette */
   .shop-repair { column-gap: 10px; padding: 10px; }
   .shop-repair__icon { width: 36px; height: 36px; }
   .shop-open { gap: 10px; }
@@ -1721,7 +1752,7 @@ button {
   justify-items: center;
   gap: 2px;
   margin-top: 32px;
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   color: var(--text-3);
   text-align: center;
 }
@@ -1731,12 +1762,12 @@ button {
 /* ---------- Agenda a calendario (js/ui-agenda.js; P-003, passo 3.2) ---------- */
 
 /* Il calendario sta a cavallo del bordo dell'intestazione, come la striscia di Focus (.hero--cta gli lascia il posto):
-   il margine negativo è il margine della lista (14 px) più i 24 px che salgono sopra il bordo. Sta sopra le sezioni che
+   il margine negativo è il margine della lista (14 px) più la metà della striscia, che sale sopra il bordo. Sta sopra le sezioni che
    seguono (z-index): quando la maniglia lo riapre, scivolano giù da sotto di lui. */
 .cal {
   position: relative;
   z-index: 1;
-  margin: -38px 0 14px;
+  margin: calc(-14px - var(--cta-h) / 2) 0 14px;
   padding: 0 6px;
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
@@ -1749,7 +1780,7 @@ button {
   min-width: 0;
   padding-left: 8px;
   overflow: hidden;
-  font-size: 17px;
+  font-size: calc(17 * var(--px-ui));
   font-weight: 800;
   letter-spacing: -.01em;
   text-overflow: ellipsis;
@@ -1763,14 +1794,14 @@ button {
   border: 0;
   background: none;
   color: var(--accent-text);
-  font-size: 13px;
+  font-size: calc(13 * var(--px-ui));
   font-weight: 800;
 }
 .cal__today span { display: block; height: 30px; padding: 0 10px; border-radius: 999px; background: var(--accent-soft); line-height: 30px; }
 .cal__back { transform: scaleX(-1); } /* la freccia a destra, girata */
 .cal__week,
 .cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
-.cal__week { padding-bottom: 2px; color: var(--text-3); font-size: 12px; font-weight: 700; line-height: 16px; text-align: center; }
+.cal__week { padding-bottom: 2px; color: var(--text-3); font-size: calc(12 * var(--px-ui)); font-weight: 700; line-height: calc(16 * var(--px-ui)); text-align: center; }
 /* Lo scorrimento in verticale resta della pagina; quello di lato cambia mese o settimana (ui-agenda.js) */
 .cal__grid { touch-action: pan-y; }
 .cal__day {
@@ -1792,7 +1823,7 @@ button {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  font-size: 15px;
+  font-size: calc(15 * var(--px-ui));
   font-weight: 600;
   line-height: 32px;
   text-align: center;
@@ -1825,19 +1856,19 @@ button {
   border: 0;
   background: none;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 700;
 }
 .cal__grip { width: 36px; height: 4px; border-radius: 2px; background: var(--border-strong); }
 
 /* Il giorno scelto: titolo e numeri vanno a capo insieme sugli schermi stretti */
 .day .section__header { flex-wrap: wrap; row-gap: 2px; }
-.day__title { color: var(--text); font-size: 16px; font-weight: 800; letter-spacing: 0; text-transform: none; }
+.day__title { color: var(--text); font-size: calc(16 * var(--px)); font-weight: 800; letter-spacing: 0; text-transform: none; }
 .day__block + .day__block { margin-top: 16px; }
 .day__group {
   margin: 0 4px 8px;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -1853,12 +1884,12 @@ button {
 /* «Con orario»: l'ora a sinistra e la card a destra; tra due attività gli spazi liberi, oggi la linea dell'ora */
 .sched { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .sched__row,
-.sched__now { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 8px; }
+.sched__now { display: grid; grid-template-columns: calc(46 * var(--px)) minmax(0, 1fr); gap: 8px; }
 .sched__row { align-items: start; }
 .sched__time {
   padding-top: 15px;
   color: var(--text-2);
-  font-size: 14px;
+  font-size: calc(14 * var(--px));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -1873,7 +1904,7 @@ button {
   border: 1.5px dashed var(--border-strong);
   border-radius: var(--radius);
   color: var(--text-2);
-  font-size: 13.5px;
+  font-size: calc(13.5 * var(--px));
   font-weight: 600;
 }
 .sched__free-text { flex: 1; min-width: 0; }
@@ -1881,7 +1912,7 @@ button {
 .sched__now {
   align-items: center;
   color: var(--danger);
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -1889,7 +1920,7 @@ button {
 .sched__line { position: relative; height: 2px; border-radius: 1px; background: var(--danger); }
 .sched__line::before { content: ""; position: absolute; top: -3px; left: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
 /* «Si sovrappone a «…»», sotto la riga della card */
-.task__note { display: block; margin-top: 4px; color: var(--medium); font-size: 12.5px; font-weight: 700; }
+.task__note { display: block; margin-top: 4px; color: var(--medium); font-size: calc(12.5 * var(--px)); font-weight: 700; }
 
 /* «Metti a…» in «Da pianificare»: sopra il pulsante invisibile della card (che apre la modifica), con l'area di tocco di 44 px */
 .plan-btn {
@@ -1902,7 +1933,7 @@ button {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   font-weight: 800;
 }
 .plan-btn::before { content: ""; position: absolute; inset: -6px 0; }
@@ -1941,7 +1972,7 @@ button {
   padding: 0 20px;
   border: 0;
   border-radius: 14px;
-  font-size: 16px;
+  font-size: calc(16 * var(--px));
   font-weight: 700;
   transition: transform var(--dur-tap) var(--ease-out), background-color var(--dur-color) var(--ease-out), filter var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out);
 }
@@ -1965,7 +1996,7 @@ button {
   .btn--ghost:hover { background: var(--hover); color: var(--text); }
 }
 
-.btn--small { min-height: 40px; padding: 0 12px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; }
+.btn--small { min-height: 40px; padding: 0 12px; border-radius: var(--radius-sm); font-size: calc(14 * var(--px)); font-weight: 600; }
 .btn--small .icon { width: 16px; height: 16px; }
 
 .btn--soft { color: var(--accent-text); background: var(--accent-soft); }
@@ -1989,7 +2020,7 @@ button {
   border: 0;
   background: none;
   color: var(--accent-text);
-  font-size: 14.5px;
+  font-size: calc(14.5 * var(--px));
   font-weight: 650;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -2049,7 +2080,7 @@ button {
   border: 0;
   background: none;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 12px; /* px fisso: come la barra delle schede di iOS */
   font-weight: 700;
   transition: color var(--dur-color) var(--ease-out);
 }
@@ -2080,7 +2111,7 @@ button {
   color: var(--on-accent);
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   box-shadow: var(--shadow-fab);
-  font-size: 16px;
+  font-size: calc(16 * var(--px));
   font-weight: 700;
   transition: transform var(--dur-quick) var(--ease-out), filter var(--dur-color) var(--ease-out);
 }
@@ -2096,19 +2127,19 @@ button {
   display: block;
   margin-bottom: 8px;
   padding: 0;
-  font-size: 14px;
+  font-size: calc(14 * var(--px));
   font-weight: 700;
   color: var(--text-2);
 }
 .field__optional { font-weight: 500; color: var(--text-3); }
-.field__hint { margin: 8px 2px 0; font-size: 13.5px; color: var(--text-2); text-wrap: pretty; }
-.field__error { margin: 8px 2px 0; font-size: 13.5px; font-weight: 600; color: var(--danger); }
+.field__hint { margin: 8px 2px 0; font-size: calc(13.5 * var(--px)); color: var(--text-2); text-wrap: pretty; }
+.field__error { margin: 8px 2px 0; font-size: calc(13.5 * var(--px)); font-weight: 600; color: var(--danger); }
 
 .input {
   width: 100%;
   min-height: 50px;
   padding: 12px 14px;
-  font-size: 16px; /* almeno 16px: sotto, iOS ingrandisce la pagina al tocco */
+  font-size: max(16px, calc(16 * var(--px))); /* almeno 16 px: sotto, iOS ingrandisce la pagina al tocco */
   color: var(--text);
   background: var(--field-bg);
   border: 1.5px solid var(--field-border);
@@ -2132,7 +2163,7 @@ button {
   border-radius: 999px;
   background: var(--field-bg);
   color: var(--text);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   transition: background-color var(--dur-color) var(--ease-out), border-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
@@ -2147,7 +2178,7 @@ button {
    dei promemoria: 3 + 3, tutti e 6 in una riga quando il foglio è largo. «Si ripete»: sempre 2 + 2, perché nel
    foglio largo del computer (520 px) «Ogni settimana» in quattro colonne andrebbe a capo. */
 .chips--grid { display: grid; grid-template-columns: repeat(var(--chip-cols), minmax(0, 1fr)); }
-.chips--grid .chip { min-width: 0; padding: 0 4px; }
+.chips--grid .chip { min-width: 0; padding: 0 4px; font-size: calc(15 * var(--px-ui)); } /* colonne fisse: crescono meno */
 .chips--durations { --chip-cols: 6; }
 .chips--minutes { --chip-cols: 4; }
 .chips--leads { --chip-cols: 3; }
@@ -2207,7 +2238,7 @@ button {
   outline: none;
   background: transparent;
   text-align: right;
-  font-size: 22px;
+  font-size: max(16px, calc(22 * var(--px-ui))); /* come .input; nella riga stretta tra − e +, cresce meno */
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   -moz-appearance: textfield;
@@ -2216,7 +2247,7 @@ button {
 .stepper__input::-webkit-outer-spin-button,
 .stepper__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .stepper__input[aria-invalid="true"] { color: var(--danger); }
-.stepper__unit { font-size: 15px; font-weight: 600; color: var(--text-2); }
+.stepper__unit { font-size: calc(15 * var(--px-ui)); font-weight: 600; color: var(--text-2); }
 
 /* Energia: tre segmenti con il colore del livello */
 .segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -2248,7 +2279,7 @@ button {
   border-radius: 14px;
   background: var(--field-bg);
   color: var(--text-2);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 700;
   transition: background-color var(--dur-color) var(--ease-out), border-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
@@ -2278,7 +2309,7 @@ button {
   border: 1.5px solid var(--field-border);
   border-radius: 14px;
   background: var(--field-bg);
-  font-size: 24px;
+  font-size: 24px; /* px fisso: emoji nel riquadro fisso */
   line-height: 1;
   transition: background-color var(--dur-color) var(--ease-out), border-color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
@@ -2302,7 +2333,7 @@ button {
   border-radius: 14px;
   background: var(--field-bg);
   color: var(--text-2);
-  font-size: 16px;
+  font-size: calc(16 * var(--px));
   transition: background-color var(--dur-color) var(--ease-out), border-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out);
 }
 .date-picker.is-custom { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); font-weight: 650; }
@@ -2317,13 +2348,16 @@ button {
   padding: 0;
   border: 0;
   opacity: 0;
-  font-size: 16px;
+  font-size: max(16px, calc(16 * var(--px))); /* come .input */
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
 }
 /* Ora: stesso selettore della data (input invisibile sopra l'etichetta), accanto il chip "Nessuna" */
-.time-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+/* Con il testo grande «Nessuna» va sotto, quando l'orario resterebbe più stretto di 150 px (--px) */
+.time-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.time-row .date-picker { flex: 1 1 calc(150 * var(--px)); }
+.time-row .chip { flex: none; }
 .time-row .date-picker { margin-top: 0; }
 .field--time:disabled .time-row { opacity: .5; }
 .field--time:disabled .date-picker__input { cursor: not-allowed; }
@@ -2345,7 +2379,7 @@ button {
   border-radius: 999px;
   background: var(--field-bg);
   color: var(--text);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 650;
   transition: background-color var(--dur-color) var(--ease-out), border-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
@@ -2367,7 +2401,7 @@ button {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: 14px;
+  font-size: calc(14 * var(--px));
   font-weight: 700;
 }
 .sheet-note .icon { width: 16px; height: 16px; }
@@ -2427,7 +2461,7 @@ button {
   gap: 12px;
   padding: 14px 12px 4px 22px;
 }
-.sheet__title { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+.sheet__title { font-size: calc(20 * var(--px)); font-weight: 800; letter-spacing: -.01em; }
 
 .sheet__body {
   /* I testi .sr-only (position: absolute) restano qui dentro e scorrono con il resto: senza, si appoggiano al foglio,
@@ -2488,8 +2522,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .setting:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
 .setting__icon { color: var(--accent-text); }
 .setting__text { display: grid; gap: 1px; flex: 1; min-width: 0; }
-.setting__name { font-size: 16px; font-weight: 700; }
-.setting__state { font-size: 13.5px; font-weight: 600; color: var(--text-2); }
+.setting__name { font-size: calc(16 * var(--px)); font-weight: 700; }
+.setting__state { font-size: calc(13.5 * var(--px)); font-weight: 600; color: var(--text-2); }
 .setting__state[data-tone="on"] { color: var(--low); }
 .setting__go { width: 18px; height: 18px; color: var(--text-3); }
 /* Senza il server: la riga resta leggibile (lo stato dice perché), ma non si tocca */
@@ -2534,9 +2568,9 @@ button.setting:not(:disabled):active { background: var(--hover); }
   cursor: pointer;
 }
 
-.theme-option__name { max-width: 100%; overflow: hidden; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.theme-option__name { max-width: 100%; overflow: hidden; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; } /* px fisso: tre anteprime affiancate, come i controlli a segmenti di iOS */
 @media (max-width: 359px) {
-  .theme-option__name { font-size: 13px; } /* «Automatico» intero anche sugli schermi da 320 px */
+  .theme-option__name { font-size: 13px; } /* px fisso: «Automatico» intero anche sugli schermi da 320 px */
 }
 
 /* La spunta è un bollino pieno: si legge anche quando, sugli schermi stretti, sta sopra l'anteprima */
@@ -2582,9 +2616,10 @@ button.setting:not(:disabled):active { background: var(--hover); }
 }
 
 /* Riga «Musica» (P-004, passo 4.2): quattro scelte in due colonne, come il tema; sotto, che cosa fa Aura con i link */
+/* Due colonne; con il testo grande una, quando una scelta sarebbe più stretta di 116 px (--px) */
 .choice-options {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(max(calc((100% - 6px) / 2), min(100%, calc(116 * var(--px)))), 1fr));
   gap: 6px;
   padding: 0 10px 10px;
 }
@@ -2605,7 +2640,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .choice-option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .choice-option:has(input:focus-visible) { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 .choice-option input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.choice-option__name { max-width: 100%; overflow: hidden; font-size: 14.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+/* Il nome va a capo («Amazon Music» su due righe nelle colonne strette), invece di finire con i puntini */
+.choice-option__name { max-width: 100%; font-size: calc(14.5 * var(--px)); font-weight: 700; text-align: center; overflow-wrap: anywhere; }
 .choice-option__check {
   position: absolute;
   top: 50%;
@@ -2623,10 +2659,10 @@ button.setting:not(:disabled):active { background: var(--hover); }
   transition: opacity var(--dur-quick) var(--ease-out), transform var(--dur-move) var(--ease-spring);
 }
 .choice-option input:checked ~ .choice-option__check { opacity: 1; transform: none; }
-.setting-note { margin: -2px 14px 12px; color: var(--text-3); font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+.setting-note { margin: -2px 14px 12px; color: var(--text-3); font-size: calc(13 * var(--px)); line-height: 1.45; text-wrap: pretty; }
 
 /* Foglio «Quando te lo ricordo?»: una frase e quattro righe, ognuna con il giorno in cui l'avviso torna */
-.sheet-intro { margin: 0 2px 14px; color: var(--text-2); font-size: 15px; line-height: 1.45; text-wrap: pretty; }
+.sheet-intro { margin: 0 2px 14px; color: var(--text-2); font-size: calc(15 * var(--px)); line-height: 1.45; text-wrap: pretty; }
 
 /* In fondo alle Impostazioni: il collegamento al server e «Scollega questo dispositivo» */
 .settings-device__on { display: grid; gap: 12px; }
@@ -2647,7 +2683,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: var(--radius-sm);
   background: var(--medium-soft);
   color: var(--medium);
-  font-size: 14.5px;
+  font-size: calc(14.5 * var(--px));
   font-weight: 600;
 }
 
@@ -2661,15 +2697,15 @@ button.setting:not(:disabled):active { background: var(--hover); }
 /* Spazi uniformi tra gli elementi del riquadro, anche quando uno è nascosto */
 .panel > * { margin: 0; }
 .panel > * + * { margin-top: 12px; }
-.panel__title { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 800; }
+.panel__title { display: flex; align-items: center; gap: 8px; font-size: calc(17 * var(--px)); font-weight: 800; }
 .panel__title .icon { color: var(--accent-text); }
 .panel > .panel__title + .panel__text { margin-top: 4px; }
-.panel__text { font-size: 15px; color: var(--text-2); }
+.panel__text { font-size: calc(15 * var(--px)); color: var(--text-2); }
 .panel__field { margin: 16px 0 0; }
 .panel > .panel__field { margin-top: 16px; }
 .panel__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .panel > .panel__actions { margin-top: 16px; }
-.panel__note { margin: 12px 0 0; font-size: 13px; color: var(--text-3); }
+.panel__note { margin: 12px 0 0; font-size: calc(13 * var(--px)); color: var(--text-3); }
 
 /* Stato: un puntino colorato più il testo, mai solo il colore */
 .status {
@@ -2681,7 +2717,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--text-2);
-  font-size: 14.5px;
+  font-size: calc(14.5 * var(--px));
   font-weight: 600;
   text-wrap: balance; /* una frase corta: su due righe simili */
 }
@@ -2722,7 +2758,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .steps__summary::-webkit-details-marker { display: none; }
 .steps__summary .icon { color: var(--text-3); transition: transform var(--dur-quick) var(--ease-out); }
 .steps[open] .steps__summary .icon { transform: rotate(180deg); }
-.steps__list { margin: 4px 0 0; padding-left: 22px; font-size: 14.5px; color: var(--text-2); }
+.steps__list { margin: 4px 0 0; padding-left: 22px; font-size: calc(14.5 * var(--px)); color: var(--text-2); }
 .steps__list li + li { margin-top: 8px; }
 .steps__list b { color: var(--text); }
 
@@ -2752,9 +2788,9 @@ button.setting:not(:disabled):active { background: var(--hover); }
   -webkit-user-select: all;
   user-select: all;
 }
-.claude-code__time { color: var(--text-2); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.claude-code__time { color: var(--text-2); font-size: calc(14 * var(--px)); font-weight: 600; font-variant-numeric: tabular-nums; }
 .claude-code .btn { margin-top: 2px; }
-.claude-code__note { max-width: 32ch; color: var(--text-3); font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+.claude-code__note { max-width: 32ch; color: var(--text-3); font-size: calc(13 * var(--px)); line-height: 1.45; text-wrap: pretty; }
 .claude-links { display: grid; gap: 8px; padding: 0; list-style: none; }
 .panel > .panel__title + .claude-links { margin-top: 8px; }
 .claude-links > li {
@@ -2762,7 +2798,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--text-2);
-  font-size: 14.5px;
+  font-size: calc(14.5 * var(--px));
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -2778,7 +2814,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 }
 
 /* Foglio "Backup dei dati" */
-.sheet__text { margin: 0 0 14px; font-size: 15px; color: var(--text-2); }
+.sheet__text { margin: 0 0 14px; font-size: calc(15 * var(--px)); color: var(--text-2); }
 .sheet__body > .status { margin: 0 0 14px; } /* riga di stato in cima al foglio, fuori dai riquadri */
 /* Fuori dai riquadri il fondo è quello del foglio: la riga neutra prende il grigio dei riquadri, per vedersi */
 .sheet__body > .status[data-tone="off"] { background: var(--field-bg); }
@@ -2787,16 +2823,16 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .compare { display: grid; gap: 8px; }
 .compare__row {
   display: grid;
-  grid-template-columns: 6.5rem minmax(0, 1fr);
+  grid-template-columns: calc(104 * var(--px)) minmax(0, 1fr);
   gap: 4px 12px;
   align-items: baseline;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   background: var(--surface-raised);
 }
-.compare dt { font-size: 14px; font-weight: 700; color: var(--text-2); }
+.compare dt { font-size: calc(14 * var(--px)); font-weight: 700; color: var(--text-2); }
 .compare dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
-.compare__when { display: block; margin-top: 2px; font-size: 13.5px; font-weight: 500; color: var(--text-2); }
+.compare__when { display: block; margin-top: 2px; font-size: calc(13.5 * var(--px)); font-weight: 500; color: var(--text-2); }
 
 /* Foglio «Cosa faccio adesso?»: la proposta, con il motivo, le azioni e due alternative */
 .proposal__card {
@@ -2805,8 +2841,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: var(--radius);
   background: var(--accent-soft);
 }
-.proposal__reason { font-size: 14px; font-weight: 700; color: var(--accent-text); }
-.proposal__title { margin: 4px 0 0; font-size: 20px; font-weight: 800; line-height: 1.25; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.proposal__reason { font-size: calc(14 * var(--px)); font-weight: 700; color: var(--accent-text); }
+.proposal__title { margin: 4px 0 0; font-size: calc(20 * var(--px)); font-weight: 800; line-height: 1.25; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .proposal__card .task__meta { margin-top: 10px; }
 .proposal__actions { display: grid; gap: 8px; margin-top: 14px; }
 .proposal__row { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2814,7 +2850,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .proposal__alts { margin-top: 18px; }
 .proposal__alts-label {
   margin: 0 4px 8px;
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -2842,11 +2878,11 @@ button.setting:not(:disabled):active { background: var(--hover); }
   .alt:hover { border-color: var(--border-strong); }
 }
 .alt__title { flex: 1; min-width: 0; overflow: hidden; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.alt__time { flex: none; font-size: 13.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.alt__time { flex: none; font-size: calc(13.5 * var(--px)); color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 .proposal-none { padding: 0 0 8px; text-align: center; }
 .proposal-none__art { display: block; width: 180px; height: 180px; margin: 0 auto 6px; }
-.proposal-none__title { margin: 0; font-size: 19px; font-weight: 800; }
+.proposal-none__title { margin: 0; font-size: calc(19 * var(--px)); font-weight: 800; }
 .proposal-none__text { max-width: 34ch; margin: 6px auto 0; color: var(--text-2); }
 .proposal-none .btn { margin-top: 14px; }
 
@@ -2863,7 +2899,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: var(--radius);
   background: var(--accent-soft);
   color: var(--text);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 600;
   white-space: pre-line; /* più frasi, una per riga */
   overflow-wrap: anywhere;
@@ -2881,7 +2917,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .ask__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .ask__actions .btn { flex: 1 1 auto; min-height: var(--tap); }
 /* Dopo il tocco: la frase dell'esito, con «Annulla» accanto se si può tornare indietro */
-.ask__done { flex: 1 1 auto; align-self: center; margin: 0; font-size: 14px; color: var(--text-2); }
+.ask__done { flex: 1 1 auto; align-self: center; margin: 0; font-size: calc(14 * var(--px)); color: var(--text-2); }
 .ask__actions .ask__done + .btn { flex: none; }
 
 /* In fondo, sempre in vista: il campo per scrivere ad Aura */
@@ -2915,8 +2951,8 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: var(--radius);
   background: var(--accent-soft);
 }
-.consent__title { margin: 0; font-size: 16px; font-weight: 800; }
-.consent__text { margin: 0; font-size: 14.5px; color: var(--text-2); }
+.consent__title { margin: 0; font-size: calc(16 * var(--px)); font-weight: 800; }
+.consent__text { margin: 0; font-size: calc(14.5 * var(--px)); color: var(--text-2); }
 .consent__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .consent__actions .btn { flex: 1 1 auto; }
 
@@ -2932,11 +2968,11 @@ button.setting:not(:disabled):active { background: var(--hover); }
 }
 .panel > .switch-row + .switch-row,
 .panel > .switch-row + .fixed-row { margin-top: 4px; }
-.switch-row__text { display: grid; font-size: 15px; font-weight: 600; }
-.switch-row--main .switch-row__text { font-size: 17px; font-weight: 800; }
-.switch-row__hint { font-size: 13.5px; font-weight: 600; color: var(--text-2); }
+.switch-row__text { display: grid; font-size: calc(15 * var(--px)); font-weight: 600; }
+.switch-row--main .switch-row__text { font-size: calc(17 * var(--px)); font-weight: 800; }
+.switch-row__hint { font-size: calc(13.5 * var(--px)); font-weight: 600; color: var(--text-2); }
 /* La frase del consenso, subito sotto l'interruttore che accende l'assistente */
-.switch-row__note { margin: 2px 0 10px; font-size: 14.5px; color: var(--text-2); }
+.switch-row__note { margin: 2px 0 10px; font-size: calc(14.5 * var(--px)); color: var(--text-2); }
 .switch-row__hint[data-tone="on"] { color: var(--low); }
 .switch-row__input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .switch {
@@ -2968,7 +3004,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .switch-row:has(.switch-row__input:disabled) { cursor: not-allowed; }
 
 /* Riga fissa, senza interruttore */
-.fixed-row { display: flex; align-items: center; gap: 8px; min-height: var(--tap); font-size: 15px; font-weight: 600; color: var(--text-2); }
+.fixed-row { display: flex; align-items: center; gap: 8px; min-height: var(--tap); font-size: calc(15 * var(--px)); font-weight: 600; color: var(--text-2); }
 .fixed-row .icon { flex: none; color: var(--text-3); }
 
 /* «Cosa ha fatto l'assistente» */
@@ -2977,7 +3013,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .log__item { padding: 12px; border-radius: var(--radius-sm); background: var(--surface-raised); }
 .log__what { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
 .log__item.is-undone .log__what { color: var(--text-3); text-decoration: line-through; }
-.log__meta { margin: 4px 0 0; font-size: 13.5px; color: var(--text-2); overflow-wrap: anywhere; }
+.log__meta { margin: 4px 0 0; font-size: calc(13.5 * var(--px)); color: var(--text-2); overflow-wrap: anywhere; }
 .log__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
 /* Focus a tutto schermo: l'aura che respira dietro un grande anello del tempo che manca.
@@ -3137,7 +3173,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .sheet--focus.is-breathing .aurora__band,
 .sheet--focus.is-breathing .aurora__stars { animation-play-state: running; }
 
-.focus__head { display: grid; justify-items: center; gap: 6px; width: 100%; max-width: 34rem; }
+.focus__head { display: grid; justify-items: center; gap: 6px; width: 100%; max-width: calc(544 * var(--px)); }
 .focus__label {
   display: inline-flex;
   align-items: center;
@@ -3147,7 +3183,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: 999px;
   background: var(--glass);
   color: var(--hero-text-2);
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   font-weight: 800;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -3157,7 +3193,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   display: -webkit-box;
   margin: 4px 0 0;
   overflow: hidden;
-  font-size: clamp(22px, 6.4vw, 28px);
+  font-size: clamp(calc(22 * var(--px)), 6.4vw, calc(28 * var(--px)));
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: -.01em;
@@ -3165,7 +3201,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
-.focus__meta { font-size: 15px; font-weight: 600; color: var(--hero-text-2); }
+.focus__meta { font-size: calc(15 * var(--px)); font-weight: 600; color: var(--hero-text-2); }
 
 /* L'anello si adatta all'altezza dello schermo (38vh): su un iPhone SE titolo, anello e comandi stanno in una schermata */
 .focus__dial { position: relative; display: grid; place-items: center; flex: none; width: min(74vw, 38vh, 320px); aspect-ratio: 1; }
@@ -3177,21 +3213,21 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .focus__arc { stroke: var(--progress-fill); stroke-linecap: round; stroke-dasharray: 339.292; stroke-dashoffset: 0; }
 .focus__readout { position: relative; display: grid; justify-items: center; gap: 4px; }
 .focus__clock {
-  font-size: clamp(40px, min(16vw, 8.5vh), 76px);
+  font-size: clamp(40px, min(16vw, 8.5vh), 76px); /* px fisso: il timer segue già lo schermo */
   font-weight: 800;
   line-height: 1;
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
 }
-.focus__state { min-height: 1.45em; font-size: 15px; font-weight: 700; color: var(--hero-text-2); font-variant-numeric: tabular-nums; }
+.focus__state { min-height: 1.45em; font-size: calc(15 * var(--px)); font-weight: 700; color: var(--hero-text-2); font-variant-numeric: tabular-nums; }
 
-.focus__controls { display: grid; justify-items: center; gap: 14px; width: min(100%, 22rem); }
+.focus__controls { display: grid; justify-items: center; gap: 14px; width: min(100%, calc(352 * var(--px))); }
 .focus__toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-width: 11rem;
+  min-width: calc(176 * var(--px));
   min-height: 60px;
   padding: 0 28px;
   border: 0;
@@ -3199,25 +3235,26 @@ button.setting:not(:disabled):active { background: var(--hover); }
   background: var(--hero-text);
   color: var(--hero-top);
   box-shadow: var(--shadow-toast);
-  font-size: 18px;
+  font-size: calc(18 * var(--px));
   font-weight: 800;
   transition: transform var(--dur-tap) var(--ease-out);
 }
 .focus__toggle:active { transform: scale(.96); }
 .focus__toggle .icon { width: 24px; height: 24px; stroke-width: 2.6; }
-.focus__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
+/* Due pulsanti affiancati; con il testo grande uno sotto l'altro, quando uno sarebbe più stretto di 120 px (--px) */
+.focus__row { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(calc((100% - 10px) / 2), min(100%, calc(120 * var(--px)))), 1fr)); gap: 10px; width: 100%; }
 .focus__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   min-height: 52px;
-  padding: 0 14px;
+  padding: 0 8px; /* il testo è al centro: il margine conta solo con il testo grande */
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   background: var(--glass);
   color: var(--hero-text);
-  font-size: 16px;
+  font-size: calc(16 * var(--px));
   font-weight: 700;
   transition: background-color var(--dur-color) var(--ease-out), color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
 }
@@ -3229,7 +3266,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: 999px;
   background: var(--glass); /* sul vetro, come gli altri comandi: sull'aurora chiara in basso il testo da solo era 3,5:1 */
   color: var(--hero-text);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 700;
   transition: background-color var(--dur-color) var(--ease-out);
 }
@@ -3246,7 +3283,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border: 1px solid var(--glass-border);
   border-radius: 50%;
   background: var(--glass);
-  font-size: 19px;
+  font-size: 19px; /* px fisso: emoji nel pulsante tondo */
   line-height: 1;
   text-decoration: none;
   transition: background-color var(--dur-color) var(--ease-out), transform var(--dur-tap) var(--ease-out);
@@ -3284,7 +3321,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .focus__sound-btn:focus-visible { outline: 2px solid var(--hero-text); outline-offset: 2px; }
 .focus__sound-menu {
   width: max-content;
-  min-width: 13.5rem;
+  min-width: calc(216 * var(--px));
   max-width: calc(100vw - 28px);
   padding: 6px;
   border: 1px solid var(--glass-border);
@@ -3300,7 +3337,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .focus__sound-title {
   padding: 6px 10px 4px;
   color: var(--hero-text-2);
-  font-size: 12px;
+  font-size: calc(12 * var(--px));
   font-weight: 800;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -3315,7 +3352,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   padding: 0 10px 0 12px;
   border-radius: 12px;
   color: var(--hero-text);
-  font-size: 16px;
+  font-size: calc(16 * var(--px));
   font-weight: 700;
   cursor: pointer;
   transition: background-color var(--dur-color) var(--ease-out);
@@ -3327,10 +3364,10 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .sound-option.is-checked .sound-option__check { opacity: 1; }
 .sound-option:has(.sound-option__input:focus-visible) { outline: 2px solid var(--hero-text); outline-offset: -2px; }
 .focus__sound-note {
-  max-width: 15rem;
+  max-width: calc(240 * var(--px));
   padding: 6px 10px 6px 12px;
   color: var(--hero-text-2);
-  font-size: 13px;
+  font-size: calc(13 * var(--px));
   line-height: 1.4;
   text-wrap: pretty;
 }
@@ -3348,7 +3385,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
     padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
   }
-  .focus__title { font-size: 20px; -webkit-line-clamp: 2; }
+  .focus__title { font-size: calc(20 * var(--px)); -webkit-line-clamp: 2; }
   .focus__dial { width: min(64vw, 34vh, 320px); }
   .focus__controls { gap: 10px; }
   .focus__toggle { min-height: 52px; }
@@ -3378,7 +3415,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   background: var(--toast-bg);
   color: var(--toast-text);
   box-shadow: var(--shadow-toast);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 600;
   opacity: 0;
   transform: translate(-50%, 16px) scale(.98);
@@ -3397,7 +3434,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--toast-action);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 800;
 }
 /* L'area di tocco arriva al bordo dell'avviso: 48 px di altezza, oltre i 44 di Apple, con lo stesso aspetto */
@@ -3417,7 +3454,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   background: var(--points-chip-bg);
   color: var(--points-chip-text);
   box-shadow: var(--shadow-points-chip);
-  font-size: 15px;
+  font-size: calc(15 * var(--px));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -3504,7 +3541,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .empty { padding: 28px 16px 8px; text-align: center; }
 /* Illustrazione (images/empty-focus.webp): 540 px mostrati a 180, con lo sfondo trasparente per i due temi */
 .empty__art { display: block; width: 180px; height: 180px; margin: 0 auto 4px; }
-.empty__title { font-size: 20px; font-weight: 800; }
+.empty__title { font-size: calc(20 * var(--px)); font-weight: 800; }
 .empty__text { max-width: 30ch; margin: 6px auto 0; color: var(--text-2); }
 .empty .link-btn { margin-top: 4px; }
 
@@ -3525,7 +3562,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
   .sheet.is-closing { animation-name: dialog-out; }
   .sheet__footer { padding-bottom: 18px; }
   .sheet--small .sheet__body { padding-bottom: 22px; }
-  .hero__date { font-size: 34px; }
+  .hero__date { font-size: calc(34 * var(--px)); }
   /* Il focus resta a tutto schermo anche sul computer */
   .sheet--focus { width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; border-radius: 0; box-shadow: none; }
 }
