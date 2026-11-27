@@ -20,6 +20,7 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario | fatto con la v16; da provare sull'iPhone (vedi "Agenda: per pianificare" e "P-003, passo 3.2") |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.3: Motivazione con livello, «La tua settimana» e «I tuoi numeri» | fatto con la v17; da provare sull'iPhone (vedi "P-003, passo 3.3") |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.4: «I tuoi premi» | fatto con la v18; da provare sull'iPhone (vedi "P-003, passo 3.4") |
+| — | [P-003](../../docs/proposte/P-003.md), passo 3.5: «Sfide di oggi» | fatto con la v28; da provare sull'iPhone (vedi "P-003, passo 3.5") |
 | — | [P-004](../../docs/proposte/P-004.md), passo 4.1: negozio | fatto con la v19; da provare sull'iPhone (vedi "P-004, passo 4.1") |
 | — | [P-004](../../docs/proposte/P-004.md), passo 4.2: musica nel focus, senza account | fatto con la v20; da provare sull'iPhone (vedi "P-004, passo 4.2" e [musica.md](musica.md)) |
 
@@ -249,6 +250,31 @@ Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 
   - coriandoli e salto della pillola solo con `opacity` e `transform`; con «Riduci movimento» niente;
   - contrasto dei testi nuovi tra 4,7 e 17,8 a 1, nei due temi.
 - Intestazione di Focus a 390×664: 188 px prima e dopo, con 4 card intere.
+
+### P-003, passo 3.5: «Sfide di oggi»
+In Motivazione, dopo «I tuoi premi», la card «Sfide di oggi» del passo 3.5 di [P-003](../../docs/proposte/P-003.md): ogni giorno tre piccole sfide prese dai propri dati, 10 punti l'una e 20 in più con tutte e tre. Le regole stanno in [punti-e-serie.md](punti-e-serie.md), «Sfide di oggi», scritte prima del codice come chiede la proposta, con i due punti in cui la cambiano e il perché; i dati in «Dati», qui sotto. Nella tabella «Ordine» della proposta l'esecutore è ChatGPT / Codex: l'ha scritto Claude Project, con la revisione di Codex, e il cambio lo decide il Product Owner.
+
+In più rispetto alla proposta, piccoli aiuti che non cambiano le regole: l'avviso della spunta dice le sfide fatte e somma i loro punti («🎯 Sfida fatta · +30 punti», «🏆 Tutte e tre le sfide! · …»), e così «Esci» dal focus («Focus terminato · 25 min · 🎯 Sfida fatta +10»); nella card l'anello di una sfida appena fatta fa un piccolo salto, e anche «1 di 3»; «+N oggi» nel riquadro Punti conta anche le sfide.
+
+#### Risultati del passo 3.5 (27 novembre 2026)
+Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 390×844 in Chromium 153 headless, con 7 attività, 9 giorni di completamenti, minuti di focus e 2 premi, e le due versioni alternate a ogni prova. «Prima» è la v27 (quella di «Dimensione testo»), «dopo» quella nuova (v28). La spunta completa un'attività: nella v28 fa anche una sfida, con l'avviso «🎯 Sfida fatta · +30 punti». WebKit non è stato eseguito: in questo ambiente non c'è.
+
+| Gesto | Chromium, CPU 4 volte più lenta | Chromium a piena velocità |
+|---|---|---|
+| passare a Motivazione (la prima volta dopo l'apertura) | 7 → 7 | 0 → 0 |
+| tornare a Focus | 0 → 1,5 | 0 → 0 |
+| completare un'attività con la spunta | 2,5 → 4 | 0 → 0 |
+
+- Passare a Motivazione, con la card in più, costa come prima: in tre serie di prove la v27 perde in media 8,5, 7,3 e 7 fotogrammi, la v28 7,7 e 7,5. Tornare a Focus cambia da una serie all'altra anche con la stessa versione: in media 1,2, 1,7 e 0,5 la v27, 1,1 e 1,1 la v28.
+- La spunta perde in media 0,7 fotogrammi in più, solo con la CPU rallentata (3 la v27 e 3,7 la v28, in media su tutte le serie). Viene quasi tutto dal primo disegno dell'emoji 🎯 dell'avviso, come le emoji dei premi nel passo 3.4: con lo stesso avviso senza l'emoji, nella stessa serie, 2,9 contro 2,7 della v27 e 3,4 della v28. L'emoji resta: gli altri avvisi speciali hanno già la loro (🎉, ✨, 🌌, 🔥), e sull'iPhone le emoji sono un carattere del sistema. A piena velocità nessun gesto perde fotogrammi; la prova vera è quella sull'iPhone.
+- Prove di funzionamento, con Playwright 1.63 e l'orologio finto (`page.clock`), nel contesto «iPhone 13»; nessun errore nella console né messaggi della CSP:
+  - dati salvati da una versione di prima (la v5) arrivano alla v8, e le sfide di oggi nascono all'apertura e si salvano subito (che il resto dei dati non cambi lo controllano i test della migrazione); un'attività completata prima, lo stesso giorno, conta già: «entro le 18» nasce fatta, e la card dice «1 di 3»;
+  - una spunta che fa una sfida: l'avviso «🎯 Sfida fatta · +30 punti» (20 dell'attività e 10 della sfida), la riga fatta con «Fatto alle 10:30», «2 di 3» e «+64 oggi»; «Annulla» la rimette da fare e toglie esattamente i 30 punti;
+  - un focus di 25 minuti chiuso con «Esci» che fa la terza sfida: «Focus terminato · 25 min · 🏆 Tutte e tre le sfide! +30» (10 della sfida e 20 in più), «3 di 3» e la nota «Tutte e tre fatte: +50 punti oggi»; con la sola sfida del focus, «Focus terminato · 26 min · 🎯 Sfida fatta +10», e «Annulla» la rimette da fare, toglie i suoi 10 punti e riapre il focus;
+  - con Aura aperta, alle 18:01 «Hai tempo fino alle 18» diventa «Entro le 18», senza ricaricare; a mezzanotte nascono e si salvano le sfide del giorno nuovo, e la card le mostra;
+  - a 390 e a 320 px, nei due temi, con il testo normale e a 28 px: nessuno scorrimento orizzontale; con il testo grande l'anello resta accanto al testo e va a capo solo «+10»;
+  - axe-core con le regole WCAG 2.2 AA e le «best practice», nei due temi, con il testo normale e a 28 px, con una sfida fatta e con tutte e tre: nessun problema; il lettore di schermo legge «Fatte: 1 di 3», «Fatta: Completa 2 attività» e «+10 punti», e salta l'anello;
+  - l'anello cambia con `stroke-dashoffset` senza transizioni, come quello del focus, e fatto sfuma solo il colore (`--dur-color`); i salti usano solo `transform`; con «Riduci movimento» niente salti.
 
 ### P-004, passo 4.1: negozio
 In Motivazione, dopo «I tuoi premi», la card «Negozio» del passo 4.1 di [P-004](../../docs/proposte/P-004.md): si paga con il saldo da spendere dei premi e si comprano «Ripara la serie», quattro colori dell'aurora e quattro forme dei coriandoli; i pacchetti di punti si vedono, con «Presto». Le regole stanno in [punti-e-serie.md](punti-e-serie.md), «Negozio»; i dati in «Dati», qui sotto. L'ha scritto Claude Project, come prevede la tabella «Ordine» della proposta.
@@ -581,6 +607,10 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - **Schema v7**: `migrate()` cambia solo il numero di versione; `sanitizeTask()` aggiunge `repeat: null` e `seriesId: null`, puliti da `Aura.repeat.sanitize()`. Le attività che c'erano non si ripetono.
   - Una sola volta da fare per serie: in Focus o in Agenda si vede come ogni attività, con ↻ sulla card.
   - I backup di tutte le versioni di prima si importano ancora; regole e serie finiscono nel backup.
+- **Sfide di oggi** (P-003, passo 3.5; regole in [punti-e-serie.md](punti-e-serie.md), «Sfide di oggi»): le sfide di ogni giorno in `stats.challenges`: i 30 giorni più recenti e quelli più vecchi che si possono ancora disfare, al massimo 400.
+  - **Schema v8**: `migrate()` cambia solo il numero di versione; `sanitizeStats()` aggiunge `challenges: {}`, pulito da `Aura.challenges.sanitize()`. Quelle di oggi nascono alla prima apertura.
+  - I loro punti stanno in `totalPoints`, come quelli dei completamenti: entrano quando una sfida diventa fatta, escono quando torna da fare.
+  - I backup di tutte le versioni di prima si importano ancora; le sfide finiscono nel backup.
 
 ## Collegamenti e notifiche
 - `?add=`, casella di Siri, promemoria, modifica e backup restano come oggi. Il foglio "Nuova attività" si apre sopra la scheda in cui si è.
@@ -627,18 +657,20 @@ Elenco, flusso e prompt stanno in [illustrazioni.md](illustrazioni.md).
 ## Premium
 Le categorie stanno nella tabella di `CLAUDE-GUIDE.md`:
 - **gratuite**: animazioni, barra delle schede, Focus, Agenda e la base di Motivazione, perché ci finiscono funzioni di oggi;
-- **da decidere**: «Cosa faccio adesso?», timer e minuti di focus, livelli, obiettivo settimanale, calendario, frase del giorno, illustrazioni, «I tuoi premi».
+- **da decidere**: «Cosa faccio adesso?», timer e minuti di focus, livelli, obiettivo settimanale, calendario, frase del giorno, illustrazioni, «I tuoi premi», «Sfide di oggi».
 
 ## Codice
 - **Moduli puri nuovi**:
   - `js/suggest.js` e `js/focus.js` (fase 2);
   - `js/agenda.js` (P-003, passo 3.2, al posto della fase 3);
   - `js/motivation.js` (P-003, passo 3.3), con `LEVELS` e il calcolo del livello, Aurora 2, 3… compresi: P-003 li mette qui e non in `js/points.js`, che resta com'è;
-  - `js/rewards.js` (P-003, passo 3.4): premi, saldo, riscatti e «Annulla», limiti, pulizia dei dati letti.
+  - `js/rewards.js` (P-003, passo 3.4): premi, saldo, riscatti e «Annulla», limiti, pulizia dei dati letti;
+  - `js/challenges.js` (P-003, passo 3.5): come nascono le sfide, quando sono fatte e quando non lo sono più, i loro punti, la pulizia dei dati letti, i testi della card e dell'avviso.
 - `js/motion.js` (fase 1) tocca la pagina solo per le animazioni. `slideIn()` (fase 2a) fa entrare un blocco intero; da P-003 (passo 3.1) la scheda entra a blocchi con `staggerIn()` e lo sfondo dell'intestazione scivola con `shiftIn()`.
 - Ogni scheda può avere un suo file che tocca la pagina, come `app.js`: così `app.js` non cresce troppo.
   - `js/ui-focus.js` (fase 2a): i fogli «Cosa faccio adesso?» e Focus, il suono di fine e lo schermo acceso. `app.js` gli passa con `Aura.focusUI.init()` quello che gli serve: stato, `commit()`, fogli, avvisi, preferenze.
   - `js/ui-agenda.js` (P-003, passo 3.2): calendario, giorno scelto, «Prossimi giorni», «Da pianificare», gesti e movimenti dell'Agenda. Tiene il giorno scelto; `app.js` gli passa con `Aura.agendaUI.init()` stato, `commit()`, la card (`buildTask()`), avvisi, il foglio «Nuova attività» e le preferenze, e ogni minuto chiama `tick()` per la linea dell'ora. `isVisible()` dice ad `app.js` se un'attività si vede nell'Agenda (dipende dal giorno scelto), `addPreset()` che giorno propone «Nuova attività».
   - `js/ui-motivation.js` (P-003, passo 3.3): nell'intestazione il livello, poi «La tua settimana» con il cielo e l'obiettivo, «I tuoi numeri» e i movimenti della scheda. `app.js` gli passa con `Aura.motivationUI.init()` stato e preferenze e sapere se la scheda è aperta; disegna lui «Completate». `celebrate()` dice ad `app.js` se un completamento ha fatto salire di livello o raggiungere l'obiettivo, e `app.js` sceglie l'avviso.
   - `js/ui-rewards.js` (P-003, passo 3.4): «I tuoi premi» e il foglio del premio. `app.js` gli passa con `Aura.rewardsUI.init()` stato, `commitState()` (salva solo le parti di `state` che cambiano: `rewards` o `stats`), avvisi, fogli e coriandoli; `celebrate()` dice ad `app.js` quale premio un completamento ha reso riscattabile.
+  - `js/ui-challenges.js` (P-003, passo 3.5): la card «Sfide di oggi». `app.js` gli passa con `Aura.challengesUI.init()` lo stato e sapere se la scheda è aperta, chiama `render()` a ogni disegno e `tick()` ogni minuto. Le sfide nascono e cambiano in `app.js` (`withChallenges()` in `commitState()`, `keepChallenges()` fuori), che sceglie anche l'avviso.
 - Ogni file nuovo va in `index.html`, in `tests/index.html` se ha logica pura, e in `APP_FILES` di `sw.js`.

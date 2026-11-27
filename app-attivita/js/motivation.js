@@ -104,7 +104,7 @@
       day,
       letter: LETTERS[i],
       done: P.dayTotals(stats, day).done,
-      points: P.dayTotals(stats, day).points,
+      points: P.pointsOn(stats, day), // completamenti e sfide
       focus: F.minutesOn(stats, day)
     }));
   }

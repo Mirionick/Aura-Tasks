@@ -339,7 +339,7 @@
     const state = storage.parse(JSON.stringify({ version: 5, future: 'ok', tasks, rewards, stats }));
     assertEqual(state.version, storage.SCHEMA_VERSION);
     assertEqual([state.tasks, state.rewards, state.future, state.look], [tasks.map(task => ({ ...task, repeat: null, seriesId: null })), rewards, 'ok', LOOK]);
-    assertEqual(state.stats, { ...stats, shop: [] }, 'registro identico, più gli acquisti vuoti');
+    assertEqual(state.stats, { ...stats, shop: [], challenges: {} }, 'registro identico, più gli acquisti e le sfide vuoti');
     assertEqual(storage.parse(JSON.stringify({ version: 1, tasks: [] })).look, LOOK, 'anche dalla v1');
   });
 
@@ -375,11 +375,11 @@
   test('readBackup: dati di una versione più nuova, con oggetti che il catalogo non conosce, si leggono senza perdere niente', () => {
     const gold = { id: 'u1', item: 'tema:oro', cost: 300, at: NOW };
     const data = {
-      version: 8, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 500, shop: [repaired(-1), gold] },
+      version: 9, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 500, shop: [repaired(-1), gold] },
       look: { aurora: 'aurora', confetti: 'classic', sound: 'brown', at: NOW, tema: 'oro' }
     };
     const { state } = storage.readBackup(JSON.stringify({ format: storage.BACKUP_FORMAT, exportedAt: NOW, data }));
-    assertEqual([state.version, state.stats.shop, state.look], [8, [repaired(-1), gold], data.look]);
+    assertEqual([state.version, state.stats.shop, state.look], [9, [repaired(-1), gold], data.look]);
     assertEqual(R.balance(state.stats), 50, '500 − 150 − 300: niente rimborsato');
   });
 

@@ -8,8 +8,10 @@
  * La rotella con i fogli «Impostazioni» e «Privacy» sta in js/ui-settings.js, avviato allo stesso modo.
  * L'Agenda a calendario (calendario, giorno scelto, «Prossimi giorni», «Da pianificare») sta in js/ui-agenda.js, avviato
  * allo stesso modo: render() la ridisegna insieme alle altre schede. Così anche Motivazione (livello, «La tua settimana»,
- * «I tuoi numeri»), in js/ui-motivation.js, i suoi premi («I tuoi premi» e il foglio del premio), in js/ui-rewards.js, e
- * il negozio (la card e il foglio «Negozio»), in js/ui-shop.js; «Completate», serie e punti restano qui. Quello che è in uso
+ * «I tuoi numeri»), in js/ui-motivation.js, i suoi premi («I tuoi premi» e il foglio del premio), in js/ui-rewards.js, le
+ * sfide («Sfide di oggi»), in js/ui-challenges.js, e il negozio (la card e il foglio «Negozio»), in js/ui-shop.js;
+ * «Completate», serie e punti restano qui. Le sfide di oggi (js/challenges.js) nascono e cambiano qui, all'apertura e a
+ * ogni modifica (withChallenges), e i loro punti entrano nel totale e negli avvisi. Quello che è in uso
  * dal negozio (colori dell'aurora, forma dei coriandoli) si applica qui: data-aurora su <html> e i coriandoli. Il suono in
  * uso lo suona js/ui-sound.js («Suono» nel focus a tutto schermo e l'ascolto di prova nel negozio).
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
@@ -18,10 +20,10 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, repeat: RP, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
-    motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
-    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI, swipeUI: SwipeUI, soundUI: SoundUI,
-    claudeUI: ClaudeUI, update: U } = Aura;
+  const { utils, repeat: RP, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, challenges: C, storage, theme,
+    reminders: RM, remote: R, motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI,
+    agendaUI: AgendaUI, motivationUI: MotivationUI, rewardsUI: RewardsUI, challengesUI: ChallengesUI, shopUI: ShopUI,
+    musicUI: MusicUI, swipeUI: SwipeUI, soundUI: SoundUI, claudeUI: ClaudeUI, update: U } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -182,6 +184,7 @@
   let agendaCtl = null;   // scheda Agenda a calendario (js/ui-agenda.js), pronta all'avvio
   let motivationCtl = null; // livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), pronti all'avvio
   let rewardsCtl = null;    // «I tuoi premi» e il foglio del premio (js/ui-rewards.js), pronti all'avvio
+  let challengesCtl = null; // «Sfide di oggi», la card in Motivazione (js/ui-challenges.js), pronta all'avvio
   let shopCtl = null;       // «Negozio»: la card e il foglio (js/ui-shop.js), pronti all'avvio
   let musicCtl = null;      // musica nel focus: avviso o carosello, riga «Musica», «🎧» (js/ui-music.js), pronti all'avvio
   let soundCtl = null;      // suoni del focus: «Suono» nel focus e l'ascolto di prova nel negozio (js/ui-sound.js)
@@ -206,11 +209,11 @@
 
   /**
    * Come commit(), ma `change` dice quali parti dello stato cambiano: per esempio { rewards } o { stats } dai premi
-   * (js/ui-rewards.js). Le altre restano com'erano.
+   * (js/ui-rewards.js). Le altre restano com'erano. Le sfide di oggi seguono ogni modifica (withChallenges).
    */
   function commitState(change, motion = {}) {
     const before = M.snapshot(els.main);
-    state = { ...state, ...change };
+    state = withChallenges({ ...state, ...change });
     const saved = storage.save(state);
     render();
     const plan = M.play(els.main, before, motion);
@@ -224,12 +227,38 @@
     return saved;
   }
 
-  /** Dopo un'importazione o un ripristino: lo stato nuovo è già salvato (storage.replaceData), si ridisegna. */
+  /**
+   * Dopo un'importazione o un ripristino: lo stato nuovo è già salvato (storage.replaceData), si ridisegna. Se non ha le
+   * sfide di oggi, nascono adesso.
+   */
   function applyState(next) {
     state = next;
+    keepChallenges();
     render();
     scheduleReminderSync(); // con i promemoria attivi, il server riceve l'elenco nuovo
     if (focusCtl) focusCtl.sync();
+  }
+
+  /**
+   * Lo stato con le sfide di oggi al passo (js/challenges.js): nascono se mancano, poi diventano fatte o tornano da fare
+   * con i completamenti e i minuti di focus, e i loro punti entrano o escono dal totale. Se non cambia niente, è `next`.
+   * Chi vuole dire nell'avviso quali sfide ha fatto (un completamento, un focus) chiama prima C.refresh() da sé:
+   * qui poi non cambia più niente.
+   */
+  function withChallenges(next) {
+    const result = C.refresh(next.stats, next.tasks, Date.now());
+    return result.stats === next.stats ? next : { ...next, stats: result.stats };
+  }
+
+  /**
+   * Le sfide al passo fuori da commitState(): all'apertura, tornando nell'app, a un giorno nuovo, dopo un'importazione e
+   * con i dati cambiati in un'altra scheda. Quelle nate adesso si salvano subito, così riaprendo restano le stesse.
+   */
+  function keepChallenges() {
+    const next = withChallenges(state);
+    if (next === state) return;
+    state = next;
+    storage.save(state); // se non riesce, lo dice il prossimo salvataggio di commitState()
   }
 
   /* ---------- Schede ---------- */
@@ -334,9 +363,10 @@
     // Agenda: calendario, giorno scelto, Prossimi giorni e Da pianificare (js/ui-agenda.js)
     if (agendaCtl) agendaCtl.render(now);
     // Motivazione: livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), «I tuoi premi» (js/ui-rewards.js),
-    // poi «Completate»
+    // «Sfide di oggi» (js/ui-challenges.js), «Negozio» (js/ui-shop.js), poi «Completate»
     if (motivationCtl) motivationCtl.render(now);
     if (rewardsCtl) rewardsCtl.render(now);
+    if (challengesCtl) challengesCtl.render(now);
     if (shopCtl) shopCtl.render(now);
     if (soundCtl) soundCtl.render(); // «Suono» nel focus a tutto schermo: il suono in uso e quelli che hai
     applyLook();
@@ -404,7 +434,7 @@
     else if (!lit) els.streakNote.textContent = streak > 0 ? 'Tienila accesa oggi' : 'Accendila oggi';
     else els.streakNote.textContent = next ? 'Traguardo: ' + daysLabel(next) : 'Tutti i traguardi!';
 
-    els.pointsToday.textContent = '+' + utils.formatNumber(todayTotals.points) + ' oggi';
+    els.pointsToday.textContent = '+' + utils.formatNumber(P.pointsOn(stats, today)) + ' oggi'; // con i punti delle sfide
     showPoints(stats.totalPoints);
   }
 
@@ -602,8 +632,10 @@
       const firstToday = done && P.dayTotals(state.stats, utils.todayISO()).done === 0;
       const result = P.setDone(state, id, done, Date.now());
       if (result.tasks === state.tasks) return; // niente da cambiare
-      if (!commit(result.tasks, result.stats) || !done) return;
-      celebrate(id, result, firstToday);
+      // Le sfide di oggi fatte con questo completamento, per l'avviso (o perse togliendo la spunta: niente avviso)
+      const challenge = C.refresh(result.stats, result.tasks, Date.now());
+      if (!commit(result.tasks, challenge.stats) || !done) return;
+      celebrate(id, result, firstToday, null, challenge);
     });
   }
 
@@ -616,14 +648,19 @@
 
   /**
    * Dopo un completamento: avviso con i punti, e festa se la serie si accende o tocca un traguardo.
-   * L'avviso dice anche il livello nuovo («✨ Livello Stella»), la settimana che diventa una costellazione (una volta per
-   * settimana, vedi js/ui-motivation.js) e il premio che si può riscattare da adesso (js/ui-rewards.js). `focus`
-   * ({ minutes, day }): minuti di focus registrati insieme, detti nell'avviso e tolti anche da «Annulla».
+   * L'avviso dice anche il livello nuovo («✨ Livello Stella»), le sfide di oggi fatte adesso («🎯 Sfida fatta», con i loro
+   * punti nel totale; `challenge` è il risultato di C.refresh, vedi js/challenges.js), la settimana che diventa una
+   * costellazione (una volta per settimana, vedi js/ui-motivation.js) e il premio che si può riscattare da adesso
+   * (js/ui-rewards.js). `focus` ({ minutes, day }): minuti di focus registrati insieme, detti nell'avviso e tolti anche
+   * da «Annulla», che toglie anche le sfide (commitState() le rivaluta).
    */
-  function celebrate(id, result, firstToday, focus) {
+  function celebrate(id, result, firstToday, focus, challenge) {
     const milestone = result.reached.length ? Math.max(...result.reached) : 0;
-    const progress = motivationCtl ? motivationCtl.celebrate(result) : { level: null, reached: false };
-    const ready = rewardsCtl ? rewardsCtl.celebrate(result) : null;
+    // I punti di adesso: quelli del completamento più quelli delle sfide fatte, sul totale salvato
+    const earned = { ...result, stats: state.stats, points: result.points + (challenge ? challenge.points : 0) };
+    const gained = C.gainedText(challenge);
+    const progress = motivationCtl ? motivationCtl.celebrate(earned) : { level: null, reached: false };
+    const ready = rewardsCtl ? rewardsCtl.celebrate(earned) : null;
     const targets = rewardTargets();
     if (firstToday && targets) M.flash(targets.streak, 'is-igniting');
     if (milestone) {
@@ -637,17 +674,21 @@
       burstConfetti(tileVisible ? tile.left + tile.width / 2 : window.innerWidth / 2, tileVisible ? tile.top + tile.height / 2 : 96);
     }
 
-    const points = '+' + result.points + ' punti';
+    // Una cosa sola, la più importante: traguardo, livello, tutte e tre le sfide, obiettivo della settimana, una o due
+    // sfide, premio pronto, serie accesa oggi
+    const points = '+' + earned.points + ' punti';
     let message = 'Completata · ' + points;
     if (milestone) message = '🎉 ' + daysLabel(milestone) + ' di fila! · ' + points;
     else if (progress.level) message = '✨ Livello ' + progress.level.name + ' · ' + points;
+    else if (gained && challenge.all) message = gained + ' · ' + points;
     else if (progress.reached) message = '🌌 Obiettivo della settimana raggiunto · ' + points;
+    else if (gained) message = gained + ' · ' + points;
     else if (ready) message = RW.readyText(ready) + ' · ' + points;
     else if (firstToday) message = (result.streak === 1 ? '🔥 Serie iniziata · ' : '🔥 ' + daysLabel(result.streak) + ' di fila · ') + points;
     if (focus) message += ' · ' + utils.formatDuration(focus.minutes) + ' di focus';
     // Una ripetizione: l'avviso dice quando torna (P-005, passo 5.1).
     if (result.next) message += ' · torna ' + RP.returnLabel(result.next.date, utils.todayISO());
-    const special = Boolean(milestone || progress.level || progress.reached || ready);
+    const special = Boolean(milestone || progress.level || progress.reached || ready || gained);
 
     showToast(message, {
       action: 'Annulla',
@@ -694,11 +735,12 @@
       const applied = F.minutesOn(stats, focus.day) - before;
       if (applied) focusInfo = { minutes: applied, day: focus.day };
     }
+    const challenge = C.refresh(stats, result.tasks, Date.now()); // con i minuti di focus, anche la sfida del focus
     const check = TABS[activeTab].section.querySelector('.task[data-id="' + CSS.escape(id) + '"] .check');
     const from = check ? check.getBoundingClientRect() : null;
-    if (!commit(result.tasks, stats, { delay })) return true;
+    if (!commit(result.tasks, challenge.stats, { delay })) return true;
     if (from) setTimeout(() => floatPoints(result.points, from), delay);
-    celebrate(id, result, firstToday, focusInfo);
+    celebrate(id, result, firstToday, focusInfo, challenge);
     return true;
   }
 
@@ -2571,7 +2613,7 @@
 
   [els.addSheet, els.remoteSheet, els.backupSheet].forEach(sheet => setupSheet(sheet)); // gli altri in ui-focus.js, ui-assistant.js e ui-settings.js
 
-  // Tornando nell'app (o dopo mezzanotte) "Oggi" e "In ritardo" devono essere giusti.
+  // Tornando nell'app (o dopo mezzanotte) "Oggi" e "In ritardo" devono essere giusti, e il primo giorno nascono le sfide.
   // E si guarda se Siri ha lasciato frasi nella casella (solo con un dispositivo collegato).
   // Uscendo, si ricorda la scheda: riaprendo entro 30 minuti si riparte da lì.
   document.addEventListener('visibilitychange', () => {
@@ -2579,6 +2621,7 @@
       rememberTab();
       return;
     }
+    keepChallenges();
     render();
     refreshRemote();
     offerUpdate(); // una versione nuova già pronta, con l'avviso passato da almeno 15 minuti
@@ -2587,18 +2630,22 @@
   window.addEventListener('pagehide', rememberTab);
   setInterval(() => {
     const now = new Date();
-    // Giorno nuovo, oppure l'ora di un'attività di oggi è appena passata (diventa rossa): si ridisegna.
-    if (utils.toISODate(now) !== renderedDay || T.passedCount(state.tasks, now) !== renderedPassed) render();
+    // Giorno nuovo (con le sue sfide), oppure l'ora di un'attività di oggi è appena passata (diventa rossa): si ridisegna.
+    const newDay = utils.toISODate(now) !== renderedDay;
+    if (newDay) keepChallenges();
+    if (newDay || T.passedCount(state.tasks, now) !== renderedPassed) render();
     else {
       els.greeting.textContent = utils.greeting(now);
       if (agendaCtl) agendaCtl.tick(now); // la linea dell'ora in «Con orario», se il giorno scelto è oggi
+      if (challengesCtl) challengesCtl.tick(now); // «Hai tempo fino alle 18» diventa «Entro le 18»
     }
   }, 60 * 1000);
 
-  // Dati modificati in un'altra scheda.
+  // Dati modificati in un'altra scheda. Se là le sfide non sono al passo (una versione di prima), le porta al passo questa.
   window.addEventListener('storage', event => {
     if (event.key !== storage.KEY && event.key !== null) return;
     state = storage.load().state;
+    keepChallenges();
     render();
     if (focusCtl) focusCtl.sync();
   });
@@ -2757,6 +2804,11 @@
     vibrate,
     isActive: () => activeTab === 'motivation'
   });
+  // «Sfide di oggi»: la card in Motivazione. Le sfide nascono e cambiano qui (keepChallenges, commitState), la card le disegna.
+  challengesCtl = ChallengesUI.init({
+    getState: () => state,
+    isActive: () => activeTab === 'motivation'
+  });
   // «Negozio»: la card in Motivazione e il foglio. Acquisti, riparazioni e oggetti in uso passano da commitState().
   shopCtl = ShopUI.init({
     getState: () => state,
@@ -2800,6 +2852,7 @@
   });
 
   syncTabs(); // Focus, oppure l'ultima scheda se Aura è stata usata negli ultimi 30 minuti
+  keepChallenges(); // la prima apertura del giorno: nascono le sfide di oggi
   render();
   watchStats();
   measureHero();

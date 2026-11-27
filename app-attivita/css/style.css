@@ -1542,6 +1542,66 @@ button {
   .prize__redeem { min-width: 0; padding: 0 12px; }
 }
 
+/* «Sfide di oggi» (P-003, passo 3.5): una riga per sfida su un fondo tenue, con l'anello che si riempie, il testo e «+10».
+   Fatta, l'anello diventa verde con la spunta, e «+10» anche. Le righe non si toccano. */
+.challenges__count { flex: none; margin: 0; color: var(--text-2); font-size: calc(15 * var(--px)); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.challenges.is-all .challenges__count { color: var(--low); }
+.challenges__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+/* Con il testo grande, quando il testo resterebbe più stretto di 110 px (--px), «+10» va sulla riga sotto, a destra:
+   anello e testo restano insieme (.challenge__main), come emoji e nome nei premi */
+.challenge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 64px;
+  padding: 10px 14px 10px 12px;
+  border-radius: 16px;
+  background: var(--field-bg);
+}
+.challenge__main { display: flex; align-items: center; gap: 12px; flex: 1 1 calc(48px + 110 * var(--px)); min-width: 0; }
+.challenge__ring { flex: none; width: 36px; height: 36px; }
+.challenge__svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.challenge__track,
+.challenge__arc { fill: none; stroke-width: 3.5; }
+.challenge__track { stroke: var(--border-strong); }
+/* Lunghezza dell'anello: 2π × 15. js/ui-challenges.js sposta stroke-dashoffset quando cambia quanto manca, senza
+   transizioni, come l'anello del focus: i movimenti solo con transform e opacity. Sfuma solo il colore, fatta */
+.challenge__arc {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: 94.248;
+  stroke-dashoffset: 94.248;
+  transition: stroke var(--dur-color) var(--ease-out);
+}
+.challenge__arc.is-empty { visibility: hidden; }
+.challenge__tick { fill: none; stroke: var(--low); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity var(--dur-quick) var(--ease-out); }
+.challenge.is-done .challenge__arc { stroke: var(--low); }
+.challenge.is-done .challenge__tick { opacity: 1; }
+.challenge__text { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.challenge__title { font-size: calc(16 * var(--px)); font-weight: 750; line-height: 1.3; overflow-wrap: anywhere; text-wrap: pretty; }
+.challenge__note { color: var(--text-2); font-size: calc(14 * var(--px)); font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.challenge__points {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  margin-left: auto;
+  color: var(--medium);
+  font-size: calc(15 * var(--px));
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.challenge__check { display: none; width: 16px; height: 16px; stroke-width: 3; }
+.challenge.is-done .challenge__points { color: var(--low); }
+.challenge.is-done .challenge__check { display: block; }
+/* Sugli schermi da 320 px un poco più di spazio per il testo */
+@media (max-width: 359px) {
+  .challenge { gap: 4px 10px; padding: 10px 12px 10px 10px; }
+  .challenge__main { gap: 10px; }
+}
+
 /* «Negozio» (P-004, passo 4.1): la card in Motivazione e il foglio. La pillola del saldo è quella dei premi. */
 .shop .block__head { flex-wrap: wrap; row-gap: 6px; }
 /* «Ripara la serie»: con una riparazione possibile un riquadro caldo con la fiamma accesa e, sotto, «Ripara» largo
@@ -3620,6 +3680,9 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .lvl__badge.is-leveling { animation: value-pop var(--dur-reward) var(--ease-spring); }
 .prizes__balance.is-bumping { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
 .sky-line.is-appearing { animation: fade-in var(--dur-celebrate) var(--ease-out); }
+/* «Sfide di oggi»: l'anello di una sfida appena fatta salta come la spunta, e «N di 3» come i contatori */
+.challenge__ring.is-popping { animation: check-pop var(--dur-move) var(--ease-spring); }
+.challenges__count.is-bumping { animation: value-pop calc(var(--dur-reward) * .75) var(--ease-spring); }
 
 /* Focus: l'aurora scorre piano (solo transform e opacity); il primo fotogramma è lo stato di riposo di ogni livello */
 @keyframes aurora-band-1 { to { transform: translateX(33%) rotate(4deg) scale(3, 3.45); opacity: 1; } }

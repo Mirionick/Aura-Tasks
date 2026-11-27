@@ -248,13 +248,13 @@
 
   /* ---------- Dati: migrazione e backup ---------- */
 
-  test('migrazione: i dati della v6 arrivano alla v7; le attività che c\'erano non si ripetono', () => {
+  test('migrazione: i dati della v6 arrivano all\'ultima versione; le attività che c\'erano non si ripetono', () => {
     const tasks = [
       { id: 'a', title: 'Fatta', duration: 30, energy: 'medium', date: '2026-11-17', time: null, done: true, createdAt: 1, completedAt: 5, pointsAwarded: 24 },
       { id: 'b', title: 'Da fare', duration: 15, energy: 'low', date: null, time: null, done: false, createdAt: 2, completedAt: null, pointsAwarded: null }
     ];
     const state = storage.parse(JSON.stringify({ version: 6, tasks, rewards: [], stats: P.emptyStats(), look: { aurora: 'aurora', confetti: 'classic', at: 0 } }));
-    assertEqual([state.version, storage.SCHEMA_VERSION], [7, 7]);
+    assertEqual(state.version, storage.SCHEMA_VERSION);
     assertEqual(state.tasks, tasks.map(task => ({ ...task, repeat: null, seriesId: null })));
   });
 

@@ -27,6 +27,7 @@
   <script src="js/nlp.js" defer></script>
   <script src="js/points.js" defer></script>
   <script src="js/focus.js" defer></script>
+  <script src="js/challenges.js" defer></script>
   <script src="js/suggest.js" defer></script>
   <script src="js/assistant.js" defer></script>
   <script src="js/agenda.js" defer></script>
@@ -50,6 +51,7 @@
   <script src="js/ui-agenda.js" defer></script>
   <script src="js/ui-motivation.js" defer></script>
   <script src="js/ui-rewards.js" defer></script>
+  <script src="js/ui-challenges.js" defer></script>
   <script src="js/ui-shop.js" defer></script>
   <script src="js/ui-music.js" defer></script>
   <script src="js/ui-sound.js" defer></script>
@@ -354,10 +356,11 @@
       </section>
     </section>
 
-    <!-- Scheda Motivazione, per i progressi (P-003, passi 3.3 e 3.4): «La tua settimana», «I tuoi premi», «I tuoi numeri»,
-         «Completate» chiusa e, in fondo, privacy e backup. Livello, serie e punti stanno nell'intestazione. Settimana e numeri
-         li scrive js/ui-motivation.js, con la logica di js/motivation.js; i premi js/ui-rewards.js, con js/rewards.js;
-         «Completate» la scrive app.js (vedi docs/tre-modalita.md). -->
+    <!-- Scheda Motivazione, per i progressi (P-003, passi da 3.3 a 3.5): «La tua settimana», «I tuoi premi», «Sfide di oggi»,
+         «Negozio», «I tuoi numeri», «Completate» chiusa e, in fondo, privacy e backup. Livello, serie e punti stanno
+         nell'intestazione. Settimana e numeri li scrive js/ui-motivation.js, con la logica di js/motivation.js; i premi
+         js/ui-rewards.js, con js/rewards.js; le sfide js/ui-challenges.js, con js/challenges.js; «Completate» la scrive
+         app.js (vedi docs/tre-modalita.md). -->
     <section class="tab" id="tab-motivation" aria-label="Motivazione" hidden>
       <section class="card-block sky" id="sky" aria-labelledby="sky-title" data-flip="sky">
         <div class="block__head">
@@ -414,6 +417,18 @@
           <ul class="prizes__log" id="prizes-log"></ul>
         </details>
         <p class="block__note" data-flip="prizes-note">Spendere punti non ti fa scendere di livello: il livello conta tutti i punti guadagnati.</p>
+      </section>
+
+      <!-- «Sfide di oggi» (P-003, passo 3.5): quante sono fatte, una riga per sfida (anello, testo, stato e «+10») e, in
+           fondo, i 20 punti in più. Lo scrive js/ui-challenges.js, con la logica di js/challenges.js; le sfide nascono e
+           si aggiornano in app.js. Resta nascosta finché quelle di oggi non ci sono. -->
+      <section class="card-block challenges" id="challenges" aria-labelledby="challenges-title" data-flip="challenges" hidden>
+        <div class="block__head">
+          <h2 class="block__title" id="challenges-title">Sfide di oggi</h2>
+          <p class="challenges__count" id="challenges-count"><span class="sr-only">Fatte: </span><span id="challenges-done">0</span> di <span id="challenges-total">3</span></p>
+        </div>
+        <ul class="challenges__list" id="challenges-list"></ul>
+        <p class="block__note" id="challenges-note"></p>
       </section>
 
       <!-- «Negozio» (P-004, passo 4.1): il saldo da spendere, lo stesso dei premi; «Ripara la serie» quando si può; «Apri il

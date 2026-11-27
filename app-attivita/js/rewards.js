@@ -307,10 +307,7 @@
    */
   function priceHint(stats, today) {
     let points = 0;
-    for (let i = 0; i < 7; i++) {
-      const entry = stats.days[utils.addDays(today, -i)];
-      if (entry) points += entry.points;
-    }
+    for (let i = 0; i < 7; i++) points += P.pointsOn(stats, utils.addDays(today, -i)); // completamenti e sfide
     if (points > 0) return 'Negli ultimi 7 giorni hai guadagnato ' + pointsLabel(points) + '.';
     const typical = P.pointsFor({ duration: 30, energy: 'medium' });
     return 'Per darti un\'idea: un\'attività di 30 minuti con energia media vale ' + pointsLabel(typical) + '.';
