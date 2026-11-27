@@ -12,8 +12,8 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 | 1 | Animazioni più fluide in tutta l'app | fatta; provata sull'iPhone il 16 novembre 2026 |
 | 2a | Barra delle schede e Focus, con «Cosa faccio adesso?», il timer e i minuti di focus | fatta e pubblicata con la v9; provata sull'iPhone il 16 novembre 2026. Il difetto trovato (il focus a tutto schermo non restava fermo) è corretto con la v13, da riprovare sull'iPhone |
 | 2b | Notifica push alla fine del focus | approvata: passo a parte, dopo la prova della 2a sull'iPhone (vedi "Notifica push alla fine del focus") |
-| — | Passo a parte: apertura più leggera del foglio «Nuova attività» | da fare, dopo la 2a |
-| — | Passo a parte: rispettare «Dimensione testo» dell'iPhone | da fare, dopo la 2a |
+| — | Passo a parte: apertura più leggera del foglio «Nuova attività» | misurata di nuovo il 27 novembre 2026: non è più il gesto più pesante, per ora non si cambia (vedi "Passi a parte, dopo la fase 2a") |
+| — | Passo a parte: rispettare «Dimensione testo» dell'iPhone | fatto con la v27; da provare sull'iPhone (vedi "Passi a parte, dopo la fase 2a") |
 | 3 | Agenda | sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario |
 | 4 | Motivazione, con le illustrazioni | sostituita da [P-003](../../docs/proposte/P-003.md), passi 3.3–3.5 |
 | — | [P-003](../../docs/proposte/P-003.md), passo 3.1: cambio di scheda animato e aurora nel focus | fatto con la v15; da provare sull'iPhone (vedi "P-003, passo 3.1") |
@@ -140,10 +140,15 @@ Ognuno si pubblica da solo, con le sue misure.
   - Poi si riduce, con la misura prima e dopo.
   - **Misura del 27 novembre 2026** (cache v25): Chromium 153 headless con Playwright 1.63, contesto «iPhone 13», CPU 4 volte più lenta, mediana di 8 prove. Fotogrammi persi all'apertura: «Nuova attività» 0,5 (il peggiore di 25 ms), «Modifica attività» 0,5, «Impostazioni» 2 (il peggiore di 50 ms), cambio di scheda 1,5. In tutta l'animazione d'ingresso «Nuova attività» costa 84 ms di thread principale, di cui 22 ms di stile in 25 ricalcoli e 5 ms di layout (mediana di 10 aperture); il primo fotogramma arriva dopo 33 ms. I numeri sopra vengono da un altro computer e non si confrontano: conta l'ordine dei gesti.
   - **Esito**: il foglio non è più il gesto più pesante, quindi per ora non si cambia. Si riapre se sull'iPhone l'apertura sembra lenta.
-- **«Dimensione testo» dell'iPhone**: oggi il testo ha dimensioni fisse in px.
+- **«Dimensione testo» dell'iPhone**: prima il testo aveva dimensioni fisse in px.
   - Si passa a `font: -apple-system-body` con il font dell'app, e a dimensioni in rem.
   - I campi restano sempre ad almeno 16 px.
   - Servono schermate con il testo grande, senza rompere i layout a 375 px.
+  - **Fatto con la v27** (27 novembre 2026). Solo su iPhone e iPad la radice prende la misura di «Dimensione testo» (`font: -apple-system-body`, dentro `@supports` con `-webkit-touch-callout`: sul Mac quella misura è di 13 px); altrove è 17 px (`106.25%`), la misura del testo normale dell'iPhone. Le misure del testo si scrivono `calc(N * var(--px))`: `--px` vale 1 px con il testo normale e cresce con quello scelto, fino a 28 px, il primo dei testi grandi di Accessibilità. Le parti strette (calendario, chip in griglia, contatore dei minuti, pacchetti del negozio, nome dell'app) usano `--px-ui`, che si ferma a 21 px. Regole in [CLAUDE-GUIDE.md](CLAUDE-GUIDE.md), «Convenzioni», «Dimensione del testo».
+  - Con il testo grande i layout si adattano: Serie e Punti in Motivazione vanno uno sotto l'altro; «I tuoi numeri», i pulsanti del focus e le scelte delle Impostazioni hanno meno colonne; le righe dei premi e quella di data e ora vanno a capo; negli indirizzi da copiare, per Claude e per Siri, «Copia» va sotto; la striscia di «Cosa faccio adesso?» e il calendario a cavallo dell'intestazione crescono con il testo.
+  - Restano in px, con il commento `px fisso`: le emoji nei riquadri fissi, la barra delle schede (come quella di iOS), i nomi del tema nelle tre anteprime, il timer del focus e il codice per collegare Claude, che seguono già lo schermo. La CI lo controlla.
+  - **Prove** (Chromium 153 con Playwright 1.63, la radice portata a 14, 19, 21, 23, 28 e 40 px come fa iOS): a 320, 375 e 390 px, nelle tre schede e in tutti i fogli, niente esce dallo schermo o dal foglio, niente scorre di lato e niente finisce con i puntini, tranne la striscia di «Cosa faccio adesso?» a 320 px dal testo a 28 px in su (una riga per scelta: l'attività intera è nella lista). Con il testo normale le schermate sono uguali pixel per pixel a quelle di prima (390, 375, 360, 320 e 1280 px, due temi), tranne dove prima c'erano i puntini: «Apple Music» e «Amazon Music» nelle Impostazioni e «Traguardo: 14 giorni» in Motivazione a 320 px, che ora vanno a capo.
+  - **Da provare sull'iPhone**: Impostazioni › Schermo e luminosità › Dimensione testo (e Accessibilità › Schermo e dimensione testo › Testo più grande), poi si torna in Aura (se il testo non cambia, la si chiude e riapre). Da guardare le tre schede e i fogli con il testo più piccolo, quello normale, il più grande e uno di Accessibilità.
 
 ### P-003, passo 3.1: cambio di scheda e aurora
 Il cambio di scheda diventa un movimento d'insieme (vedi "Navigazione") e lo sfondo del focus diventa un'aurora che sale con il tempo (vedi "Focus a tutto schermo con timer").
