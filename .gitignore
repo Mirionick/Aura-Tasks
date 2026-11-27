@@ -4,6 +4,10 @@ Thumbs.db
 .DS_Store
 desktop.ini
 
+# File compilati di Python (gli script della CI): si rifanno da soli
+__pycache__/
+*.py[cod]
+
 # File locali e credenziali: non versionare mai
 .env
 .env.*

@@ -25,6 +25,18 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Tutta la storia: i controlli di conformità leggono i commit e le righe aggiunte dalla PR
+          fetch-depth: 0
+
+      # Passo 0a di P-002. Su una PR: segreti, percorsi locali ed email nelle righe aggiunte e nei messaggi dei commit,
+      # firme noreply, versione della cache; sempre: niente innerHTML nell'app. PRIVACY_TERMS è un segreto facoltativo
+      # del repository (per esempio il nome reale): senza, quel controllo non c'è.
+      - name: Controlli di conformità
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PRIVACY_TERMS: ${{ secrets.PRIVACY_TERMS }}
+        run: python3 -B .github/scripts/check-compliance.py
 
       - name: Configura Node.js 22
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -38,6 +50,9 @@ jobs:
       - name: Esegui i test del server
         working-directory: server
         run: npm test
+
+      - name: Esegui i test dei controlli della CI
+        run: python3 -B -m unittest discover -s .github/scripts -p "test_*.py" -v
 
       - name: Esegui i test della PWA in Chrome headless
         run: python3 .github/scripts/run-frontend-tests.py
