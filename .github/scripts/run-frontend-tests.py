@@ -54,15 +54,34 @@ def check_versions() -> str | None:
     return None
 
 
+def check_font_sizes() -> str | None:
+    """«Dimensione testo»: in css/style.css le misure del testo in px passano da --px (o --px-ui), così crescono con il
+    testo scelto sull'iPhone. Un px fisso voluto (emoji nei riquadri fissi, barra delle schede) dice perché sulla sua
+    riga, con il commento «px fisso: …»."""
+    fixed = []
+    lines = (APP_DIR / "css" / "style.css").read_text(encoding="utf-8").splitlines()
+    for number, line in enumerate(lines, 1):
+        for value in re.findall(r"font-size:\s*([^;}]+)", line):
+            if "px" in value and "var(--px" not in value and "px fisso" not in line:
+                fixed.append(f"  riga {number}: font-size: {value.strip()}")
+    if fixed:
+        return (
+            "In css/style.css le misure del testo si scrivono calc(N * var(--px)), dove N è la misura in px con il testo "
+            "normale, così seguono «Dimensione testo» dell'iPhone. Un px fisso voluto porta sulla stessa riga il "
+            "commento «px fisso: perché». Da sistemare:\n" + "\n".join(fixed)
+        )
+    return None
+
+
 def main() -> int:
     if not (APP_DIR / "tests" / "index.html").is_file():
         print(f"Pagina di test non trovata: {APP_DIR / 'tests' / 'index.html'}", file=sys.stderr)
         return 1
 
-    version_error = check_versions()
-    if version_error:
-        print(version_error, file=sys.stderr)
-        return 1
+    for problem in (check_versions(), check_font_sizes()):
+        if problem:
+            print(problem, file=sys.stderr)
+            return 1
 
     try:
         chrome = find_chrome()

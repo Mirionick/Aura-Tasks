@@ -2641,7 +2641,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .choice-option:has(input:focus-visible) { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 .choice-option input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 /* Il nome va a capo («Amazon Music» su due righe nelle colonne strette), invece di finire con i puntini */
-.choice-option__name { max-width: 100%; font-size: calc(14.5 * var(--px)); font-weight: 700; text-align: center; overflow-wrap: anywhere; }
+.choice-option__name { max-width: 100%; overflow: hidden; font-size: calc(14.5 * var(--px)); font-weight: 700; text-align: center; overflow-wrap: anywhere; }
 .choice-option__check {
   position: absolute;
   top: 50%;

@@ -338,8 +338,13 @@ Backup e copia di prima dell'importazione seguono lo schema da soli: `readBackup
   - nel tema scuro le ombre non bastano: servono bordi sottili e superfici più chiare;
   - `--hero-top` deve restare uguale a `BAR_COLORS` in `theme.js`, che dà il colore della barra di stato;
   - la regola su `flex: 1` nei fogli (iOS) è tra i «Vincoli sempre attivi» di `CLAUDE.md`.
+- **Dimensione del testo** (segue «Dimensione testo» dell'iPhone; vedi [tre-modalita.md](tre-modalita.md), «Passi a parte, dopo la fase 2a»):
+  - le misure del testo si scrivono `calc(N * var(--px))`, dove N è la misura in px con il testo normale (17 px). `--px` cresce con il testo scelto sull'iPhone e si ferma a 28 px. Le parti strette, dove il testo grande non ci starebbe (i sette giorni del calendario, i chip in griglia, il contatore dei minuti, i pacchetti del negozio, il nome dell'app), usano `--px-ui`, che si ferma a 21 px;
+  - restano in px solo le emoji e i simboli nei riquadri fissi, la barra delle schede, i nomi del tema e il timer del focus, con il commento `/* px fisso: perché */` sulla stessa riga. La CI (`run-frontend-tests.py`) si ferma su un `font-size` in px senza `var(--px` e senza quel commento;
+  - un layout che con il testo grande non ci sta cambia forma invece di accorciare il testo: righe che vanno a capo (`flex-wrap`) e meno colonne. Per «N colonne, meno con il testo grande»: `repeat(auto-fit, minmax(max(calc((100% - spazi) / N), min(100%, calc(T * var(--px)))), 1fr))`, con T non più largo di una colonna a 320 px con il testo normale, così con il testo normale non cambia niente;
+  - si prova con la radice a 28 px, a 320 e 390 px: `document.documentElement.style.setProperty('font-size', '28px', 'important')` (la CSP non permette `<style>` aggiunti).
 - **Telefono**:
-  - testo dei campi ≥ 16 px, altrimenti iOS ingrandisce la pagina;
+  - testo dei campi ≥ 16 px, altrimenti iOS ingrandisce la pagina: con il testo che cresce, `max(16px, calc(16 * var(--px)))`;
   - aree di tocco ≥ 44 px;
   - margini con `env(safe-area-inset-*)`;
   - animazioni brevi, disattivate con `prefers-reduced-motion`, e **mai infinite** perché consumano batteria (vedi "Movimento"). Unica eccezione: lo sfondo del focus a tutto schermo.
@@ -458,13 +463,13 @@ Note per i controlli automatici con Edge headless:
 - **Intestazione per scheda**:
   - in Focus è compatta: saluto con i due chip di serie e punti, data, e "Da fare", "Tempo", "Fatte oggi" in una riga, con etichetta e valore affiancati. «Cosa faccio adesso?» sta a cavallo del suo bordo inferiore (`.hero--cta`);
   - in Agenda il nome della scheda e «Pianifica i tuoi giorni». Il calendario (`.cal`) sta a cavallo del bordo inferiore, come «Cosa faccio adesso?» in Focus;
-  - in Motivazione il nome della scheda, poi il livello (distintivo di 60 px, nome, «livello N di 7», barra e quanto manca) e sotto i riquadri grandi di serie e punti. Il sottotitolo non c'è.
-- **Agenda** (P-003, passo 3.2): nel calendario oggi ha l'anello e il giorno scelto è pieno dell'accento; i puntini hanno i colori dell'energia, rossi (`--danger`) nei giorni passati. In «Con orario» l'ora sta in una colonna di 46 px; gli spazi liberi sono riquadri tratteggiati con il «+»; la linea dell'ora è rossa. «Metti a…» è una pillola tenue dell'accento, con l'area di tocco allargata.
+  - in Motivazione il nome della scheda, poi il livello (distintivo di 60 px, nome, «livello N di 7», barra e quanto manca) e sotto i riquadri grandi di serie e punti, affiancati (uno sotto l'altro con il testo grande). Il sottotitolo non c'è.
+- **Agenda** (P-003, passo 3.2): nel calendario oggi ha l'anello e il giorno scelto è pieno dell'accento; i puntini hanno i colori dell'energia, rossi (`--danger`) nei giorni passati. In «Con orario» l'ora sta in una colonna di 46 px con il testo normale, che cresce con il testo; gli spazi liberi sono riquadri tratteggiati con il «+»; la linea dell'ora è rossa. «Metti a…» è una pillola tenue dell'accento, con l'area di tocco allargata.
 - **Motivazione** (P-003, passo 3.3):
   - il distintivo è l'illustrazione del livello (WebP 336×336, ritagliata sul cerchio); per Stella, e se un'immagine non si carica, c'è il distintivo disegnato in SVG con i token `--level-*`. Da Aurora 2 il numero sta in un bollino d'oro sul distintivo;
   - «La tua settimana» è un riquadro (`.card-block`) con un cielo notturno (`--sky-*`, uguale come forma nei due temi): la colonna di oggi più chiara, una stella con l'alone per ogni attività (al massimo 30 per giorno), i cerchi tratteggiati delle stelle che mancano nei giorni che restano, le linee della costellazione (albero minimo) solo a obiettivo raggiunto. «N di M» in alto a sinistra: le stelle restano sotto `MOTIVATION.sky.top`, anche a 320 px;
   - all'apertura della scheda le stelle si accendono una dopo l'altra (al massimo 24, entro `--dur-tab`); la costellazione appena formata appare con una dissolvenza. Solo `opacity` e `transform`; con «Riduci movimento» niente;
-  - «I tuoi numeri» sono sei riquadri in tre colonne (due sotto i 360 px), con i valori allineati in basso; senza minuti di focus una riga dice da dove arrivano;
+  - «I tuoi numeri» sono sei riquadri in tre colonne (due sotto i 360 px o con il testo grande), con i valori allineati in basso; senza minuti di focus una riga dice da dove arrivano;
   - «Completate» è chiusa, con il numero, come «Completate oggi» in Focus; «Svuota» sta dentro.
 - **I tuoi premi** (P-003, passo 3.4), tra «La tua settimana» e «I tuoi numeri»:
   - un riquadro (`.card-block`) con il titolo e la pillola d'oro del saldo («1360 da spendere», `--points-chip-*`), che sugli schermi stretti va sotto il titolo;
@@ -541,7 +546,7 @@ Per la regola 2 di `../AGENTS.md` ogni funzione di oggi resta: al massimo cambia
 2. barra delle schede e Focus:
    - 2a, con «Cosa faccio adesso?», il timer e i minuti di focus (fatta e pubblicata con la v9, provata sull'iPhone il 16 novembre 2026);
    - 2b, la notifica push alla fine del focus (approvata: è un passo a parte, da fare dopo la prova della 2a sull'iPhone);
-   - due passi a parte dopo la 2a: apertura più leggera di «Nuova attività» e «Dimensione testo» dell'iPhone;
+   - due passi a parte dopo la 2a: apertura più leggera di «Nuova attività» (misurata di nuovo il 27 novembre 2026: per ora non serve) e «Dimensione testo» dell'iPhone (fatta con la v27, da provare sull'iPhone);
 3. Agenda: sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2, l'Agenda a calendario (fatta con la v16, da provare sull'iPhone);
 4. Motivazione, con le illustrazioni: sostituita da P-003, passi 3.3–3.5 (il 3.3 fatto con la v17 e il 3.4 con la v18, da provare sull'iPhone).
 
@@ -608,6 +613,7 @@ La licenza premium va fatta quando serve.
 ## Checklist prima di chiudere una modifica
 - [ ] `tests/index.html` è tutto verde, con test nuovi per la logica nuova.
 - [ ] Provato a 375–390 px di larghezza e su desktop, **in tema chiaro e scuro**.
+- [ ] Se sono cambiati testo o layout: provato anche con il testo grande (radice a 28 px) a 320 e 390 px; le misure nuove del testo passano da `var(--px)` (vedi «Dimensione del testo»).
 - [ ] Se sono cambiati layout o animazioni: detto all'utente cosa provare sull'iPhone.
 - [ ] Nessun errore in console, sia aprendo da `file://` sia da `http://localhost`.
 - [ ] `sw.js` è aggiornato (`APP_FILES`, `CACHE_VERSION`) se sono cambiati file, e `VERSION` in `js/update.js` è uguale a `CACHE_VERSION`.
