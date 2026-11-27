@@ -607,7 +607,7 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - **Schema v7**: `migrate()` cambia solo il numero di versione; `sanitizeTask()` aggiunge `repeat: null` e `seriesId: null`, puliti da `Aura.repeat.sanitize()`. Le attività che c'erano non si ripetono.
   - Una sola volta da fare per serie: in Focus o in Agenda si vede come ogni attività, con ↻ sulla card.
   - I backup di tutte le versioni di prima si importano ancora; regole e serie finiscono nel backup.
-- **Sfide di oggi** (P-003, passo 3.5; regole in [punti-e-serie.md](punti-e-serie.md), «Sfide di oggi»): le sfide di ogni giorno in `stats.challenges`: i 30 giorni più recenti e quelli più vecchi che si possono ancora disfare, al massimo 400.
+- **Sfide di oggi** (P-003, passo 3.5; regole in [punti-e-serie.md](punti-e-serie.md), «Sfide di oggi»): le sfide di ogni giorno in `stats.challenges`: i 30 giorni più recenti e quelli più vecchi che si possono ancora disfare.
   - **Schema v8**: `migrate()` cambia solo il numero di versione; `sanitizeStats()` aggiunge `challenges: {}`, pulito da `Aura.challenges.sanitize()`. Quelle di oggi nascono alla prima apertura.
   - I loro punti stanno in `totalPoints`, come quelli dei completamenti: entrano quando una sfida diventa fatta, escono quando torna da fare.
   - I backup di tutte le versioni di prima si importano ancora; le sfide finiscono nel backup.

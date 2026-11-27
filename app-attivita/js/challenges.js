@@ -14,8 +14,8 @@
   const HOUR_MS = 60 * 60 * 1000;
 
   const CHALLENGES = {
-    keepDays: 30,                                  // giorni di sfide conservati, i più recenti; i più vecchi solo se
-    maxDays: 400,                                  // si possono ancora disfare (vedi stillOpen), al massimo 400 in tutto
+    keepDays: 30,                                  // giorni di sfide conservati, i più recenti; i più vecchi finché si
+                                                   // possono ancora disfare (vedi stillOpen)
     count: { lookback: 7, min: 2, max: 6, fallback: 2 },
     focus: { first: 10, regular: 25 },             // minuti: 10 finché il registro non ha minuti di focus
     oldest: { minAgeDays: 3 },                     // un'attività da fare creata almeno 3 giorni fa
@@ -164,14 +164,14 @@
   }
 
   /**
-   * I giorni da tenere quando nascono le sfide di oggi: oggi, i 30 più recenti e, prima, quelli che si possono ancora
-   * disfare (stillOpen), al massimo 400 in tutto. Un giorno tolto non ha più niente da disfare: i suoi punti restano in
-   * totalPoints.
+   * I giorni da tenere quando nascono le sfide di oggi: oggi, i 30 più recenti e, prima, tutti quelli che si possono
+   * ancora disfare (stillOpen). Nessun tetto: un giorno vecchio resta solo con un'attività completata quel giorno ancora
+   * nell'elenco, quindi i giorni non sono mai più dell'elenco. Un giorno tolto non ha più niente da disfare: i suoi
+   * punti restano in totalPoints.
    */
   function keptDays(challenges, today, index) {
     return Object.keys(challenges).concat(today).sort().reverse()
-      .filter((day, i) => day === today || i < CHALLENGES.keepDays || stillOpen(challenges[day], day, index))
-      .slice(0, CHALLENGES.maxDays);
+      .filter((day, i) => day === today || i < CHALLENGES.keepDays || stillOpen(challenges[day], day, index));
   }
 
   // L'ultimo registro già al passo, con le sue attività e il suo giorno: con gli stessi dati refresh() non cambierebbe
@@ -255,15 +255,14 @@
 
   /**
    * stats.challenges letto (dall'archivio o da un backup) → valido. Tiene un giorno solo se la data è valida, `at` è un
-   * istante e le tre sfide sono valide e in ordine; al massimo i 400 giorni più recenti (quali tenere oltre i 30 lo
-   * decide refresh(), che conosce le attività). Un `done` o un `by` non validi si tolgono. I campi sconosciuti restano.
+   * istante e le tre sfide sono valide e in ordine; quali giorni tenere oltre i 30 più recenti lo decide refresh(), che
+   * conosce le attività. Un `done` o un `by` non validi si tolgono. I campi sconosciuti restano.
    */
   function sanitize(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
     const days = Object.keys(raw).filter(day => utils.isISODate(day)).sort().reverse();
     const clean = {};
     days.forEach(day => {
-      if (Object.keys(clean).length >= CHALLENGES.maxDays) return;
       const entry = raw[day];
       if (!entry || typeof entry !== 'object' || !isInstant(entry.at) || !Array.isArray(entry.items) || entry.items.length !== 3) return;
       const items = entry.items.map(sanitizeItem);
