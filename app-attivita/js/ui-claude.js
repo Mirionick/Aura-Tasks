@@ -37,6 +37,7 @@
 
   let links = null;     // i collegamenti, [{ createdAt, usedAt }]; null finché non si sa
   let checking = false; // GET /api/claude in corso (stato o controllo del codice)
+  let inFlight = null;  // la stessa richiesta: chi chiede mentre è in corso aspetta quella risposta
   let checkedAt = 0;
   let trouble = null;   // perché lo stato non si sa (internet, server)
   let busy = false;     // «Mostra il codice», «Nuovo codice» o «Scollega Claude» in corso
@@ -75,7 +76,7 @@
   }
 
   /** GET /api/claude. Restituisce lo stato ripulito, oppure null (e il motivo in `trouble`). */
-  async function fetchStatus() {
+  async function askStatus() {
     checking = true;
     const result = await ctx.withDevice(device => R.api.claudeStatus(device));
     checking = false;
@@ -90,6 +91,12 @@
     return status;
   }
 
+  /** Una domanda alla volta: se ce n'è già una in corso, si aspetta quella invece di farne un'altra. */
+  function fetchStatus() {
+    if (!inFlight) inFlight = askStatus().finally(() => { inFlight = null; });
+    return inFlight;
+  }
+
   /**
    * Chiede lo stato al server. Senza `force`, non prima di 30 secondi dall'ultima volta. Senza il codice del
    * dispositivo non chiede niente: non c'è nessun collegamento.
@@ -102,7 +109,12 @@
       }
       return;
     }
-    if (checking || R.availability() !== 'ok') return;
+    if (R.availability() !== 'ok') return;
+    if (inFlight) {
+      await inFlight; // la risposta che sta arrivando basta
+      changed();
+      return;
+    }
     if (!force && links && Date.now() - checkedAt < REFRESH_MS) return;
     if (navigator.onLine === false) {
       trouble = R.troubleMessage(null, false);
@@ -115,9 +127,21 @@
     changed();
   }
 
-  /** Dopo «Scollega questo dispositivo»: il server ha tolto anche i collegamenti. Dice se Claude era collegato. */
+  /**
+   * Prima di «Scollega questo dispositivo», che toglie anche i collegamenti di Claude: lo stato di adesso, chiesto al
+   * server (o la risposta già in arrivo), perché quello in memoria può mancare (la prima domanda non è finita, o non è
+   * andata) o essere vecchio. Restituisce true se Claude è collegato, false se no, null se non si è potuto sapere: allora
+   * l'avviso di «Annulla» lo dice con un «se».
+   */
+  async function settle() {
+    const status = await fetchStatus();
+    changed();
+    if (status) return status.links.length > 0;
+    return linkedNow() ? true : null;
+  }
+
+  /** Dopo «Scollega questo dispositivo»: il server ha tolto anche i collegamenti. */
   function forget() {
-    const had = linkedNow();
     stopTimer();
     shown = null;
     asking = false;
@@ -126,7 +150,6 @@
     links = [];
     checkedAt = Date.now();
     changed();
-    return had;
   }
 
   /* ---------- Il codice ---------- */
@@ -389,7 +412,7 @@
       }
     });
     render();
-    return { open, refresh, state, forget };
+    return { open, refresh, state, settle, forget };
   }
 
   Aura.claudeUI = { init };

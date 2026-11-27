@@ -1947,6 +1947,8 @@
     const previousAssistant = prefs.assistant;
     if (assistantCtl) assistantCtl.forget();
     await checkInbox({ force: true }); // prima si ritirano le frasi in attesa: non vanno perse
+    // E si chiede se Claude è collegato (true, false o null se non si sa): «Annulla» non lo ricollega, e l'avviso lo dirà
+    const hadClaude = claudeCtl ? await claudeCtl.settle() : false;
     const previous = remote;
     const result = await R.api.unregister(previous.code);
     remoteBusy = false;
@@ -1959,7 +1961,7 @@
     remote.reminders.lead = previous.reminders.lead;
     saveRemote();
     messages.siri = null;
-    const hadClaude = claudeCtl ? claudeCtl.forget() : false; // il server ha tolto anche i collegamenti di Claude
+    if (claudeCtl) claudeCtl.forget(); // il server ha tolto anche i collegamenti di Claude
     syncRemoteUI();
     syncAfterAssistantChange();
     showToast('Dispositivo scollegato', { action: 'Annulla', onAction: () => restoreConnection(previous, previousAssistant, hadClaude) });
@@ -1993,6 +1995,7 @@
     syncRemoteUI();
     syncAfterAssistantChange();
     if (hadClaude) showToast('Dispositivo ricollegato. Claude va ricollegato con un codice nuovo.', { duration: 6000 });
+    else if (hadClaude === null) showToast('Dispositivo ricollegato. Se avevi collegato Claude, va ricollegato con un codice nuovo.', { duration: 6000 });
     else showToast('Dispositivo ricollegato');
     if (remote.reminders.enabled) await refreshPush({ force: true });
   }

@@ -59,7 +59,7 @@ In un posto solo, ciò che prima era scritto qua e là.
 - Sta in fondo al foglio, nella sezione «Server di Aura», solo dove il server c'è.
   - Dispositivo non collegato: una frase dice che si collega da solo quando si attivano i promemoria, si crea il codice per Siri, si collega Claude o si usa l'assistente.
   - Collegato: il pulsante, e sotto una riga che dice che cosa spegne: «Spegne i promemoria, il Comando Rapido di Siri e l'assistente, e cancella dal server la casella di Siri, i promemoria e i conteggi. Subito dopo puoi toccare «Annulla».»
-  - Con Claude collegato, un'altra riga: «Scollega anche Claude, che con «Annulla» non torna: per ricollegarlo servirà un codice nuovo.» Il server toglie anche i collegamenti di Claude, e dopo «Annulla» l'avviso dice «Dispositivo ricollegato. Claude va ricollegato con un codice nuovo.».
+  - Con Claude collegato, un'altra riga: «Scollega anche Claude, che con «Annulla» non torna: per ricollegarlo servirà un codice nuovo.» Il server toglie anche i collegamenti di Claude: prima di scollegare l'app gli chiede se Claude è collegato, e dopo «Annulla» l'avviso dice «Dispositivo ricollegato. Claude va ricollegato con un codice nuovo.» (oppure «Se avevi collegato Claude, va ricollegato con un codice nuovo.», se il server non ha risposto).
 - È la stessa azione del foglio «Promemoria e Siri» e del foglio «Assistente» (`disconnectDevice()` in `app.js`).
 - Se riesce, **si chiudono tutti i fogli**: l'avviso «Dispositivo scollegato» con «Annulla» sta sotto i fogli aperti, e così si vede e si tocca. «Annulla» registra di nuovo lo stesso codice e riaccende l'assistente com'era.
 - Mentre lavora il pulsante è spento e il foglio dice «Scollego il dispositivo…». Se non riesce, il motivo resta nel foglio, nella riga di stato.
