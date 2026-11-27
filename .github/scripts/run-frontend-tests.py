@@ -18,7 +18,7 @@ TEST_PAGE = "/tests/index.html"
 TIMEOUT_SECONDS = 60
 # Minimo di test frontend atteso: alzarlo quando vengono aggiunti nuovi test.
 # Se scende, probabilmente un file di test non è stato caricato o è stato rimosso.
-MIN_EXPECTED_TESTS = 367
+MIN_EXPECTED_TESTS = 369
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
@@ -34,9 +34,34 @@ def find_chrome() -> str:
     raise RuntimeError("Chrome/Chromium non trovato nel runner GitHub Actions")
 
 
+def check_versions() -> str | None:
+    """La versione della pagina (js/update.js) e quella della cache (sw.js) devono essere la stessa."""
+    patterns = {
+        "sw.js": (APP_DIR / "sw.js", r"^const CACHE_VERSION = '([^']+)';"),
+        "js/update.js": (APP_DIR / "js" / "update.js", r"^\s*const VERSION = '([^']+)';"),
+    }
+    found = {}
+    for name, (path, pattern) in patterns.items():
+        match = re.search(pattern, path.read_text(encoding="utf-8"), re.MULTILINE)
+        if not match:
+            return f"Versione non trovata in {name}"
+        found[name] = match.group(1)
+    if found["sw.js"] != found["js/update.js"]:
+        return (
+            f"CACHE_VERSION di sw.js ({found['sw.js']}) e VERSION di js/update.js ({found['js/update.js']}) "
+            "devono essere uguali: si cambiano insieme."
+        )
+    return None
+
+
 def main() -> int:
     if not (APP_DIR / "tests" / "index.html").is_file():
         print(f"Pagina di test non trovata: {APP_DIR / 'tests' / 'index.html'}", file=sys.stderr)
+        return 1
+
+    version_error = check_versions()
+    if version_error:
+        print(version_error, file=sys.stderr)
         return 1
 
     try:

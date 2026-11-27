@@ -7,6 +7,7 @@
 'use strict';
 
 // Quando aggiungi, togli o rinomini un file dell'app: aggiorna APP_FILES e aumenta la versione.
+// La stessa versione va in VERSION di js/update.js: la pagina la confronta con le cache (lo controlla la CI).
 const CACHE_VERSION = 'aura-tasks-v26';
 const APP_FILES = [
   './',

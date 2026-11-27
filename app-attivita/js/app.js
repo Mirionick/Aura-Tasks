@@ -818,7 +818,7 @@
   let toastHandler = null;
   let toastKind = null;     // 'update' mentre si vede l'avviso della versione nuova (vedi offerUpdate)
   // La versione nuova con l'app rimasta aperta (vedi «Service worker», più sotto): sta qui perché la usano anche avvisi e fogli
-  const updates = { checkedAt: 0, found: false, ready: false, offeredAt: 0, retry: null };
+  const updates = { checkedAt: 0, ready: false, offeredAt: 0, retry: null };
 
   /**
    * L'avviso sta nella pagina oppure dentro `host`, un foglio aperto: un foglio copre la pagina e la rende inerte, quindi
@@ -2315,31 +2315,27 @@
         // Senza service worker l'app funziona lo stesso, solo non offline.
       });
     });
-    // Il service worker nuovo comanda la pagina. Conta solo quello trovato tornando nell'app: alla prima installazione,
-    // o quando arriva all'apertura, la pagina è già quella nuova (prima la rete).
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (updates.found) updateReady();
-    });
+    navigator.serviceWorker.addEventListener('controllerchange', whenActivated);
   }
 
   /*
    * Versione nuova con l'app rimasta aperta (su iPhone, tornando nell'app, la pagina non si ricarica). Tornando
    * nell'app, al massimo una volta al minuto, si chiede al browser se sw.js è cambiato. Il service worker nuovo scarica
-   * i file e prende il posto del vecchio da solo; quando comanda, l'avviso propone «Aggiorna», che ricarica la pagina.
-   * Mai sopra un foglio aperto (si perderebbe quello che c'è scritto) né sopra un altro avviso (il suo «Annulla»).
-   * Lo stato sta in `updates`, dichiarato con gli avvisi.
+   * i file e prende il posto del vecchio da solo. Quando comanda e i suoi file sono più nuovi della pagina
+   * (U.isStale), l'avviso propone «Aggiorna», che ricarica la pagina. Mai sopra un foglio aperto (si perderebbe quello
+   * che c'è scritto) né sopra un altro avviso (il suo «Annulla»). Lo stato sta in `updates`, dichiarato con gli avvisi.
    */
-  const workersOf = registration => ({ installing: registration.installing, waiting: registration.waiting, active: registration.active });
 
   /**
-   * All'apertura la pagina arriva dalla rete, quindi è già la più nuova. Si chiede subito al browser se sw.js è cambiato:
-   * così un service worker nuovo arriva adesso, senza avviso, e il primo ritorno nell'app non lo scambia per una
-   * versione uscita dopo. (Il browser lo chiederebbe da solo aprendo la pagina, ma non sempre: Chromium non lo fa a ogni
-   * apertura.) Il prossimo controllo, tornando nell'app, tra almeno un minuto.
+   * All'apertura si chiede subito al browser se sw.js è cambiato: il browser lo chiederebbe da solo aprendo la pagina,
+   * ma non sempre (Chromium non lo fa a ogni apertura). Se la pagina è arrivata dalla rete è già nuova, e l'avviso non
+   * c'è; se con la rete lenta è arrivata dalla cache, quando il nuovo comanda c'è (checkStale). Il prossimo controllo,
+   * tornando nell'app, tra almeno un minuto.
    */
   function checkAtStart(registration) {
     updates.checkedAt = Date.now();
     if (registration && registration.active) registration.update().catch(() => {});
+    checkStale();
   }
 
   async function checkForUpdate() {
@@ -2349,16 +2345,34 @@
     updates.checkedAt = now;
     try {
       const registration = await navigator.serviceWorker.getRegistration();
-      if (!registration || !registration.active) return; // nessuno, o la prima installazione: niente da aggiornare
-      const before = workersOf(registration);
-      await registration.update();
-      if (!U.arrived(before, workersOf(registration))) return;
-      updates.found = true;
-      // Se ha già preso il posto del vecchio, l'evento controllerchange è già passato.
-      const controller = navigator.serviceWorker.controller;
-      if (controller && controller !== before.active) updateReady();
+      if (registration && registration.active) await registration.update(); // senza un attivo: la prima installazione
     } catch (err) {
       // Senza rete, o con il sito che non risponde: si riprova al prossimo ritorno nell'app.
+    }
+    checkStale(); // anche senza rete: il service worker nuovo può essere arrivato prima
+  }
+
+  /**
+   * Un service worker nuovo comanda la pagina. Comanda già mentre si attiva: le cache vecchie le cancella subito dopo
+   * (sw.js, «activate»). Quando ha finito, se i suoi file sono più nuovi della pagina c'è l'avviso (checkStale).
+   */
+  function whenActivated() {
+    const worker = navigator.serviceWorker.controller;
+    if (!worker || worker.state === 'activated') { checkStale(); return; }
+    worker.addEventListener('statechange', function onState() {
+      if (worker.state !== 'activated' && worker.state !== 'redundant') return;
+      worker.removeEventListener('statechange', onState);
+      checkStale();
+    });
+  }
+
+  /** Se i file del service worker che comanda sono più nuovi della pagina, la versione nuova è pronta. */
+  async function checkStale() {
+    if (updates.ready || !('caches' in window)) return;
+    try {
+      if (U.isStale(U.VERSION, await caches.keys())) updateReady();
+    } catch (err) {
+      // Senza accesso alle cache (per esempio in navigazione privata): nessun avviso.
     }
   }
 

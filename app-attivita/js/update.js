@@ -4,11 +4,16 @@
  * dopo un aggiornamento. Tornando nell'app, js/app.js chiede al browser se sw.js è cambiato. Se sì, il service worker
  * nuovo scarica i file e prende il posto del vecchio (skipWaiting e clients.claim in sw.js), e un avviso propone
  * «Aggiorna», che ricarica la pagina.
- * Solo funzioni pure: quando chiedere, se il controllo ha trovato un service worker nuovo, quando mostrare l'avviso.
- * Tempi in millisecondi. Niente DOM.
+ * La pagina sa di che versione è (VERSION): se il service worker che comanda ha i file di una versione più nuova, la
+ * pagina è vecchia. Così conta anche il caso dell'apertura con la rete lenta, quando la pagina arriva dalla cache e il
+ * service worker nuovo subito dopo.
+ * Solo funzioni pure: quando chiedere, se la pagina è vecchia, quando mostrare l'avviso. Tempi in millisecondi. Niente DOM.
  */
 (function (Aura) {
   'use strict';
+
+  // La versione di questi file: uguale a CACHE_VERSION in sw.js, si cambiano insieme (lo controlla la CI)
+  const VERSION = 'aura-tasks-v26';
 
   const LIMITS = Object.freeze({
     check: 60 * 1000,      // al massimo un controllo al minuto, anche passando spesso da un'app all'altra
@@ -20,16 +25,24 @@
     return !checkedAt || now - checkedAt >= limits.check;
   }
 
+  /** Il numero di una versione di Aura: 26 per 'aura-tasks-v26'. null per un altro nome. */
+  function versionNumber(name) {
+    const match = /^aura-tasks-v(\d+)$/.exec(String(name));
+    return match ? Number(match[1]) : null;
+  }
+
   /**
-   * true se il controllo ha portato un service worker che prima non c'era. `before` e `after` sono i tre posti di una
-   * ServiceWorkerRegistration ({ installing, waiting, active }), letti prima e dopo `update()`.
-   * - Senza un service worker attivo prima, è la prima installazione: la pagina è già quella nuova.
-   * - Uno che si installava già prima non conta: lo ha trovato il browser all'apertura, con la pagina già nuova.
+   * true se la pagina (versione `version`) è più vecchia dei file del service worker che comanda. `cacheNames` sono i
+   * nomi delle cache (caches.keys()): ognuna ha il nome della sua versione, e il service worker nuovo, quando prende il
+   * posto del vecchio, cancella le altre.
+   * - La cache della pagina c'è ancora: la pagina è quella giusta, oppure il nuovo si sta ancora installando (si aspetta
+   *   che comandi, così «Aggiorna» carica i file nuovi).
+   * - Una pagina più nuova della cache non conta: è arrivata dalla rete prima che il browser trovasse il nuovo sw.js.
    */
-  function arrived(before, after) {
-    if (!before || !before.active || !after) return false;
-    const known = [before.installing, before.waiting, before.active].filter(Boolean);
-    return [after.installing, after.waiting, after.active].some(worker => Boolean(worker) && !known.includes(worker));
+  function isStale(version, cacheNames) {
+    const page = versionNumber(version);
+    if (page === null || !Array.isArray(cacheNames) || cacheNames.includes(version)) return false;
+    return cacheNames.some(name => versionNumber(name) > page);
   }
 
   /**
@@ -42,5 +55,5 @@
     return !offeredAt || now - offeredAt >= limits.remind;
   }
 
-  Aura.update = { LIMITS, shouldCheck, arrived, canOffer };
+  Aura.update = { VERSION, LIMITS, shouldCheck, versionNumber, isStale, canOffer };
 })(window.Aura = window.Aura || {});

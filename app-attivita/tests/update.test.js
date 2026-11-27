@@ -1,7 +1,7 @@
 /*
  * Test della versione nuova con l'app rimasta aperta: le regole pure di js/update.js. Al massimo un controllo al minuto,
- * il service worker nuovo riconosciuto (non quello della prima installazione, né quello trovato dal browser
- * all'apertura) e quando l'avviso «C'è una versione nuova di Aura» si può mostrare.
+ * la pagina vecchia riconosciuta dalle cache del service worker (anche quando, all'apertura con la rete lenta, è
+ * arrivata dalla cache) e quando l'avviso «C'è una versione nuova di Aura» si può mostrare.
  */
 (function () {
   'use strict';
@@ -21,20 +21,39 @@
     assertEqual(U.LIMITS.check, MIN);
   });
 
-  test('update.arrived: conta solo un service worker che prima non c\'era', () => {
-    const old = { name: 'v25' };
-    const next = { name: 'v26' };
-    const found = { name: 'v26, trovato dal browser all\'apertura' };
-    const empty = { installing: null, waiting: null, active: null };
-    assert(!U.arrived({ ...empty, active: old }, { ...empty, active: old }), 'sw.js uguale: niente di nuovo');
-    assert(U.arrived({ ...empty, active: old }, { ...empty, installing: next, active: old }), 'il nuovo si installa');
-    assert(U.arrived({ ...empty, active: old }, { ...empty, waiting: next, active: old }), 'il nuovo aspetta');
-    assert(U.arrived({ ...empty, active: old }, { ...empty, active: next }), 'il nuovo è già attivo');
-    assert(!U.arrived({ ...empty, installing: found, active: old }, { ...empty, installing: found, active: old }), 'si installava già prima del controllo');
-    assert(!U.arrived({ ...empty, installing: found, active: old }, { ...empty, active: found }), 'quello di prima, ora attivo');
-    assert(!U.arrived({ ...empty, installing: next }, { ...empty, active: next }), 'prima installazione: nessun attivo prima');
-    assert(!U.arrived(null, { ...empty, active: next }), 'senza la lettura di prima');
-    assert(!U.arrived({ ...empty, active: old }, null), 'senza la lettura di dopo');
+  test('update.VERSION: ha la forma dei nomi delle cache di sw.js', () => {
+    assert(/^aura-tasks-v\d+$/.test(U.VERSION), U.VERSION);
+    assertEqual(U.versionNumber('aura-tasks-v26'), 26);
+    assertEqual(U.versionNumber('aura-tasks-v100'), 100);
+    assertEqual(U.versionNumber('aura-tasks-26'), null);
+    assertEqual(U.versionNumber('altra-cache-v27'), null);
+    assertEqual(U.versionNumber(undefined), null);
+  });
+
+  test('update.isStale: la pagina è vecchia solo quando comanda un service worker più nuovo', () => {
+    const page = 'aura-tasks-v26';
+    assert(!U.isStale(page, ['aura-tasks-v26']), 'stessa versione');
+    assert(!U.isStale(page, ['aura-tasks-v26', 'aura-tasks-v27']), 'il nuovo si sta ancora installando: si aspetta');
+    assert(U.isStale(page, ['aura-tasks-v27']), 'il nuovo comanda e ha cancellato la cache della pagina');
+    assert(U.isStale(page, ['aura-tasks-v30']), 'anche dopo più versioni');
+    assert(!U.isStale('aura-tasks-v27', ['aura-tasks-v26']), 'pagina dalla rete, più nuova del service worker');
+    assert(!U.isStale(page, []), 'nessuna cache: prima installazione');
+    assert(!U.isStale(page, ['altra-cache']), 'solo cache di altri');
+    assert(U.isStale(page, ['altra-cache', 'aura-tasks-v27']), 'altre cache non contano');
+    assert(!U.isStale('versione-strana', ['aura-tasks-v27']), 'versione della pagina non riconosciuta');
+    assert(!U.isStale(page, null), 'senza la lista delle cache');
+  });
+
+  test('update.isStale: apertura con la rete lenta, la pagina dalla cache e il service worker nuovo subito dopo', () => {
+    // Allo scadere dei 3 secondi sw.js (v26) risponde con la sua copia: la pagina è la v26 anche se è uscita la v27.
+    // Il controllo dell'apertura trova la v27: mentre si installa le cache sono due, poi resta solo la sua.
+    const page = 'aura-tasks-v26';
+    assert(!U.isStale(page, ['aura-tasks-v26']), 'all\'apertura');
+    assert(!U.isStale(page, ['aura-tasks-v26', 'aura-tasks-v27']), 'la v27 si installa');
+    assert(U.isStale(page, ['aura-tasks-v27']), 'la v27 comanda: c\'è l\'avviso');
+    // Con la rete buona la pagina arriva dalla rete, già nuova: nessun avviso, anche se sw.js cambia dopo.
+    assert(!U.isStale('aura-tasks-v27', ['aura-tasks-v26', 'aura-tasks-v27']), 'pagina nuova, la v27 si installa');
+    assert(!U.isStale('aura-tasks-v27', ['aura-tasks-v27']), 'pagina nuova, la v27 comanda');
   });
 
   test('update.canOffer: solo con la versione pronta, l\'app che si vede, senza fogli né altri avvisi', () => {
