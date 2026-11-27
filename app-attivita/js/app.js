@@ -1718,7 +1718,8 @@
    */
   function syncRemoteBadges() {
     const assistantOn = Boolean(assistantCtl && assistantCtl.isActive());
-    const claudeOn = Boolean(claudeCtl && claudeCtl.state().links > 0);
+    // true, false, o null finché non si sa se Claude è collegato: allora la frase della privacy lo nomina con un «se»
+    const claudeOn = Settings.claudeSends({ availability: R.availability(), connected: Boolean(remote.code), claude: claudeCtl ? claudeCtl.state() : null });
     els.remoteButton.classList.toggle('has-dot', remote.reminders.enabled);
     els.remoteButton.setAttribute('aria-label', remote.reminders.enabled ? 'Promemoria e Siri: promemoria attivi' : 'Promemoria e Siri');
     els.footnoteText.textContent = Settings.privacyLine({ connected: Boolean(remote.code), assistantOn, claudeOn });

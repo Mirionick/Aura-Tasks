@@ -130,7 +130,8 @@
     assertEqual(tone({}), 'on'); // verde solo quando al server non arriva niente
     assertEqual(tone({ connected: true }), 'off');
     assertEqual(tone({ assistant: { enabled: true, autoAdd: false, autoEdit: false } }), 'off');
-    const on = S.describe(info({ connected: true, assistant: { enabled: true, autoAdd: false, autoEdit: false } })).privacy;
+    // Con lo stato di Claude già noto (nessun collegamento): con lo stato che manca vedi il test del «se», più sotto
+    const on = S.describe(info({ connected: true, assistant: { enabled: true, autoAdd: false, autoEdit: false }, claude: { links: 0, checking: false } })).privacy;
     assertEqual(on.line, S.privacyLine({ connected: true, assistantOn: true }));
   });
 
@@ -149,5 +150,40 @@
       tone: 'off'
     });
     assertEqual(S.describe(info({ connected: true, claude: { links: 0, checking: false } })).privacy.state, 'Al server: solo promemoria e frasi di Siri');
+  });
+
+  test('impostazioni: privacy, finché non si sa se Claude è collegato le frasi lo nominano con un «se»', () => {
+    assertEqual(S.privacyLine({ connected: true, assistantOn: false, claudeOn: null }), 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri e, se è collegato, di Claude.');
+    assertEqual(S.privacyLine({ connected: true, assistantOn: true, claudeOn: null }), 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria, frasi di Siri e, se è collegato, di Claude, e messaggi all\'assistente.');
+    assertEqual(S.privacyShort({ connected: true, assistantOn: false, claudeOn: null }), 'Al server: solo promemoria e frasi di Siri e di Claude (se\u00a0collegato)');
+    assertEqual(S.privacyShort({ connected: true, assistantOn: true, claudeOn: null }), 'Al server: promemoria, Siri, Claude (se\u00a0collegato) e messaggi all\'assistente');
+    // Senza il dispositivo collegato Claude non può scrivere da nessuna parte, anche se non si sa niente
+    assertEqual(S.privacyLine({ connected: false, assistantOn: false, claudeOn: null }), 'I dati restano solo su questo dispositivo.');
+    assertEqual(S.privacyShort({ connected: false, assistantOn: true, claudeOn: null }), 'Al server: promemoria, Siri e messaggi all\'assistente');
+    // La domanda al server non è finita o non è andata: la riga «Privacy» e la frase in cima al foglio lo dicono
+    for (const checking of [true, false]) {
+      const rows = S.describe(info({ connected: true, claude: { links: null, checking } }));
+      assertEqual(rows.privacy, {
+        state: 'Al server: solo promemoria e frasi di Siri e di Claude (se\u00a0collegato)',
+        line: 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri e, se è collegato, di Claude.',
+        tone: 'off'
+      });
+      assertEqual(rows.device, { connected: true, claude: false }); // la nota sotto «Scollega» resta per Claude collegato
+    }
+    // Senza la domanda (nessuno stato da chiedere) vale come prima
+    assertEqual(S.describe(info({ connected: true })).privacy.state, 'Al server: solo promemoria e frasi di Siri e di Claude (se\u00a0collegato)');
+  });
+
+  test('impostazioni: claudeSends dice se le frasi di Claude possono arrivare al server (null = non si sa)', () => {
+    const sends = fields => S.claudeSends(info(fields));
+    assertEqual(sends({}), false); // senza dispositivo collegato
+    assertEqual(sends({ connected: true, claude: { links: 0, checking: false } }), false);
+    assertEqual(sends({ connected: true, claude: { links: 2, checking: false } }), true);
+    assertEqual(sends({ connected: true, claude: { links: null, checking: true } }), null);
+    assertEqual(sends({ connected: true, claude: null }), null);
+    assertEqual(sends({ connected: true, claude: { links: -1 } }), null); // un numero strano non vale come risposta
+    // Senza il server (app aperta dal file, server non configurato) non arriva niente
+    assertEqual(sends({ availability: 'file', connected: true, claude: { links: 2 } }), false);
+    assertEqual(sends({ availability: 'unconfigured', connected: true, claude: { links: null } }), false);
   });
 })();

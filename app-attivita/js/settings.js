@@ -64,6 +64,7 @@
     else if (!available) siri = { state: missing, tone: 'off' };
 
     const claudeOn = claudeLinked(info);
+    const claudeSending = claudeSends(info);
     let claude = { state: 'Da collegare', tone: 'off', disabled: false };
     // Senza il server il foglio «Claude» non si apre, come quello dell'assistente: non si potrebbe fare niente.
     if (!available) claude = { state: missing, tone: 'off', disabled: true };
@@ -86,8 +87,8 @@
       backup: { state: info.dataLabel },
       // `line` è la frase intera in cima al foglio «Privacy»; verde ('on') solo quando al server non arriva niente.
       privacy: {
-        state: privacyShort({ connected: info.connected, assistantOn, claudeOn }),
-        line: privacyLine({ connected: info.connected, assistantOn, claudeOn }),
+        state: privacyShort({ connected: info.connected, assistantOn, claudeOn: claudeSending }),
+        line: privacyLine({ connected: info.connected, assistantOn, claudeOn: claudeSending }),
         tone: info.connected || assistantOn ? 'off' : 'on'
       },
       // `claude`: sotto «Scollega questo dispositivo» compare la nota che scollega anche Claude
@@ -108,27 +109,43 @@
   }
 
   /**
+   * Per le frasi della privacy: le frasi di Claude possono arrivare al server? true con Claude collegato, false senza,
+   * null finché non si sa (la domanda al server non è finita o non è andata). «Non si sa» non vale come «non collegato».
+   * Stessi dati di `describe()`: { availability, connected, claude: { links } }.
+   */
+  function claudeSends(info) {
+    if (info.availability !== 'ok') return false;
+    const links = claudeLinks(info);
+    return links === null ? null : links > 0;
+  }
+
+  /**
    * Dove stanno i dati, in una frase intera: sta in fondo a Motivazione e in cima al foglio «Privacy».
-   * `claudeOn` vale solo con il dispositivo collegato: le frasi di Claude arrivano nella sua casella.
+   * `claudeOn` (come `claudeSends()`) vale solo con il dispositivo collegato, perché le frasi di Claude arrivano nella
+   * sua casella. Con null, finché non si sa se Claude è collegato, la frase lo nomina con un «se».
    */
   function privacyLine({ connected, assistantOn, claudeOn = false }) {
-    const claude = connected && claudeOn;
+    const claude = connected ? claudeOn : false;
     if (assistantOn && claude) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria, frasi di Siri e di Claude, e messaggi all\'assistente.';
+    if (assistantOn && claude === null) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria, frasi di Siri e, se è collegato, di Claude, e messaggi all\'assistente.';
     if (assistantOn) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria, frasi di Siri e messaggi all\'assistente.';
     if (claude) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri e di Claude.';
+    if (claude === null) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri e, se è collegato, di Claude.';
     if (connected) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri.';
     return 'I dati restano solo su questo dispositivo.';
   }
 
-  /** La stessa cosa in breve, per la riga «Privacy». */
+  /** La stessa cosa in breve, per la riga «Privacy». «(se collegato)» non si spezza a fine riga (spazio unificatore). */
   function privacyShort({ connected, assistantOn, claudeOn = false }) {
-    const claude = connected && claudeOn;
+    const claude = connected ? claudeOn : false;
     if (assistantOn && claude) return 'Al server: promemoria, Siri, Claude e messaggi all\'assistente';
+    if (assistantOn && claude === null) return 'Al server: promemoria, Siri, Claude (se\u00a0collegato) e messaggi all\'assistente';
     if (assistantOn) return 'Al server: promemoria, Siri e messaggi all\'assistente';
     if (claude) return 'Al server: solo promemoria e frasi di Siri e di Claude';
+    if (claude === null) return 'Al server: solo promemoria e frasi di Siri e di Claude (se\u00a0collegato)';
     if (connected) return 'Al server: solo promemoria e frasi di Siri';
     return 'I dati restano solo su questo dispositivo';
   }
 
-  Aura.settings = { THEMES, describe, privacyLine, privacyShort };
+  Aura.settings = { THEMES, describe, claudeSends, privacyLine, privacyShort };
 })(window.Aura = window.Aura || {});

@@ -20,7 +20,7 @@ Un indice a gruppi. Ogni riga ha icona, nome, **stato di adesso** e freccia, e a
 | Tema | il tema scelto e che cosa fa: «Automatico: segue le impostazioni del telefono», «Chiaro: luminoso, ideale di giorno», «Scuro: riposante per gli occhi, perfetto la sera» | nessun foglio: le tre scelte sono nella riga |
 | Musica (P-004, passo 4.2) | il servizio scelto e dove si aprono le playlist: «Spotify: le playlist si aprono nell'app Spotify», «Nessuno: niente musica in Focus», all'inizio «Da scegliere: le playlist si aprono nell'app del servizio» | nessun foglio: le quattro scelte (Spotify, Apple Music, Amazon Music, Nessuno) sono nella riga |
 | Backup dei dati | quante attività e quanti punti ci sono, e quanti premi e acquisti del negozio se ce ne sono: «12 attività · 340 punti · 3 premi · 2 acquisti» | foglio «Backup dei dati» |
-| Privacy | in breve, che cosa va al server: «I dati restano solo su questo dispositivo», «Al server: solo promemoria e frasi di Siri», «Al server: promemoria, Siri e messaggi all'assistente»; con Claude collegato «Al server: solo promemoria e frasi di Siri e di Claude» e «Al server: promemoria, Siri, Claude e messaggi all'assistente» | foglio «Privacy» |
+| Privacy | in breve, che cosa va al server: «I dati restano solo su questo dispositivo», «Al server: solo promemoria e frasi di Siri», «Al server: promemoria, Siri e messaggi all'assistente»; con Claude collegato «Al server: solo promemoria e frasi di Siri e di Claude» e «Al server: promemoria, Siri, Claude e messaggi all'assistente»; finché non si sa se Claude è collegato (la domanda al server non è finita o non è andata) «Al server: solo promemoria e frasi di Siri e di Claude (se collegato)» e «Al server: promemoria, Siri, Claude (se collegato) e messaggi all'assistente», con «(se collegato)» che non si spezza a fine riga | foglio «Privacy» |
 
 - Lo stato è verde quando la funzione è in uso (assistente acceso, promemoria attivi, codice di Siri creato, Claude collegato). La riga «Privacy» è verde solo quando al server non arriva niente.
 - I promemoria seguono il foglio «Promemoria e Siri»: se sono attivi la riga lo dice, anche se nel frattempo il browser li blocca.
@@ -68,6 +68,7 @@ In un posto solo, ciò che prima era scritto qua e là.
 - **`js/settings.js`**, logica pura con i suoi test (`tests/settings.test.js`):
   - `describe(info)` riceve lo stato di adesso (`availability`, `theme`, `assistant`, `logCount`, `reminders`, `push`, `connected`, `claude`, `dataLabel`) e dà, per ogni riga, il testo (`state`) e dove serve il colore (`tone`: `'on'` = in uso) e `disabled`;
   - `privacyLine()` e `privacyShort()`: dove stanno i dati, in una frase intera e in breve. `app.js` usa la stessa `privacyLine()` per la frase in fondo a Motivazione;
+  - `claudeSends(info)`: per queste frasi, se le frasi di Claude possono arrivare al server: true, false, oppure null finché non si sa. «Non si sa» non vale come «non collegato»: le frasi nominano Claude con un «se». `describe()` e la frase in fondo a Motivazione lo usano tutte e due;
   - `THEMES`: nome e descrizione dei tre temi.
 - **`js/ui-settings.js`** tocca la pagina. `app.js` lo avvia con `Aura.settingsUI.init()`, dopo `ui-assistant.js`, e gli passa:
   - lo stato (`getInfo`);
