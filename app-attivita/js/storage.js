@@ -8,7 +8,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, repeat: RP, tasks: T, points: P, focus: F, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW, shop: SH, music: MU } = Aura;
+  const { utils, repeat: RP, tasks: T, points: P, focus: F, challenges: CH, suggest: S, assistant: A, agenda: AG, motivation: MO, rewards: RW, shop: SH, music: MU } = Aura;
 
   const KEY = 'aura-tasks:data';
   const BACKUP_PREFIX = 'aura-tasks:backup-';
@@ -26,7 +26,7 @@
     damaged: 'Il backup è danneggiato: mancano le attività.'
   };
   // Per cambiare lo schema: aumenta questo numero e aggiungi un passo in migrate() (vedi CLAUDE.md).
-  const SCHEMA_VERSION = 7;
+  const SCHEMA_VERSION = 8;
 
   const isCount = value => Number.isInteger(value) && value >= 0;
 
@@ -65,6 +65,11 @@
       // v7: attività che si ripetono (P-005, passo 5.1): `repeat` e `seriesId` nelle attività. Li aggiunge sanitizeTask()
       // (null, quindi le attività che c'erano non si ripetono); il resto resta intatto.
       state.version = 7;
+    }
+    if (state.version === 7) {
+      // v8: «Sfide di oggi» (P-003, passo 3.5): le sfide di ogni giorno nel registro (stats.challenges). Le aggiunge vuote
+      // sanitizeStats(); quelle di oggi nascono alla prima apertura (Aura.challenges.refresh). Il resto resta intatto.
+      state.version = 8;
     }
     return state;
   }
@@ -111,9 +116,10 @@
 
   /**
    * Ripulisce il registro di punti e serie. I giorni non validi vengono scartati; totale e record
-   * non validi si ricalcolano dai giorni (e dai giorni riparati). I minuti di focus (v4) passano da
-   * Aura.focus.sanitizeMinutes, i riscatti dei premi (v5) da Aura.rewards.sanitizeSpent, gli acquisti del negozio (v6) da
-   * Aura.shop.sanitizeShop. I campi sconosciuti vengono conservati.
+   * non validi si ricalcolano dai giorni (e dai giorni riparati; il totale anche dalle sfide). I minuti di focus (v4)
+   * passano da Aura.focus.sanitizeMinutes, i riscatti dei premi (v5) da Aura.rewards.sanitizeSpent, gli acquisti del
+   * negozio (v6) da Aura.shop.sanitizeShop, le sfide (v8) da Aura.challenges.sanitize. I campi sconosciuti vengono
+   * conservati.
    */
   function sanitizeStats(raw) {
     const rawDays = raw.days && typeof raw.days === 'object' ? raw.days : {};
@@ -128,15 +134,17 @@
       ? Array.from(new Set(raw.milestones.filter(m => Number.isInteger(m) && m > 0))).sort((a, b) => a - b)
       : [];
     const shop = SH.sanitizeShop(raw.shop);
+    const challenges = CH.sanitize(raw.challenges);
     return {
       ...raw,
-      totalPoints: isCount(raw.totalPoints) ? raw.totalPoints : sum,
+      totalPoints: isCount(raw.totalPoints) ? raw.totalPoints : sum + P.challengeTotal(challenges),
       bestStreak: isCount(raw.bestStreak) ? raw.bestStreak : P.longestStreak(days, P.repairedDays({ shop })),
       milestones,
       days,
       focus: F.sanitizeMinutes(raw.focus),
       spent: RW.sanitizeSpent(raw.spent),
-      shop
+      shop,
+      challenges
     };
   }
 

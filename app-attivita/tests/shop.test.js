@@ -339,7 +339,7 @@
     const state = storage.parse(JSON.stringify({ version: 5, future: 'ok', tasks, rewards, stats }));
     assertEqual(state.version, storage.SCHEMA_VERSION);
     assertEqual([state.tasks, state.rewards, state.future, state.look], [tasks.map(task => ({ ...task, repeat: null, seriesId: null })), rewards, 'ok', LOOK]);
-    assertEqual(state.stats, { ...stats, shop: [] }, 'registro identico, più gli acquisti vuoti');
+    assertEqual(state.stats, { ...stats, shop: [], challenges: {} }, 'registro identico, più gli acquisti e le sfide vuoti');
     assertEqual(storage.parse(JSON.stringify({ version: 1, tasks: [] })).look, LOOK, 'anche dalla v1');
   });
 

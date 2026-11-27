@@ -29,7 +29,8 @@
       stats: {
         totalPoints: 24, bestStreak: 1, milestones: [], days: { '2026-11-03': { done: 1, points: 24 } }, focus: { '2026-11-03': 25 },
         spent: [{ id: 's', rewardId: 'r', title: 'Pizza del venerdì', cost: 20, at: NOW - 600e3 }],
-        shop: []
+        shop: [],
+        challenges: {}
       },
       look: { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 },
       future: { x: 1 }
@@ -136,7 +137,7 @@
     [[v2, null], [v3, '18:00'], [v4, '18:00'], [v5, '18:00']].forEach(([data, time]) => {
       const { state, error } = storage.readBackup(wrap(data));
       assertEqual([error, state.version, state.tasks[0].time, state.tasks[0].pointsAwarded], [null, storage.SCHEMA_VERSION, time, 24], 'v' + data.version);
-      assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [] }, 'registro della v' + data.version);
+      assertEqual(state.stats, { ...stats, focus: {}, spent: [], shop: [], challenges: {} }, 'registro della v' + data.version);
       assertEqual([state.rewards, state.look], [[], { aurora: 'aurora', confetti: 'classic', sound: 'none', at: 0 }], 'nessun premio, i colori di partenza e nessun suono nella v' + data.version);
     });
   });

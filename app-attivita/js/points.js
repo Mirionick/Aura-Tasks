@@ -13,7 +13,9 @@
     minutesPerPoint: 5,  // …più 1 punto ogni 5 minuti di durata…
     maxMinutes: 120,     // …contando al massimo 2 ore
     multiplier: { low: 1, medium: 1.5, high: 2 },
-    milestones: [3, 7, 14, 30, 100] // giorni di fila da festeggiare (una volta sola)
+    milestones: [3, 7, 14, 30, 100], // giorni di fila da festeggiare (una volta sola)
+    challenge: 10,       // per ogni sfida di oggi fatta (P-003, passo 3.5; vedi js/challenges.js)…
+    allChallenges: 20    // …e in più quando sono fatte tutte e tre: al massimo 50 punti al giorno
   };
 
   /** Punti per un'attività: (10 + minuti / 5, al massimo 120 minuti) × moltiplicatore dell'energia. */
@@ -26,16 +28,38 @@
   /**
    * Registro vuoto. `focus` sono i minuti di focus per giorno (schema v4, vedi js/focus.js): non toccano punti e serie.
    * `spent` sono i riscatti dei premi (schema v5, vedi js/rewards.js) e `shop` gli acquisti del negozio (schema v6, vedi
-   * js/shop.js): nessuno dei due toglie niente a totalPoints.
+   * js/shop.js): nessuno dei due toglie niente a totalPoints. `challenges` sono le sfide di ogni giorno (schema v8, vedi
+   * js/challenges.js): i loro punti stanno già in totalPoints.
    */
   function emptyStats() {
-    return { totalPoints: 0, bestStreak: 0, milestones: [], days: {}, focus: {}, spent: [], shop: [] };
+    return { totalPoints: 0, bestStreak: 0, milestones: [], days: {}, focus: {}, spent: [], shop: [], challenges: {} };
   }
 
-  /** Completamenti e punti di un giorno (zero se il giorno non è nel registro). */
+  /** Completamenti e punti dei completamenti di un giorno (zero se il giorno non è nel registro). Senza le sfide. */
   function dayTotals(stats, day) {
     const entry = stats.days[day];
     return entry ? { done: entry.done, points: entry.points } : { done: 0, points: 0 };
+  }
+
+  /**
+   * Punti delle sfide di un giorno (`entry` = stats.challenges[giorno], anche undefined): 10 per ogni sfida fatta, più
+   * 20 quando sono fatte tutte e tre.
+   */
+  function challengePoints(entry) {
+    if (!entry || !Array.isArray(entry.items) || entry.items.length === 0) return 0;
+    const done = entry.items.filter(item => item && item.done).length;
+    return done * POINTS.challenge + (done === entry.items.length ? POINTS.allChallenges : 0);
+  }
+
+  /** Punti delle sfide di tutti i giorni conservati (stats.challenges). */
+  function challengeTotal(challenges) {
+    const all = challenges && typeof challenges === 'object' ? challenges : {};
+    return Object.keys(all).reduce((sum, day) => sum + challengePoints(all[day]), 0);
+  }
+
+  /** Punti guadagnati in un giorno, completamenti e sfide: per «+N oggi» e per i punti degli ultimi 7 giorni. */
+  function pointsOn(stats, day) {
+    return dayTotals(stats, day).points + challengePoints(stats.challenges && stats.challenges[day]);
   }
 
   /** Aggiunge (o toglie, con valori negativi) completamenti e punti a un giorno. Un giorno senza completamenti sparisce. */
@@ -124,8 +148,9 @@
   /**
    * Registro ricostruito dalle attività completate (migrazione alla v2).
    * I traguardi già superati si segnano come raggiunti, senza festa. Da `previous`, il registro di prima (facoltativo),
-   * conserva i riscatti dei premi (`spent`, P-003, passo 3.4) e gli acquisti del negozio (`shop`, con i giorni riparati;
-   * P-004, passo 4.1): dalle attività non si possono ricostruire.
+   * conserva i riscatti dei premi (`spent`, P-003, passo 3.4), gli acquisti del negozio (`shop`, con i giorni riparati;
+   * P-004, passo 4.1) e le sfide (`challenges`, P-003, passo 3.5, con i loro punti nel totale): dalle attività non si
+   * possono ricostruire.
    */
   function rebuildStats(tasks, previous) {
     const stats = tasks
@@ -136,8 +161,18 @@
       }, emptyStats());
     const spent = previous && Array.isArray(previous.spent) ? previous.spent : stats.spent;
     const shop = previous && Array.isArray(previous.shop) ? previous.shop : stats.shop;
+    const kept = previous && previous.challenges;
+    const challenges = kept && typeof kept === 'object' && !Array.isArray(kept) ? kept : stats.challenges;
     const bestStreak = longestStreak(stats.days, repairedDays({ shop }));
-    return { ...stats, bestStreak, milestones: POINTS.milestones.filter(m => m <= bestStreak), spent, shop };
+    return {
+      ...stats,
+      totalPoints: stats.totalPoints + challengeTotal(challenges),
+      bestStreak,
+      milestones: POINTS.milestones.filter(m => m <= bestStreak),
+      spent,
+      shop,
+      challenges
+    };
   }
 
   Aura.points = {
@@ -145,6 +180,9 @@
     pointsFor,
     emptyStats,
     dayTotals,
+    challengePoints,
+    challengeTotal,
+    pointsOn,
     repairedDays,
     currentStreak,
     longestStreak,
