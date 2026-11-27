@@ -16,17 +16,18 @@ Un indice a gruppi. Ogni riga ha icona, nome, **stato di adesso** e freccia, e a
 | Cosa ha fatto l'assistente | «Ancora niente», «1 azione negli ultimi 30 giorni», «7 azioni negli ultimi 30 giorni» | foglio «Assistente», dall'elenco |
 | Promemoria | «Attivi · 10 minuti prima» (l'anticipo scelto), «Spenti», oppure perché non si possono attivare: «Spenti · serve Aura sulla schermata Home», «Non supportati da questo browser», «Spenti · notifiche bloccate» | foglio «Promemoria e Siri», dall'inizio |
 | Comando Rapido di Siri | «Codice creato» oppure «Da configurare» | foglio «Promemoria e Siri», dal riquadro del Comando Rapido |
+| Claude (P-006, passo 6.2) | «Collegato» oppure «Da collegare»; «Controllo…» mentre chiede lo stato al server, «Stato non disponibile» se non riesce a saperlo | foglio «Claude» ([connettore-claude.md](connettore-claude.md)) |
 | Tema | il tema scelto e che cosa fa: «Automatico: segue le impostazioni del telefono», «Chiaro: luminoso, ideale di giorno», «Scuro: riposante per gli occhi, perfetto la sera» | nessun foglio: le tre scelte sono nella riga |
 | Musica (P-004, passo 4.2) | il servizio scelto e dove si aprono le playlist: «Spotify: le playlist si aprono nell'app Spotify», «Nessuno: niente musica in Focus», all'inizio «Da scegliere: le playlist si aprono nell'app del servizio» | nessun foglio: le quattro scelte (Spotify, Apple Music, Amazon Music, Nessuno) sono nella riga |
 | Backup dei dati | quante attività e quanti punti ci sono, e quanti premi e acquisti del negozio se ce ne sono: «12 attività · 340 punti · 3 premi · 2 acquisti» | foglio «Backup dei dati» |
-| Privacy | in breve, che cosa va al server: «I dati restano solo su questo dispositivo», «Al server: solo promemoria e frasi di Siri», «Al server: promemoria, Siri e messaggi all'assistente» | foglio «Privacy» |
+| Privacy | in breve, che cosa va al server: «I dati restano solo su questo dispositivo», «Al server: solo promemoria e frasi di Siri», «Al server: promemoria, Siri e messaggi all'assistente»; con Claude collegato «Al server: solo promemoria e frasi di Siri e di Claude» e «Al server: promemoria, Siri, Claude e messaggi all'assistente»; finché non si sa se Claude è collegato (la domanda al server non è finita o non è andata) «Al server: solo promemoria e frasi di Siri e di Claude (se collegato)» e «Al server: promemoria, Siri, Claude (se collegato) e messaggi all'assistente», con «(se collegato)» che non si spezza a fine riga | foglio «Privacy» |
 
-- Lo stato è verde quando la funzione è in uso (assistente acceso, promemoria attivi, codice di Siri creato). La riga «Privacy» è verde solo quando al server non arriva niente.
+- Lo stato è verde quando la funzione è in uso (assistente acceso, promemoria attivi, codice di Siri creato, Claude collegato). La riga «Privacy» è verde solo quando al server non arriva niente.
 - I promemoria seguono il foglio «Promemoria e Siri»: se sono attivi la riga lo dice, anche se nel frattempo il browser li blocca.
 - **Senza il server** (file aperto dal computer, o server non configurato):
   - in cima c'è l'avviso, come nel foglio «Promemoria e Siri»;
-  - le righe di assistente, elenco, promemoria e Siri dicono «Solo nell'app pubblicata» (oppure «Server non configurato»);
-  - le due righe dell'assistente sono spente ma leggibili (allo stesso modo, nel foglio «Aura» l'ingranaggio non compare);
+  - le righe di assistente, elenco, promemoria, Siri e Claude dicono «Solo nell'app pubblicata» (oppure «Server non configurato»);
+  - le due righe dell'assistente e quella di Claude sono spente ma leggibili (allo stesso modo, nel foglio «Aura» l'ingranaggio non compare);
   - la sezione «Server di Aura» in fondo non c'è;
   - tema, backup e privacy funzionano come sempre.
 
@@ -48,29 +49,31 @@ Passo 4.2 di [P-004](../../docs/proposte/P-004.md); la specifica intera è in [m
 In un posto solo, ciò che prima era scritto qua e là.
 - In cima la frase di adesso, la stessa che sta in fondo a Motivazione (`privacyLine`): «I dati restano solo su questo dispositivo.» in verde, oppure che cosa arriva al server.
 - «Sul telefono»: attività, punti, serie, premi, acquisti del negozio, minuti di focus e impostazioni restano nella memoria del browser; non c'è nessun account; se i dati del browser vengono cancellati si perdono, e un backup ne tiene una copia.
-- Promemoria, Comando Rapido di Siri e assistente sono facoltativi: finché non si attivano, al server non arriva niente.
-- Poi un riquadro per «Promemoria», «Comando Rapido di Siri», «Assistente: che cosa viene inviato» e «Backup». Il testo di ognuno è una **copia** delle note scritte accanto alla funzione, segnate con `data-privacy="reminders"`, `"siri"`, `"assistant"` e `"backup"`. `ui-settings.js` le copia all'avvio, con `textContent`.
+- Promemoria, Comando Rapido di Siri, Claude e assistente sono facoltativi: finché non si attivano, al server non arriva niente.
+- Poi un riquadro per «Promemoria», «Comando Rapido di Siri», «Claude», «Assistente: che cosa viene inviato» e «Backup». Il testo di ognuno è una **copia** delle note scritte accanto alla funzione, segnate con `data-privacy="reminders"`, `"siri"`, `"claude"`, `"assistant"` e `"backup"`. `ui-settings.js` le copia all'avvio, con `textContent`.
   - Così una nota si cambia in un posto solo, e i due posti non possono dire cose diverse.
   - Per questo l'ultima nota del foglio «Assistente» dice «l'elenco «Cosa ha fatto l'assistente»» invece di «l'elenco qui sopra», che nel foglio «Privacy» non avrebbe senso.
 - In fondo: per cancellare dal server ciò che riguarda il dispositivo, «Scollega questo dispositivo» nelle Impostazioni.
 
 ## «Scollega questo dispositivo»
 - Sta in fondo al foglio, nella sezione «Server di Aura», solo dove il server c'è.
-  - Dispositivo non collegato: una frase dice che si collega da solo quando si attivano i promemoria, si crea il codice per Siri o si usa l'assistente.
+  - Dispositivo non collegato: una frase dice che si collega da solo quando si attivano i promemoria, si crea il codice per Siri, si collega Claude o si usa l'assistente.
   - Collegato: il pulsante, e sotto una riga che dice che cosa spegne: «Spegne i promemoria, il Comando Rapido di Siri e l'assistente, e cancella dal server la casella di Siri, i promemoria e i conteggi. Subito dopo puoi toccare «Annulla».»
+  - Con Claude collegato, un'altra riga: «Scollega anche Claude, che con «Annulla» non torna: per ricollegarlo servirà un codice nuovo.» Il server toglie anche i collegamenti di Claude: prima di scollegare l'app gli chiede se Claude è collegato, e dopo «Annulla» l'avviso dice «Dispositivo ricollegato. Claude va ricollegato con un codice nuovo.» (oppure «Se avevi collegato Claude, va ricollegato con un codice nuovo.», se il server non ha risposto).
 - È la stessa azione del foglio «Promemoria e Siri» e del foglio «Assistente» (`disconnectDevice()` in `app.js`).
 - Se riesce, **si chiudono tutti i fogli**: l'avviso «Dispositivo scollegato» con «Annulla» sta sotto i fogli aperti, e così si vede e si tocca. «Annulla» registra di nuovo lo stesso codice e riaccende l'assistente com'era.
 - Mentre lavora il pulsante è spento e il foglio dice «Scollego il dispositivo…». Se non riesce, il motivo resta nel foglio, nella riga di stato.
 
 ## Come è fatto
 - **`js/settings.js`**, logica pura con i suoi test (`tests/settings.test.js`):
-  - `describe(info)` riceve lo stato di adesso (`availability`, `theme`, `assistant`, `logCount`, `reminders`, `push`, `connected`, `dataLabel`) e dà, per ogni riga, il testo (`state`) e dove serve il colore (`tone`: `'on'` = in uso) e `disabled`;
+  - `describe(info)` riceve lo stato di adesso (`availability`, `theme`, `assistant`, `logCount`, `reminders`, `push`, `connected`, `claude`, `dataLabel`) e dà, per ogni riga, il testo (`state`) e dove serve il colore (`tone`: `'on'` = in uso) e `disabled`;
   - `privacyLine()` e `privacyShort()`: dove stanno i dati, in una frase intera e in breve. `app.js` usa la stessa `privacyLine()` per la frase in fondo a Motivazione;
+  - `claudeSends(info)`: per queste frasi, se le frasi di Claude possono arrivare al server: true, false, oppure null finché non si sa. «Non si sa» non vale come «non collegato»: le frasi nominano Claude con un «se». `describe()` e la frase in fondo a Motivazione lo usano tutte e due;
   - `THEMES`: nome e descrizione dei tre temi.
 - **`js/ui-settings.js`** tocca la pagina. `app.js` lo avvia con `Aura.settingsUI.init()`, dopo `ui-assistant.js`, e gli passa:
   - lo stato (`getInfo`);
   - i fogli (`openSheet`, `closeSheet`, `setupSheet`, `setAutofocus`, `showPart`, `closeAllSheets`);
-  - le azioni (`openAssistant(parte)`, `openRemote(parte)`, `openBackup`, `disconnect`).
+  - le azioni (`openAssistant(parte)`, `openRemote(parte)`, `openClaude`, `refreshClaude`, `openBackup`, `disconnect`). Aprendo le Impostazioni, `refreshClaude` chiede lo stato di Claude al server, al massimo ogni 30 secondi.
 - Le righe si riscrivono (`sync()`) all'apertura, quando si chiude un foglio aperto sopra, quando cambia il tema (anche da un'altra scheda o con il telefono in automatico) e quando cambia lo stato del server (`syncRemoteBadges()` in `app.js`).
 - Due funzioni nuove di `app.js`, che usano anche gli altri fogli:
   - `showPart(dialog, titolo)` fa partire un foglio appena aperto da un suo riquadro (Comando Rapido di Siri, elenco dell'assistente), con il fuoco sul titolo;

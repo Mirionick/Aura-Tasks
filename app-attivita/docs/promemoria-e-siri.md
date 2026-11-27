@@ -24,16 +24,16 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
 
 **Casella di Siri**
 - Il Comando Rapido manda `POST /api/inbox` con la frase. Il server risponde in testo semplice ("Aggiunto ad Aura: …" oppure l'errore), che il comando mostra in una notifica.
-- Nella stessa casella scrive anche il **connettore per Claude** ([connettore-claude.md](connettore-claude.md)), con id `claude:…`. `GET /api/inbox` dice da dove viene ogni frase (`source`: `"siri"` o `"claude"`); il tetto di 30 frasi in attesa le conta insieme, e ogni scrittura lo ricontrolla nella stessa istruzione che scrive. Fino al passo 6.2 l'app le tratta come quelle di Siri.
+- Nella stessa casella scrive anche il **connettore per Claude** ([connettore-claude.md](connettore-claude.md)), con id `claude:…`. `GET /api/inbox` dice da dove viene ogni frase (`source`: `"siri"` o `"claude"`); il tetto di 30 frasi in attesa le conta insieme, e ogni scrittura lo ricontrolla nella stessa istruzione che scrive. L'app tiene l'origine nella coda locale (`source`, anche dall'id `claude:` se il server non la manda) e la mostra: «Da Claude» invece di «Da Siri».
 - L'app controlla la casella all'avvio, al ritorno nell'app (al massimo ogni 15 secondi) e quando torna internet:
   - le frasi vanno prima nella coda locale (`inbox`);
   - poi l'app le conferma al server, che le cancella;
   - così nessuna frase si perde.
-- Le frasi si aprono una alla volta in "Nuova attività" con `openAddSheet(frase, "Da Siri · 1 di 2")`.
+- Le frasi si aprono una alla volta in "Nuova attività" con `openAddSheet(frase, "Da Siri · 1 di 2")`, oppure "Da Claude · 1 di 2" (`inboxLabel()` di `js/remote.js`).
   - "Aggiungi" o "Annulla" la segnano come vista (`done`) e passano alla successiva. L'aggancio è `onSheetClosed()`, chiamato da `closeSheet()` e dall'evento `close`.
   - Se un foglio è già aperto, si aspetta che si chiuda.
   - Le frasi in coda si mostrano anche all'avvio offline.
-- **Con l'assistente acceso** (passo 1 di [assistente.md](assistente.md)) le frasi passano prima da lui, con i suoi permessi: `showNextInboxItem()` le dà a `handleSiri()` di `js/ui-assistant.js`. Quelle che lui non gestisce (IA che non risponde, frase non capita, aggiunta che aspetta un tocco) si aprono in "Nuova attività" come qui sopra, e non si riprovano con l'IA.
+- **Con l'assistente acceso** (passo 1 di [assistente.md](assistente.md)) le frasi passano prima da lui, con i suoi permessi: `showNextInboxItem()` le dà a `handleSiri()` di `js/ui-assistant.js`, anche quelle di Claude, con la loro origine. Quelle che lui non gestisce (IA che non risponde, frase non capita, aggiunta che aspetta un tocco) si aprono in "Nuova attività" come qui sopra, e non si riprovano con l'IA.
 - "Scollega questo dispositivo" spegne anche l'assistente e ne cancella la memoria breve; "Annulla" lo riaccende com'era.
 - Le guide al Comando Rapido stanno nel foglio, con i pulsanti "Copia", e in `server/README.md`. Il link `?add=` resta valido come alternativa senza server.
 

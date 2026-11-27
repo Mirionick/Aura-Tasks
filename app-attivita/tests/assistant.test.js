@@ -470,6 +470,28 @@
 
   /* ---------- Frasi scritte dall'app ---------- */
 
+  test('assistente: le frasi di Claude valgono come quelle di Siri, con «Da Claude» negli avvisi e nell\'elenco', () => {
+    const add = { type: 'add', title: 'Chiamare il medico', before: null, after: { title: 'Chiamare il medico', duration: 10, energy: 'low', date: TOMORROW, time: null, repeat: null } };
+    const dentist = { ...add, title: 'Dentista', after: { ...add.after, title: 'Dentista', time: '10:00' } };
+    assertEqual(A.summarizeDone([dentist], TODAY, 'claude'), 'Da Claude: aggiunta «Dentista» · Domani alle 10:00');
+    assertEqual(A.summarizeDone([add, add], TODAY, 'claude'), 'Da Claude: aggiunte 2 attività');
+    assertEqual(A.summarizeDone([add, dentist], TODAY, 'inbox'), 'Da Siri e da Claude: aggiunte 2 attività');
+    assertEqual(A.summarizeDone([dentist], TODAY, 'siri'), 'Da Siri: aggiunta «Dentista» · Domani alle 10:00', 'Siri come prima');
+    // Da dove vengono le frasi gestite insieme
+    assertEqual(A.inboxOrigin(['siri', 'siri']), 'siri');
+    assertEqual(A.inboxOrigin(['claude', 'claude']), 'claude');
+    assertEqual(A.inboxOrigin(['claude', 'siri', 'claude']), 'inbox');
+    assertEqual(A.inboxOrigin([]), 'siri');
+    assertEqual(A.fromPrefix('claude') + 'serve un tuo tocco.', 'Da Claude: serve un tuo tocco.');
+    assertEqual(A.fromPrefix('inbox') + 'serve un tuo tocco.', 'Da Siri e da Claude: serve un tuo tocco.');
+    assertEqual([A.fromPrefix('text'), A.fromPrefix('voice'), A.fromPrefix(undefined)], ['', '', '']);
+    // Le azioni fatte per una frase di Claude restano nell'elenco «Cosa ha fatto l'assistente», con la loro origine
+    const result = plan([], [{ type: 'add', title: 'Comprare il latte', duration: 15, energy: 'low', date: TOMORROW, time: null }], { message: 'Comprare il latte domani' });
+    const applied = A.applyAuto([], result.auto, { now: NOW, origin: 'claude', said: 'Comprare il latte domani' });
+    assertEqual(applied.log.map(entry => [entry.type, entry.origin, entry.said]), [['add', 'claude', 'Comprare il latte domani']]);
+    assertEqual(A.sanitizeStore({ log: applied.log }).log, applied.log, 'origine «claude» valida, salvata e riletta');
+  });
+
   test('assistente: le frasi delle azioni le scrive l\'app, dai dati veri', () => {
     const fields = { title: 'Palestra', duration: 60, energy: 'high', date: TODAY, time: '18:00' };
     const add = { type: 'add', title: 'Chiamare il medico', before: null, after: { title: 'Chiamare il medico', duration: 10, energy: 'low', date: TOMORROW, time: null } };

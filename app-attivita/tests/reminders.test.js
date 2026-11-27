@@ -123,9 +123,37 @@
     ], ['vista']);
     assertEqual(merged, [
       { id: 'a', text: 'prima', createdAt: 1 },
-      { id: 'b', text: 'seconda', createdAt: 2 },
-      { id: 'c', text: 'terza frase', createdAt: 3 }
+      { id: 'b', text: 'seconda', createdAt: 2, source: 'siri' },
+      { id: 'c', text: 'terza frase', createdAt: 3, source: 'siri' }
     ]);
+  });
+
+  test('casella: le frasi di Claude (id «claude:…») restano «Da Claude», anche salvate e già viste', () => {
+    const merged = R.mergeInbox([], [
+      { id: 'claude:Ab3dEf6hIj9kLm2n', text: 'Comprare il latte', createdAt: 5, source: 'claude' },
+      { id: 's1', text: 'domani dentista', createdAt: 4, source: 'siri' },
+      { id: 'claude:Zz9yXx8wVv7uTt6s', text: 'Chiamare Marco', createdAt: 6 }, // salvata prima che il server dicesse `source`
+      { id: 's2', text: 'palestra', createdAt: 7, source: 'boh' },
+      { id: 'claude:vista000000000000', text: 'già mostrata', createdAt: 1, source: 'claude' }
+    ], ['claude:vista000000000000']);
+    assertEqual(merged.map(item => [item.id, item.source]), [
+      ['s1', 'siri'],
+      ['claude:Ab3dEf6hIj9kLm2n', 'claude'],
+      ['claude:Zz9yXx8wVv7uTt6s', 'claude'],
+      ['s2', 'siri']
+    ]);
+    // Salvate e rilette: gli id con i due punti e `source` restano, anche tra quelle già viste
+    const settings = R.normalizeSettings({ ...R.defaults(), inbox: merged, done: ['claude:vista000000000000', 'x'] });
+    assertEqual(settings.inbox, merged);
+    assertEqual(settings.done, ['claude:vista000000000000', 'x']);
+  });
+
+  test('casella: l\'intestazione del foglio dice da dove viene la frase', () => {
+    assertEqual(R.inboxLabel({ source: 'siri' }, 1, 1), 'Da Siri');
+    assertEqual(R.inboxLabel({ source: 'claude' }, 1, 1), 'Da Claude');
+    assertEqual(R.inboxLabel({ source: 'claude' }, 1, 3), 'Da Claude · 1 di 3');
+    assertEqual(R.inboxLabel({ source: 'siri' }, 2, 3), 'Da Siri · 2 di 3');
+    assertEqual(R.inboxLabel({}, 1, 1), 'Da Siri', 'senza origine: Siri, come prima');
   });
 
   test('casella: al massimo 30 frasi in coda', () => {
@@ -165,7 +193,7 @@
       reminders: { enabled: true, lead: 30 },
       vapidKey: 'BAbc',
       sent: { endpoint: 'https://web.push.apple.com/x', at: 5, key: '2:abc' },
-      inbox: [{ id: 'q', text: 'frase', createdAt: 9 }],
+      inbox: [{ id: 'q', text: 'frase', createdAt: 9, source: 'siri' }, { id: 'claude:Q1w2E3r4T5y6U7i8', text: 'altra', createdAt: 10, source: 'claude' }],
       done: ['z']
     };
     assertEqual(R.normalizeSettings(raw), raw);

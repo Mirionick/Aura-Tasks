@@ -41,9 +41,11 @@
   <script src="js/remote.js" defer></script>
   <script src="js/motion.js" defer></script>
   <script src="js/settings.js" defer></script>
+  <script src="js/claude.js" defer></script>
   <script src="js/ui-focus.js" defer></script>
   <script src="js/ui-assistant.js" defer></script>
   <script src="js/ui-settings.js" defer></script>
+  <script src="js/ui-claude.js" defer></script>
   <script src="js/ui-agenda.js" defer></script>
   <script src="js/ui-motivation.js" defer></script>
   <script src="js/ui-rewards.js" defer></script>
@@ -95,6 +97,7 @@
     <symbol id="i-sound-off" viewBox="0 0 24 24"><path d="M4 9.6h3.4L12 5.5v13L7.4 14.4H4z"/><path d="M15.8 9.6l4.8 4.8M20.6 9.6l-4.8 4.8"/></symbol>
     <!-- Assistente: invio del messaggio (freccia in su), impostazioni (ingranaggio) -->
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19.5v-15M5.5 11L12 4.5 18.5 11"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M6 4.5h12A2.5 2.5 0 0 1 20.5 7v7.5A2.5 2.5 0 0 1 18 17h-6.5l-4.5 3.5V17H6a2.5 2.5 0 0 1-2.5-2.5V7A2.5 2.5 0 0 1 6 4.5zM12 7.8v5.9M9.05 10.75h5.9"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/><circle cx="12" cy="12" r="6.6"/></symbol>
   </svg>
 
@@ -830,7 +833,7 @@
       <div class="sheet__body">
         <p class="notice" id="settings-notice" hidden></p>
 
-        <ul class="settings" aria-label="Assistente, promemoria e Siri">
+        <ul class="settings" aria-label="Assistente, promemoria, Siri e Claude">
           <li>
             <button class="setting" id="setting-assistant" type="button" aria-haspopup="dialog">
               <svg class="icon setting__icon" aria-hidden="true" focusable="false"><use href="#i-sparkle"></use></svg>
@@ -867,6 +870,16 @@
               <span class="setting__text">
                 <span class="setting__name">Comando Rapido di Siri</span>
                 <span class="setting__state" id="setting-siri-state">Da configurare</span>
+              </span>
+              <svg class="icon setting__go" aria-hidden="true" focusable="false"><use href="#i-arrow-right"></use></svg>
+            </button>
+          </li>
+          <li>
+            <button class="setting" id="setting-claude" type="button" aria-haspopup="dialog">
+              <svg class="icon setting__icon" aria-hidden="true" focusable="false"><use href="#i-chat"></use></svg>
+              <span class="setting__text">
+                <span class="setting__name">Claude</span>
+                <span class="setting__state" id="setting-claude-state">Da collegare</span>
               </span>
               <svg class="icon setting__go" aria-hidden="true" focusable="false"><use href="#i-arrow-right"></use></svg>
             </button>
@@ -964,12 +977,14 @@
         <!-- Solo dove il server c'è (non dal file aperto dal computer) -->
         <section class="panel settings-device" id="setting-device" aria-labelledby="setting-device-title">
           <h3 class="panel__title" id="setting-device-title">Server di Aura</h3>
-          <p class="panel__text" id="setting-device-off">Questo dispositivo non è collegato al server di Aura. Si collega da solo quando attivi i promemoria, crei il codice per Siri o usi l'assistente.</p>
+          <p class="panel__text" id="setting-device-off">Questo dispositivo non è collegato al server di Aura. Si collega da solo quando attivi i promemoria, crei il codice per Siri, colleghi Claude o usi l'assistente.</p>
           <div class="settings-device__on" id="setting-device-on" hidden>
             <p class="panel__text">Questo dispositivo è collegato al server di Aura.</p>
             <p class="status" id="setting-device-status" data-tone="warn" role="status" hidden></p>
             <button class="btn btn--ghost btn--small btn--danger" id="setting-disconnect" type="button">Scollega questo dispositivo</button>
             <p class="panel__note">Spegne i promemoria, il Comando Rapido di Siri e l'assistente, e cancella dal server la casella di Siri, i promemoria e i conteggi. Subito dopo puoi toccare «Annulla».</p>
+            <!-- Solo con Claude collegato (data-if-claude, js/ui-claude.js) -->
+            <p class="panel__note" data-if-claude hidden>Scollega anche Claude, che con «Annulla» non torna: per ricollegarlo servirà un codice nuovo.</p>
           </div>
         </section>
       </div>
@@ -977,7 +992,7 @@
   </dialog>
 
   <!-- Foglio «Privacy»: in un posto solo, che cosa resta sul telefono e che cosa va al server di Aura. I testi su
-       promemoria, Siri, assistente e backup sono quelli scritti accanto a ogni funzione (attributo data-privacy):
+       promemoria, Siri, Claude, assistente e backup sono quelli scritti accanto a ogni funzione (attributo data-privacy):
        js/ui-settings.js ne mette qui una copia, così non possono dire due cose diverse -->
   <dialog class="sheet sheet--small" id="privacy-sheet" aria-labelledby="privacy-sheet-title">
     <div class="sheet__panel">
@@ -1000,7 +1015,7 @@
           <p class="panel__text">Se i dati del browser vengono cancellati, si perdono: con un backup ne tieni una copia in un file.</p>
         </section>
 
-        <p class="sheet__text">Promemoria, Comando Rapido di Siri e assistente sono facoltativi: finché non li attivi, al server di Aura non arriva niente.</p>
+        <p class="sheet__text">Promemoria, Comando Rapido di Siri, Claude e assistente sono facoltativi: finché non li attivi, al server di Aura non arriva niente.</p>
 
         <section class="panel" aria-labelledby="privacy-reminders-title">
           <h3 class="panel__title" id="privacy-reminders-title">
@@ -1016,6 +1031,14 @@
             Comando Rapido di Siri
           </h3>
           <div class="privacy-copy" data-privacy-copy="siri"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="privacy-claude-title">
+          <h3 class="panel__title" id="privacy-claude-title">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chat"></use></svg>
+            Claude
+          </h3>
+          <div class="privacy-copy" data-privacy-copy="claude"></div>
         </section>
 
         <section class="panel" aria-labelledby="privacy-assistant-title">
@@ -1039,7 +1062,71 @@
     </div>
   </dialog>
 
-  <!-- Foglio "Promemoria e Siri": usa il server di Aura (cartella server/) e funziona nell'app pubblicata (https) -->
+  <!-- Foglio «Claude» (P-006, passo 6.2; js/ui-claude.js, docs/connettore-claude.md): collegare Claude, che può solo
+       aggiungere attività. I passi con l'indirizzo, «Mostra il codice», i collegamenti e «Scollega Claude» -->
+  <dialog class="sheet sheet--small sheet--claude" id="claude-sheet" aria-labelledby="claude-sheet-title">
+    <div class="sheet__panel">
+      <header class="sheet__header">
+        <h2 class="sheet__title" id="claude-sheet-title" tabindex="-1">Claude</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Chiudi">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
+        </button>
+      </header>
+      <div class="sheet__body">
+        <p class="sheet-intro">Nelle chat con Claude puoi dire «mettilo su Aura», oppure te lo propone lui. Claude può solo aggiungere attività: non vede le tue.</p>
+        <p class="status" id="claude-status" data-tone="off" role="status">Claude non è collegato.</p>
+
+        <!-- Solo con almeno un collegamento: una riga ciascuno, con le date, e «Scollega Claude» con la conferma -->
+        <section class="panel" id="claude-links-panel" aria-labelledby="claude-links-title" hidden>
+          <h3 class="panel__title" id="claude-links-title" tabindex="-1">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>
+            Collegamenti
+          </h3>
+          <ul class="claude-links" id="claude-links"></ul>
+          <button class="btn btn--ghost btn--small btn--danger claude-unlink" id="claude-unlink" type="button">Scollega Claude</button>
+          <div class="claude-confirm" id="claude-confirm" hidden>
+            <p class="panel__text" id="claude-confirm-text" tabindex="-1"><b>Scollegare Claude?</b> Non potrà più aggiungere attività, e per ricollegarlo servirà un codice nuovo.</p>
+            <div class="panel__actions">
+              <button class="btn btn--danger" id="claude-confirm-ok" type="button">Scollega</button>
+              <button class="btn btn--ghost" id="claude-confirm-cancel" type="button">Annulla</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="claude-connect-title">
+          <h3 class="panel__title" id="claude-connect-title" tabindex="-1">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chat"></use></svg>
+            Come collegarlo
+          </h3>
+          <ol class="steps__list claude-steps">
+            <li>Su <b>claude.ai</b>, o nell'app di Claude per il computer: <b>Personalizza</b> › <b>Connettori</b> › <b>+</b> › <b>Aggiungi connettore personalizzato</b>.</li>
+            <li>
+              Nome <b>Aura</b>, indirizzo qui sotto, poi <b>Aggiungi</b> e <b>Connetti</b> (in inglese Add e Connect).
+              <span class="copy-row claude-steps__copy">
+                <code class="copy-row__value claude-url" id="claude-url"></code>
+                <button class="btn btn--soft btn--small" id="claude-copy" type="button" aria-label="Copia l'indirizzo del connettore">Copia</button>
+              </span>
+            </li>
+            <li>Si apre una pagina di Aura che chiede un codice: qui tocca <b>Mostra il codice</b> e scrivilo lì. Vale 10 minuti.</li>
+          </ol>
+          <button class="btn btn--primary btn--block" id="claude-show" type="button">Mostra il codice</button>
+          <!-- Il codice in grande: per il lettore di schermo c'è una copia scritta un carattere alla volta -->
+          <div class="claude-code" id="claude-code" hidden>
+            <p class="claude-code__value" id="claude-code-value" tabindex="-1">
+              <span id="claude-code-text" aria-hidden="true"></span>
+              <span class="sr-only" id="claude-code-spoken"></span>
+            </p>
+            <p class="claude-code__time" id="claude-code-time"></p>
+            <button class="btn btn--soft btn--small" id="claude-new-code" type="button">Nuovo codice</button>
+            <p class="claude-code__note">Scrivilo solo nella pagina di Aura che si apre da Claude: vale una volta sola.</p>
+          </div>
+          <p class="panel__note" data-privacy="claude">Da Claude arrivano solo le frasi che aggiunge, con il permesso che gli dai nella chat: restano sul server finché non apri Aura, al massimo 30 giorni. Con l'assistente acceso passano anche dall'IA del server di Aura, come quelle di Siri.</p>
+          <p class="panel__note" data-privacy="claude">Claude non vede le tue attività né i punti, e ad Aura non arriva niente di Claude: né l'account, né l'email, né le chat. Sul server restano solo le date del collegamento e dell'ultimo uso, e un'impronta dell'accesso che nemmeno chi leggesse il server potrebbe usare.</p>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
   <!-- «Quando te lo ricordo?»: lo apre la × dell'avviso della musica in Focus (js/ui-music.js) -->
   <dialog class="sheet sheet--small" id="music-later-sheet" aria-labelledby="music-later-title">
     <div class="sheet__panel">
@@ -1056,6 +1143,7 @@
     </div>
   </dialog>
 
+  <!-- Foglio "Promemoria e Siri": usa il server di Aura (cartella server/) e funziona nell'app pubblicata (https) -->
   <dialog class="sheet sheet--small" id="remote-sheet" aria-labelledby="remote-sheet-title">
     <div class="sheet__panel">
       <header class="sheet__header">
@@ -1445,7 +1533,7 @@
         <div class="remote-footer">
           <p class="status" id="assistant-status" data-tone="warn" role="status" hidden></p>
           <button class="btn btn--ghost btn--small btn--danger" id="assistant-disconnect" type="button" hidden>Scollega questo dispositivo</button>
-          <p class="panel__note" id="assistant-disconnect-note" hidden>Spegne anche i promemoria e il Comando Rapido di Siri, e cancella i conteggi sul server.</p>
+          <p class="panel__note" id="assistant-disconnect-note" hidden>Spegne anche i promemoria e il Comando Rapido di Siri, e cancella i conteggi sul server.<span data-if-claude hidden> Scollega anche Claude.</span></p>
         </div>
       </div>
     </div>

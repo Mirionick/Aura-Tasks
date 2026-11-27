@@ -1,9 +1,10 @@
 /*
  * Aura Tasks — collegamento al server di Aura (Cloudflare Workers, cartella server/ del repository):
- * casella del Comando Rapido di Siri, promemoria push e assistente (trascrizione della voce e risposte).
+ * casella del Comando Rapido di Siri (dove arrivano anche le frasi di Claude), promemoria push, assistente
+ * (trascrizione della voce e risposte) e collegamento di Claude (docs/connettore-claude.md).
  * Niente DOM: richieste al server, sottoscrizione push del browser, impostazioni in `aura-tasks:remote`.
  * Le funzioni pure (codice del dispositivo, coda della casella, impostazioni) hanno i loro test in tests/.
- * Tutto è facoltativo: finché l'utente non attiva promemoria, Siri o l'assistente, l'app non fa nessuna richiesta.
+ * Tutto è facoltativo: finché l'utente non attiva promemoria, Siri, Claude o l'assistente, l'app non fa nessuna richiesta.
  */
 (function (Aura) {
   'use strict';
@@ -60,9 +61,17 @@
       reminders: { enabled: false, lead: RM.DEFAULT_LEAD }, // promemoria push
       vapidKey: null,                                       // chiave del server usata per la sottoscrizione
       sent: emptySent(),
-      inbox: [],                                            // frasi di Siri ritirate dal server, da mostrare
+      inbox: [],                                            // frasi di Siri e di Claude ritirate dal server, da mostrare
       done: []                                              // id delle frasi già mostrate (per non rivederle)
     };
+  }
+
+  /**
+   * Da dove viene una frase della casella: 'claude' oppure 'siri'. Lo dice il server (`source`); per le frasi salvate
+   * senza, lo dice l'id: quelli di Claude cominciano con «claude:», e i due punti non ci sono mai negli id di Siri.
+   */
+  function inboxSource(item) {
+    return item.source === 'claude' || item.id.startsWith('claude:') ? 'claude' : 'siri';
   }
 
   /** Aggiunge alla coda le frasi nuove (non già in coda né già mostrate), dalla più vecchia; al massimo INBOX_MAX. */
@@ -74,10 +83,16 @@
       const text = typeof item.text === 'string' ? item.text.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX) : '';
       if (!text) return;
       known.add(item.id);
-      fresh.push({ id: item.id, text, createdAt: Number.isFinite(item.createdAt) ? item.createdAt : 0 });
+      fresh.push({ id: item.id, text, createdAt: Number.isFinite(item.createdAt) ? item.createdAt : 0, source: inboxSource(item) });
     });
     fresh.sort((a, b) => a.createdAt - b.createdAt);
     return queue.concat(fresh).slice(0, INBOX_MAX);
+  }
+
+  /** L'intestazione del foglio «Nuova attività» per una frase della casella: «Da Siri», «Da Claude · 2 di 3». */
+  function inboxLabel(item, position, total) {
+    const from = item && item.source === 'claude' ? 'Da Claude' : 'Da Siri';
+    return total > 1 ? from + ' · ' + position + ' di ' + total : from;
   }
 
   /**
@@ -216,7 +231,11 @@
     transcribe: (code, audio, type) => request('POST', '/api/assistant/transcribe', {
       code, text: audio, headers: { 'X-Audio-Type': type }, timeout: ASSISTANT_TIMEOUT_MS
     }),
-    chat: (code, payload) => request('POST', '/api/assistant/chat', { code, body: payload, timeout: ASSISTANT_TIMEOUT_MS })
+    chat: (code, payload) => request('POST', '/api/assistant/chat', { code, body: payload, timeout: ASSISTANT_TIMEOUT_MS }),
+    // Claude (vedi docs/connettore-claude.md): il codice per collegarlo, lo stato dei collegamenti, «Scollega Claude».
+    claudeCode: code => request('POST', '/api/claude/code', { code }),
+    claudeStatus: code => request('GET', '/api/claude', { code }),
+    claudeUnlink: code => request('DELETE', '/api/claude', { code })
   };
 
   /* ---------- Notifiche push del browser ---------- */
@@ -279,6 +298,7 @@
     defaults,
     emptySent,
     mergeInbox,
+    inboxLabel,
     normalizeSettings,
     troubleMessage,
     // impostazioni e codice

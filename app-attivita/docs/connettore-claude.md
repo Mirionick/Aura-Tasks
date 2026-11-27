@@ -1,4 +1,4 @@
-# Connettore per Claude: «Aggiungi ad Aura» (passo 6.1 scritto, da pubblicare; passo 6.2 da fare)
+# Connettore per Claude: «Aggiungi ad Aura» (passi 6.1 e 6.2 scritti; il server è da pubblicare)
 
 In una chat con Claude si dice «mettilo su Aura», oppure è Claude a chiedere «Lo metto su Aura?». Claude usa lo strumento **«Aggiungi ad Aura»** e le attività arrivano nella casella di Aura, la stessa delle frasi di Siri. Claude può solo aggiungere: non legge, non cambia e non cancella niente. La proposta è [P-006](../../docs/proposte/P-006.md).
 
@@ -9,15 +9,15 @@ In una chat con Claude si dice «mettilo su Aura», oppure è Claude a chiedere 
 | Passo | Contenuto | Stato |
 |---|---|---|
 | 6.1 | Server: accesso OAuth con il codice di Aura, connettore MCP con lo strumento, limiti, pulizie, test | scritto il 23 novembre 2026; da pubblicare con `npm run db:init`, poi `npm run deploy` |
-| 6.2 | App: riga e foglio «Claude» nelle Impostazioni (codice, stato, «Scollega Claude»), frasi «Da Claude», testo della Privacy | da fare, dopo la pubblicazione del 6.1 e le PR dell'app già aperte |
+| 6.2 | App: riga e foglio «Claude» nelle Impostazioni (codice, stato, «Scollega Claude»), frasi «Da Claude», testo della Privacy | scritto il 27 novembre 2026 (PR 23); funziona quando il server del 6.1 è pubblicato |
 
-Il passo 6.1 non cambia niente per chi non usa Claude. Finché non c'è il 6.2 manca solo il modo di vedere il codice nell'app.
+Chi non usa Claude non vede differenze, tranne la riga nuova nelle Impostazioni. Finché il server non è pubblicato, il foglio «Claude» risponde «Il server di Aura non è ancora pronto per Claude: va aggiornato.», e la riga nelle Impostazioni può dire «Stato non disponibile».
 
 ## Come ci si collega (una volta sola)
 1. Su claude.ai, dal sito o dall'app per il computer: **Personalizza › Connettori › «+» › «Aggiungi connettore personalizzato»** (in inglese Customize › Connectors › Add custom connector). Dall'app del telefono non si aggiunge, ma poi si usa anche lì.
 2. Nome: `Aura`. Indirizzo: **`https://aura.auramirionick.workers.dev/mcp`**, esattamente così, senza la barra finale: Claude controlla che sia uguale a quello che il server dichiara.
 3. «Connetti» (Connect): si apre la pagina di Aura «Collega Claude ad Aura», che chiede il codice.
-4. In Aura: Impostazioni › Claude › «Mostra il codice» (passo 6.2). Il codice ha 8 caratteri, come `K7PM-4QRT`, e vale 10 minuti.
+4. In Aura: Impostazioni › Claude › «Mostra il codice». Il codice ha 8 caratteri, come `K7PM-4QRT`, e vale 10 minuti.
 5. Si scrive il codice e si tocca «Collega». La pagina torna su claude.ai, e il connettore risulta collegato.
 
 Prima di usare lo strumento Claude chiede il permesso nella chat; si può scegliere «Consenti sempre». Nel piano Free di Claude si può aggiungere un solo connettore personalizzato.
@@ -122,7 +122,49 @@ Le richieste di Claude arrivano tutte dagli indirizzi di Anthropic, e i limiti p
   node scripts/prova-connettore.mjs
   ```
   I risultati sono in [decisioni.md](../../docs/decisioni.md), sezione 4.
-- **Con Claude vero**, dopo la pubblicazione e il passo 6.2 (Product Owner): collegare il connettore, dire «mettimi su Aura: …» dal sito e dall'app di Claude sull'iPhone, poi aprire Aura. Da vedere anche se il connettore si usa nelle chat dei progetti di Claude. Se qualcosa non va, Claude Code legge `wrangler tail`, dove non ci sono mai token né frasi.
+- **Con Claude vero**, dopo la pubblicazione del server e l'unione del passo 6.2 (Product Owner): collegare il connettore, dire «mettimi su Aura: …» dal sito e dall'app di Claude sull'iPhone, poi aprire Aura. Da vedere anche se il connettore si usa nelle chat dei progetti di Claude. Se qualcosa non va, Claude Code legge `wrangler tail`, dove non ci sono mai token né frasi.
 
-## Passo 6.2: l'app (da fare)
-Come in P-006, «Passo 6.2»: la riga «Claude» nelle Impostazioni, con un foglio che spiega i passi, mostra il codice («Mostra il codice», controlla lo stato ogni 4 secondi finché il codice vale), elenca i collegamenti con le loro date e ha «Scollega Claude» con una conferma; le frasi con `source: "claude"` arrivano con l'etichetta «Da Claude» (con l'assistente acceso e spento); il foglio «Privacy» dice che cosa passa da Claude ad Aura.
+## Nell'app (passo 6.2)
+
+Codice: `js/claude.js` (logica pura: come si mostra il codice, quanto vale ancora, le righe dei collegamenti, quando ne arriva uno nuovo) e `js/ui-claude.js` (il foglio); le richieste in `js/remote.js` (`api.claudeCode`, `api.claudeStatus`, `api.claudeUnlink`), la riga in `js/settings.js`.
+
+### La riga «Claude» nelle Impostazioni
+Sotto «Comando Rapido di Siri». Dice:
+- «Da collegare», finché non c'è un collegamento. Senza il codice del dispositivo non si chiede niente al server;
+- «Collegato», con almeno un collegamento;
+- «Controllo…» mentre chiede lo stato, «Stato non disponibile» se non riesce a saperlo (senza internet, con il server giù o non ancora aggiornato);
+- senza il server (app aperta dal file, server non configurato) la riga è spenta, come quella dell'assistente.
+
+Lo stato si chiede al server all'avvio (solo se il dispositivo ha il suo codice), quando torna internet, aprendo le Impostazioni (al massimo ogni 30 secondi) e aprendo il foglio «Claude». Sta solo in memoria: non si salva.
+
+### Il foglio «Claude»
+- In cima, che cosa fa e che cosa no, poi una riga di stato: «Claude non è collegato.», «Claude è collegato: in una chat puoi dirgli «mettilo su Aura».», oppure l'esito dell'ultima azione.
+- **Collegamenti**, solo se ce n'è almeno uno: una riga ciascuno, dal più vecchio, come «Collegato dal 23 novembre · ultimo uso oggi alle 15:02» (con l'anno se non è quello di adesso; «Collegato oggi alle 10:15»; «non ancora usato»). Sotto, **«Scollega Claude»** apre una conferma nel foglio: «Scollegare Claude? Non potrà più aggiungere attività, e per ricollegarlo servirà un codice nuovo.», con «Scollega» e «Annulla». «Scollega» toglie tutti i collegamenti e i codici del dispositivo (`DELETE /api/claude`).
+- **Come collegarlo**: i tre passi, con l'indirizzo del connettore (quello del server più `/mcp`) e «Copia». L'indirizzo va a capo solo dopo `https://` e prima di un punto o di una barra.
+- **«Mostra il codice»**: è il pulsante principale finché Claude non è collegato; dopo resta, più leggero, per un altro collegamento.
+  - Se il dispositivo non ha ancora il suo codice sul server, prima lo registra, come «Crea il codice per Siri».
+  - Poi chiede un codice (`POST /api/claude/code`) e lo mostra in grande, in due gruppi da quattro (`K7PM-4QRT`), con «Vale ancora 10 minuti», che scende ogni minuto, e «Nuovo codice».
+  - Il focus va sul codice, e il lettore di schermo legge «Codice per Claude: K 7 P M, 4 Q R T», un carattere alla volta.
+  - Il tempo si conta con l'orologio del telefono, ma mai oltre 10 minuti da quando il codice arriva: con l'orologio indietro il codice non sembra valere più del vero.
+- Mentre il codice è in vista e il foglio è aperto, l'app chiede lo stato ogni 4 secondi (`GET /api/claude`). Con Aura in secondo piano si ferma, e al ritorno controlla subito.
+  - Un collegamento che prima non c'era (si riconosce dalla data, perché con il quarto il server toglie quello usato meno di recente e il numero resta 3). Se i collegamenti di prima non si sapevano (la domanda prima del codice non è andata), è nuovo quello nato dopo il codice: la data del codice è la sua scadenza meno 10 minuti, sullo stesso orologio del server delle date dei collegamenti. Così un collegamento arrivato prima del primo controllo riuscito non diventa il punto di partenza. Il codice sparisce, e la riga dice «Claude è collegato. Prova a scrivergli «metti su Aura: comprare il latte»: l'attività arriva quando riapri Aura.».
+  - Il server non dà più il codice come valido: «Codice usato: aspetto Claude…». Se entro un minuto il collegamento non arriva: «Claude non ha finito il collegamento: tocca «Mostra il codice» e riprova.».
+  - Il tempo finisce: «Il codice è scaduto: tocca «Mostra il codice» per averne uno nuovo.».
+- Gli errori si leggono nella riga di stato, con il motivo. Se il server non conosce ancora questi indirizzi (404: è di prima del passo 6.1): «Il server di Aura non è ancora pronto per Claude: va aggiornato.».
+
+### Le frasi «Da Claude»
+Le frasi con `source: "claude"` (o con l'id che comincia con `claude:`) restano in coda con la loro origine, nel campo `source` di `remote.inbox`.
+- Con l'assistente spento si aprono in «Nuova attività» con l'intestazione «Da Claude · 1 di 2» (e «Da Siri · 2 di 2» per quelle di Siri).
+- Con l'assistente acceso passano dall'assistente come quelle di Siri (richiesta `siri`): l'avviso dice «Da Claude: aggiunta …», oppure «Da Siri e da Claude: …» quando arrivano insieme; nell'elenco «Cosa ha fatto l'assistente» l'origine è «Da Claude», come «Da Siri».
+
+### Privacy e «Scollega questo dispositivo»
+- Il foglio «Claude» ha due note sulla privacy; il foglio «Privacy» le ripete nella sezione «Claude», dopo Siri.
+- Con Claude collegato, la riga della privacy nelle Impostazioni e nel foglio «Privacy» lo nomina: «…arrivano solo promemoria e frasi di Siri e di Claude.».
+- Finché non si sa se Claude è collegato (la domanda al server non è finita o non è andata), le stesse frasi lo nominano con un «se», invece di escluderlo: «…arrivano solo promemoria e frasi di Siri e, se è collegato, di Claude.» e, nella riga, «Al server: solo promemoria e frasi di Siri e di Claude (se collegato)». Senza il dispositivo collegato, Claude non c'è mai.
+- «Scollega questo dispositivo» toglie sul server anche i collegamenti di Claude. Per questo, solo con Claude collegato, sotto il pulsante c'è «Scollega anche Claude, che con «Annulla» non torna: per ricollegarlo servirà un codice nuovo.» (e «Scollega anche Claude.» nel foglio dell'assistente). «Annulla» registra di nuovo il dispositivo e rimette promemoria e assistente com'erano, ma non Claude, e l'avviso lo dice: «Dispositivo ricollegato. Claude va ricollegato con un codice nuovo.».
+- Per questo avviso, prima di scollegare l'app chiede al server se Claude è collegato: lo stato in memoria può mancare (la prima domanda non è finita o non è andata) o essere vecchio. Se una domanda è già in corso, aspetta quella. Se non riesce a saperlo, scollega lo stesso, e dopo «Annulla» l'avviso dice «Dispositivo ricollegato. Se avevi collegato Claude, va ricollegato con un codice nuovo.».
+
+### Dati e prove
+- Niente di nuovo da salvare, tranne `source` nelle frasi in coda. Niente nel backup. La CSP non cambia: il server è già in `connect-src`. Cache del service worker `aura-tasks-v25`.
+- `tests/claude.test.js` (codice, tempo che resta, stato del server, collegamento nuovo, righe con le date, indirizzo) e i test di `remote`, `settings` e `assistant` per `source`, «Da Claude», la riga e la privacy (anche con lo stato che non si sa): 363 su 363, con l'ora di Roma, New York, Auckland, San Paolo e UTC.
+- Nel browser, con un server finto (fuori dal repository): tutto il percorso, dal primo codice al collegamento; codice usato e scaduto; collegamento riconosciuto anche senza lo stato di prima del codice; errori, anche del server non aggiornato; frasi «Da Claude» con l'assistente spento e acceso; «Scollega questo dispositivo» con «Annulla», anche con lo stato di Claude ancora in arrivo, non riuscito o non disponibile; la privacy con lo stato che non si sa; il foglio «Privacy»; due temi, 320 e 390 px, aree di tocco, axe senza violazioni.
