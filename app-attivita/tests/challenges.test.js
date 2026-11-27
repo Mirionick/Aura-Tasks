@@ -169,6 +169,24 @@
     assertEqual(tomorrow.totalPoints, 24 + 10, 'e i punti che restano non cambiano');
   });
 
+  test('refresh: i giorni che si possono disfare restano tutti, anche oltre un anno', () => {
+    const challenges = {};
+    const days = {};
+    const tasks = [];
+    for (let i = 1; i <= 430; i++) {
+      challenges[day(-i)] = { at: at(8, 0, -i), items: [{ kind: 'count', target: 2, done: at(19, 0, -i) }, { kind: 'focus', target: 10 }, { kind: 'any', target: 1, done: at(18, 0, -i) }] };
+      days[day(-i)] = { done: 2, points: 48 };
+      tasks.push(task({ id: 'a' + i, done: true, createdAt: at(8, 0, -i), completedAt: at(18, 0, -i), pointsAwarded: 24 }));
+      tasks.push(task({ id: 'b' + i, done: true, createdAt: at(8, 0, -i), completedAt: at(19, 0, -i), pointsAwarded: 24 }));
+    }
+    const stats = { ...P.emptyStats(), totalPoints: 430 * (48 + 20), days, challenges };
+    const born = C.refresh(stats, tasks, NOW).stats;
+    assertEqual(Object.keys(born.challenges).length, 431, 'oggi e i 430 giorni prima: in ognuno un\'attività completata si può riaprire');
+    const reopened = setDone({ tasks, stats: born }, 'b430', false, NOW);
+    assertEqual(reopened.stats.challenges[day(-430)].items.map(item => Boolean(item.done)), [false, false, true], 'la sfida di 430 giorni fa torna da fare');
+    assertEqual(reopened.stats.totalPoints, born.totalPoints - 24 - 10, '−24 dell\'attività e −10 della sfida');
+  });
+
   test('refresh: un giorno più vecchio dei 30 con fatto solo il focus esce: i minuti di un giorno passato non si tolgono più', () => {
     const old = day(-40);
     const challenges = { ...thirtyDays(), [old]: { at: at(8, 0, -40), items: [{ kind: 'count', target: 5 }, { kind: 'focus', target: 10, done: at(10, 0, -40) }, { kind: 'before', target: 12 }] } };
@@ -350,7 +368,7 @@
     const many = {};
     for (let i = 0; i < 405; i++) many[day(-i)] = good;
     const kept = Object.keys(C.sanitize(many)).sort();
-    assertEqual([kept.length, kept[0]], [400, day(-399)], 'al massimo i 400 giorni più recenti: quali tenere oltre i 30 lo decide refresh()');
+    assertEqual([kept.length, kept[0]], [405, day(-404)], 'tutti i giorni validi: quali tenere oltre i 30 lo decide refresh()');
   });
 
   test('sanitizeStats: le sfide passano dalla pulizia, e il totale mancante conta anche i loro punti', () => {
