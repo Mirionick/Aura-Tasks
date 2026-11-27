@@ -4,7 +4,7 @@ Fotografia breve di dove siamo, per chi comincia un intervento. La aggiorna chi 
 
 Non ripete gli altri documenti: decisioni, funzioni e verifiche sono in [decisioni.md](decisioni.md), le regole in [AGENTS.md](../AGENTS.md).
 
-**Aggiornato il** 27 novembre 2026, con la PR della versione nuova con l'app rimasta aperta.
+**Aggiornato il** 27 novembre 2026, con la PR dei controlli di conformità (passo 0a di P-002).
 
 ## Pubblicato su `main`
 - **App**: fino al passo 1 dell'assistente («Scrivi ad Aura», 13 novembre 2026), più i passi 0b e 1 di P-002 (il focus a tutto schermo resta fermo; la rotella apre le Impostazioni), i passi 3.1 (cambio di scheda e aurora nel focus), 3.2 (Agenda a calendario), 3.3 (Motivazione) e 3.4 («I tuoi premi») di P-003, i passi 4.1 (negozio), 4.2 (musica nel focus, senza account) e 4.4 (suoni del focus) di P-004, i passi 5.1 (attività che si ripetono) e 5.2 (scorrimento sulle card) di P-005, il passo 6.2 di P-006 (Claude nell'app) e due giri di rifiniture. Cache `aura-tasks-v25` (27 novembre 2026); dati alla versione 7 dello schema.
@@ -33,18 +33,19 @@ L'elenco delle funzioni realizzate è in [decisioni.md](decisioni.md), sezione 2
 ## In lavorazione
 - **Versione nuova con l'app rimasta aperta** (livello B, esecutore Claude Project, revisione di Codex). Su iPhone, tornando in un'app installata, la pagina non si ricarica: dopo un merge restava la versione di prima finché non si chiudeva Aura del tutto. Ora, tornando nell'app (al massimo una volta al minuto), Aura chiede al browser se è uscita una versione nuova; quando è pronta compare «C'è una versione nuova di Aura» con «Aggiorna», che ricarica la pagina. Mai sopra un foglio aperto né sopra un altro avviso; senza «Aggiorna» torna dopo 15 minuti. La pagina sa la sua versione e la confronta con le cache del service worker: così l'avviso c'è anche quando, aprendo Aura con la rete lenta, la pagina arriva dalla cache e la versione nuova subito dopo (la nota di Codex). Regole pure nel file nuovo `js/update.js`, con i test; cache `aura-tasks-v26`, che da ora si scrive anche in `VERSION` di `js/update.js`. Nella stessa PR, la misura dell'apertura di «Nuova attività» (passo a parte dopo la fase 2a): non è più il gesto più pesante, quindi non si cambia. Spiegato nella [guida tecnica](../app-attivita/docs/CLAUDE-GUIDE.md), «Convenzioni», «Service worker». **Da provare sull'iPhone** con il merge successivo: la prima volta l'avviso può arrivare solo dalla versione con questa PR in poi.
 
+- **Controlli di conformità nella CI** (passo 0a di P-002, livello B; nella tabella «Ordine» di [proposte/P-002.md](proposte/P-002.md) l'esecutore è ChatGPT / Codex: l'ha scritto Claude Project, con la revisione di Codex, e il cambio lo decide il Product Owner). Prima dei test, su ogni PR: niente segreti, percorsi locali né email nelle righe aggiunte e nei messaggi dei commit; commit firmati con l'identità noreply; `CACHE_VERSION` più alta quando cambiano i file dell'app; sempre: niente `innerHTML` nel codice dell'app. Con il segreto facoltativo `PRIVACY_TERMS` anche il nome reale. Tolto da `main` un file compilato di Python finito lì per sbaglio con la PR 23; `.gitignore` ora li esclude. Spiegato nella [guida tecnica](../app-attivita/docs/CLAUDE-GUIDE.md), «Test».
+
 ## In attesa
 - Le prove sull'iPhone rimandate, segnate «da verificare» in [decisioni.md](decisioni.md), sezione 2: assistente scritto, promemoria push anche ad app chiusa, Siri, pagina di prova della voce, e i passi di P-003, P-004 e P-005. I passi 3 e 4 di P-002 aspettano queste prove.
 - La pubblicazione del server del passo 6.1 di P-006 (`npm run db:init`, poi `npm run deploy`), con il via del Product Owner.
 - La risposta del Product Owner su Spotify Premium (passo 4.3 di P-004), e la sua scelta, dopo la prova sull'iPhone, su che cosa fa il suono del focus quando suona Spotify (passo 4.4).
 
 ## Punti aperti
-- **Controlli automatici di conformità** (passo 0a di P-002, livello B, esecutore ChatGPT / Codex): (a) segreti e percorsi locali nei file e nei messaggi dei commit della PR; (b) divieto di `innerHTML` nel codice dell'app; (c) `CACHE_VERSION` aggiornata quando cambiano i file dell'app.
 - **Pagina che scorre dietro gli altri fogli**: il difetto del passo 0b fa pensare che su iPhone il blocco dello scorrimento dei fogli non basti. Va controllato con la prova del passo 0b (con un foglio aperto, trascinare sullo sfondo scuro). Se la pagina si muove, serve una correzione a parte.
 - **Testo di P-001 v2**: non è nel repository. Qui ci sono la sua approvazione ([decisioni.md](decisioni.md), sezione 1) e ciò che stabilisce ([AGENTS.md](../AGENTS.md)).
 
 ## Prossimi passi
-- **P-002**: 0a e passo 2 (Aura con un volto) toccano a ChatGPT / Codex e aspettano che il Product Owner crei l'ambiente di Codex. I passi 3 e 4 aspettano le prove sull'iPhone.
+- **P-002**: lo 0a è in lavorazione (vedi sopra). Il passo 2 (Aura con un volto) tocca a ChatGPT / Codex e aspetta che il Product Owner crei l'ambiente di Codex. I passi 3 e 4 aspettano le prove sull'iPhone.
 - **P-003**: resta il passo 3.5 («Sfide di oggi», ChatGPT / Codex), nell'ordine di [proposte/P-003.md](proposte/P-003.md), senza aspettare il passo 2 di P-002, perché tocca altre parti. Porterà i dati alla prima versione libera, la 8 dopo la 7 del passo 5.1 di P-005 (vedi [proposte/P-005.md](proposte/P-005.md), «Rapporto con P-003 e P-004»).
 - **P-004**: dopo i passi 4.1, 4.2 e 4.4, il 4.3 (Spotify collegato) aspetta la risposta del Product Owner su Spotify Premium e la prova dei link del 4.2 sull'iPhone.
 - **P-005**: dopo i passi 5.1 e 5.2, il 5.3 (le prossime ripetizioni in Agenda, facoltativo) si decide dopo la prova del 5.1 sull'iPhone.

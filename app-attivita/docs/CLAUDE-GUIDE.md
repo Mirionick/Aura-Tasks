@@ -402,6 +402,14 @@ Note per i controlli automatici con Edge headless:
 - l'assistente, con un'IA finta al posto di Workers AI: limiti, conteggi, ciò che va al modello e ciò che ne torna. Non consuma quota;
 - il connettore per Claude (`test/claude.test.mjs`): accesso OAuth con il codice di Aura, le due epoche del protocollo MCP, lo strumento e i suoi limiti.
 
+**Controlli di conformità della CI** (passo 0a di P-002, `.github/scripts/check-compliance.py`, con i suoi test in `test_check_compliance.py`). Girano prima dei test, e dicono solo dove hanno trovato qualcosa, mai il valore.
+- Su ogni PR, nelle righe aggiunte e nei messaggi dei commit: niente segreti (chiavi private, token e chiavi dei servizi più noti, valori assegnati a nomi come `password` o `secret`), percorsi locali (con la lettera del disco, cartelle personali, anche con la tilde o nel nome breve di Windows) né email, a parte quelle noreply di GitHub e di Claude e gli indirizzi d'esempio.
+- I commit della PR firmati solo con l'identità noreply di GitHub.
+- Con il segreto facoltativo `PRIVACY_TERMS` del repository (parole separate da virgole, per esempio il nome reale) cercano anche quelle parole, intere e senza badare alle maiuscole, pure nel nome della firma. Il segreto lo mette il Product Owner su GitHub, in Settings › Secrets and variables › Actions: nessun altro lo legge.
+- Se cambiano i file dell'app (tutto `app-attivita/` tranne `docs/`, `tests/` e i file `.md`), `CACHE_VERSION` di `sw.js` deve avere un numero più alto di quello da cui parte la PR e di quello di `main` adesso.
+- Sempre, anche sui push su `main`: nel codice dell'app (`index.html` senza i commenti, `sw.js`, `js/`, `prove/`) niente `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `createContextualFragment` né `parseFromString`. Anche in un commento di JavaScript: lì si scrive il nome senza il punto davanti.
+- Da terminale, dalla cartella del repository: `BASE_SHA=<commit di main> HEAD_SHA=<commit della PR> python3 -B .github/scripts/check-compliance.py`; senza i due commit fa solo il controllo di `innerHTML`.
+
 **I client MCP ufficiali** si provano con `server/scripts/prova-connettore.mjs`, fuori da `npm test`: vedi `server/README.md`.
 
 **Workers AI vero** si prova solo con `wrangler dev` (anche in locale consuma la quota gratuita) e con `server/scripts/eval-assistant.mjs`, la prova dei modelli sulle frasi italiane: vedi `server/README.md`.
