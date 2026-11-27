@@ -73,6 +73,22 @@
     return (after || []).some(link => !known.has(link.createdAt));
   }
 
+  /**
+   * Quando il server ha dato il codice, sul suo orologio (la scadenza meno i 10 minuti): lo stesso orologio delle date
+   * dei collegamenti. null se la scadenza non è un numero.
+   */
+  function codeIssuedAt(expiresAt) {
+    return Number.isFinite(expiresAt) ? expiresAt - CODE_TTL_MS : null;
+  }
+
+  /**
+   * C'è un collegamento creato dopo che il server ha dato il codice (`issuedAt`, da `codeIssuedAt`)? Serve quando i
+   * collegamenti di prima non si sapevano: non c'è niente con cui confrontare, ma la data dice quale è nuovo.
+   */
+  function linkedSince(links, issuedAt) {
+    return Number.isFinite(issuedAt) && (links || []).some(link => link.createdAt >= issuedAt);
+  }
+
   /** «23 novembre», con l'anno se non è quello di adesso. */
   function dayLabel(ms, now) {
     const date = new Date(ms);
@@ -108,6 +124,8 @@
     timeLeft,
     readStatus,
     hasNewLink,
+    codeIssuedAt,
+    linkedSince,
     linkLine,
     connectorUrl
   };

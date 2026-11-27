@@ -83,6 +83,23 @@
     assert(C.hasNewLink(null, [fresh]));
   });
 
+  test('claude: senza i collegamenti di prima, quello nuovo si riconosce perché è nato dopo il codice', () => {
+    // Il server dà il codice alle 15:20 (scade alle 15:30): le date sono tutte sul suo orologio
+    const issuedAt = C.codeIssuedAt(at(11, 27, 15, 30));
+    assertEqual(issuedAt, at(11, 27, 15, 20));
+    assertEqual(C.codeIssuedAt('presto'), null);
+    assertEqual(C.codeIssuedAt(undefined), null);
+    const old = { createdAt: at(11, 23, 10), usedAt: at(11, 27, 9) };
+    const justBefore = { createdAt: issuedAt - 1, usedAt: null };
+    const fresh = { createdAt: at(11, 27, 15, 21), usedAt: null };
+    assert(C.linkedSince([old, fresh], issuedAt), 'collegato dopo il codice: è quello nuovo');
+    assert(C.linkedSince([{ createdAt: issuedAt, usedAt: null }], issuedAt), 'nello stesso istante conta');
+    assert(!C.linkedSince([old, justBefore], issuedAt), 'tutti di prima del codice: niente di nuovo');
+    assert(!C.linkedSince([], issuedAt));
+    assert(!C.linkedSince(null, issuedAt));
+    assert(!C.linkedSince([fresh], null), 'senza la data del codice non si può dire');
+  });
+
   test('claude: una riga per collegamento, con le date', () => {
     assertEqual(C.linkLine({ createdAt: at(11, 23, 10), usedAt: at(11, 27, 15, 2) }, NOW), 'Collegato dal 23 novembre · ultimo uso oggi alle 15:02');
     assertEqual(C.linkLine({ createdAt: at(11, 23, 10), usedAt: at(11, 26, 21, 5) }, NOW), 'Collegato dal 23 novembre · ultimo uso ieri alle 21:05');

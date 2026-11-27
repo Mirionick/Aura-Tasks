@@ -43,8 +43,9 @@
   let busy = false;     // «Mostra il codice», «Nuovo codice» o «Scollega Claude» in corso
   let asking = false;   // la conferma di «Scollega Claude» è aperta
   let message = null;   // { text, tone }: l'esito dell'ultima azione, al posto della riga di stato normale
-  // Il codice in vista: { value, deadline, before, usedAt }. `before` sono i collegamenti di quando è apparso (null se
-  // non si sapevano: li dà il primo controllo); `usedAt` è quando il server non l'ha più dato come valido.
+  // Il codice in vista: { value, deadline, issuedAt, before, usedAt }. `issuedAt` è quando il server l'ha dato, sul suo
+  // orologio; `before` sono i collegamenti di quando è apparso (null se non si sapevano: li dà il primo controllo);
+  // `usedAt` è quando il server non l'ha più dato come valido.
   let shown = null;
   let timer = null;
   let polledAt = 0;
@@ -201,9 +202,10 @@
     polledAt = Date.now();
     const status = await fetchStatus();
     if (!status || !shown) return; // problemi di rete: si riprova al prossimo giro
-    if (shown.before === null) {
-      shown.before = status.links; // prima non si sapevano: da qui si confronta
-    } else if (C.hasNewLink(shown.before, status.links)) {
+    // È arrivato il collegamento? Si confronta con i collegamenti di prima. Se non si sapevano (la domanda prima del
+    // codice non è andata), uno creato dopo il codice è quello nuovo: non va preso come punto di partenza.
+    const linked = shown.before === null ? C.linkedSince(status.links, shown.issuedAt) : C.hasNewLink(shown.before, status.links);
+    if (linked) {
       const focusWasIn = els.code.contains(document.activeElement);
       stopTimer();
       shown = null;
@@ -212,6 +214,7 @@
       if (focusWasIn) els.linksTitle.focus();
       return;
     }
+    if (shown.before === null) shown.before = status.links; // tutti di prima del codice: da qui si confronta
     // Il server non lo dà più come valido: è stato scritto (o è scaduto). Claude finisce il collegamento in pochi secondi.
     if (!status.code && !shown.usedAt) {
       shown.usedAt = Date.now();
@@ -247,7 +250,13 @@
       return;
     }
     const now = Date.now();
-    shown = { value: data.code, deadline: C.codeDeadline(data.expiresAt, now), before: links ? links.slice() : null, usedAt: 0 };
+    shown = {
+      value: data.code,
+      deadline: C.codeDeadline(data.expiresAt, now),
+      issuedAt: C.codeIssuedAt(data.expiresAt),
+      before: links ? links.slice() : null,
+      usedAt: 0
+    };
     polledAt = now; // il primo controllo tra 4 secondi
     message = { text: TEXTS.ready, tone: 'busy' };
     changed();
