@@ -1,4 +1,4 @@
-# Tre modalità: Focus, Agenda e Motivazione (in corso: fasi 1 e 2a fatte e provate sull'iPhone)
+# Tre modalità: Focus, Agenda e Motivazione (in corso: fasi 1 e 2a fatte e provate sull'iPhone, 2b fatta)
 
 Nuovo capitolo: animazioni più fluide e l'app divisa in **tre schede**, una per ogni modo di usarla. Assorbe il vecchio punto 4 di "Funzioni future" («Cosa faccio adesso?» e modalità focus): le specifiche sono qui, aggiornate.
 
@@ -11,7 +11,7 @@ Ogni fase si pubblica da sola, con i suoi test, la prova WebKit e la prova dell'
 |---|---|---|
 | 1 | Animazioni più fluide in tutta l'app | fatta; provata sull'iPhone il 16 novembre 2026 |
 | 2a | Barra delle schede e Focus, con «Cosa faccio adesso?», il timer e i minuti di focus | fatta e pubblicata con la v9; provata sull'iPhone il 16 novembre 2026. Il difetto trovato (il focus a tutto schermo non restava fermo) è corretto con la v13, da riprovare sull'iPhone |
-| 2b | Notifica push alla fine del focus | approvata: passo a parte, dopo la prova della 2a sull'iPhone (vedi "Notifica push alla fine del focus") |
+| 2b | Notifica push alla fine del focus | fatta con la v29; da provare sull'iPhone (vedi "Fase 2b" e "Notifica push alla fine del focus") |
 | — | Passo a parte: apertura più leggera del foglio «Nuova attività» | misurata di nuovo il 27 novembre 2026: non è più il gesto più pesante, per ora non si cambia (vedi "Passi a parte, dopo la fase 2a") |
 | — | Passo a parte: rispettare «Dimensione testo» dell'iPhone | fatto con la v27; da provare sull'iPhone (vedi "Passi a parte, dopo la fase 2a") |
 | 3 | Agenda | sostituita da [P-003](../../docs/proposte/P-003.md), passo 3.2: Agenda a calendario |
@@ -131,6 +131,22 @@ Gesti nuovi, misurati solo sulla versione con le schede:
   - non ha accelerazione grafica: un'animazione a tutto schermo, anche solo di `opacity`, scende a circa 7 fotogrammi al secondo. Lo sfondo del focus lì perdeva 510 fotogrammi in 10 secondi; con il controllo che lo ferma da solo ne perde 186,5, quasi tutti nei primi 4 secondi.
 - La prova vera è quella sull'iPhone, dove quei livelli li muove la scheda grafica: lo sfondo del focus è la prima cosa da guardare.
 - Le misure sono di prima che entrasse l'illustrazione `empty-focus`. Non sono state rifatte, perché lo stato vuoto di Focus non compare in nessuno dei gesti misurati; le prove di funzionamento invece sono state rifatte tutte.
+
+### Fase 2b: notifica alla fine del focus
+Con i promemoria attivi, quando finisce il tempo del focus arriva la notifica «Tempo finito: …», anche a telefono bloccato o con Aura chiusa. Come funziona: "Notifica push alla fine del focus", in "Focus a tutto schermo con timer".
+
+#### Risultati della fase 2b (27 novembre 2026)
+- **Test**: 7 nuovi in `tests/reminders.test.js` (la fine nell'elenco; pausa, «Riprendi» e «+5 min», anche a tempo finito; tempo finito, attività completata o che non c'è più; un id che il server non accetterebbe; titolo lungo; oltre i 100 promemoria; impronta dell'elenco). Nel server un test nuovo fissa che l'elemento `focus-<id>` passa senza cambi, parte alla fine e non prima, una volta sola, segue pausa e «+5 min» e sparisce con «Completa». App: 406 test superati su 406, con il fuso di Roma, New York, Auckland, San Paolo e UTC; server: 109 su 109.
+- **Prove di funzionamento** in Chromium 153 con Playwright 1.63, contesto «iPhone 13», con l'orologio finto e un server finto che registra gli elenchi ricevuti: 34 controlli superati su 34, nessun errore nella console.
+  - Con i promemoria attivi, «Inizia focus» manda l'elenco con la fine 80 ms dopo il tocco, senza i 2 secondi di attesa delle altre modifiche: `focus-<id>`, avviso all'ora di fine, «Tempo finito: …» e l'ora, insieme agli altri promemoria e nel loro ordine.
+  - La pausa la toglie; «Riprendi» dopo 3 minuti la rimette 3 minuti dopo; «+5 min» la sposta di 5 minuti; «Esci» la toglie e «Annulla» la rimette com'era; «Completa» la toglie, e non torna con l'elenco mandato dopo il completamento.
+  - Tempo finito con Aura davanti: l'elenco parte subito, senza la fine e una volta sola, così il server non manda la notifica.
+  - Promemoria spenti: nessun elenco. Senza codice (Aura mai collegata al server): nessuna richiesta.
+  - Service worker, con il push mandato dal protocollo di DevTools come lo manda il server: la notifica della fine ha il titolo dell'app, la riga «Tocca per completarla o per aggiungere 5 minuti.» e si apre senza `?task=`; quelle dei promemoria e di «Prova una notifica» restano com'erano. Il Chromium di questo ambiente nega sempre il permesso delle notifiche, quindi `showNotification` è stata sostituita con una che registra gli argomenti.
+  - Con il permesso finto, le notifiche della fine già arrivate si tolgono all'inizio di un focus e al tempo finito con Aura davanti; le altre restano.
+  - Da `file://` un focus intero (inizio, pausa, ripresa, «+5 min», «Esci») senza errori.
+- Preparare l'elenco costa 0,1 ms con 50 attività, 0,3 ms con 200 e 2 ms con 2000. Non ci sono animazioni nuove.
+- WebKit non eseguito: in questo ambiente non c'è. La prova vera è sull'iPhone, con Aura installata e i promemoria attivi.
 
 ### Passi a parte, dopo la fase 2a
 Ognuno si pubblica da solo, con le sue misure.
@@ -465,17 +481,20 @@ Cosa è cambiato durante il ripasso:
   - Poi si propone "Completata" oppure "+5 min". A tempo finito "+5 min" dà altri 5 minuti da adesso.
   - Se il tempo finisce con Aura nascosta, al ritorno si vede "Tempo finito", senza suono.
 - **Notifiche**: senza promemoria attivi non ci sono avvisi ad app chiusa, perché le notifiche programmate offline non esistono.
-- **Notifica push alla fine del focus (fase 2b)**: con i promemoria attivi, arriva anche a telefono bloccato. L'utente l'ha approvata il 10 novembre 2026, come **passo a parte**: si fa dopo la sua prova della 2a sull'iPhone, e si pubblica da sola.
-  - **Come**: all'avvio l'app aggiunge all'elenco dei promemoria un elemento per la fine (`id: focus-<id dell'attività>`, ora = fine prevista). Lo toglie in pausa e lo aggiorna con Riprendi, +5 min, Completa ed Esci.
-  - **Server**: nessun cambio. `cleanReminder()` lo accetta già com'è: l'id rispetta `ITEM_ID`, `fireAt` è uguale ad `at`, l'orario è nel formato HH:MM. Va fissato con un test del server.
-  - **Testo**: il titolo ("Tempo finito: …") lo scrive l'app; il service worker riconosce la notifica dal tag e cambia la riga sotto, che dal server arriva come "Adesso, alle 10:25".
+- **Notifica push alla fine del focus (fase 2b)**: con i promemoria attivi, arriva anche a telefono bloccato. L'utente l'ha approvata il 10 novembre 2026, come **passo a parte** dopo la sua prova della 2a sull'iPhone. **Fatta con la v29** (27 novembre 2026; i risultati in "Fase 2b").
+  - **Come**: con un focus in corso, l'elenco dei promemoria ha un elemento in più per la fine (`Aura.reminders.focusReminder`): `id: focus-<id dell'attività>`, `at` e `fireAt` uguali alla fine prevista, il titolo «Tempo finito: …» e l'ora della fine.
+  - L'app manda l'elenco **subito a ogni cambio del focus** (`ctx.onFocusChange` di `js/ui-focus.js`), senza i 2 secondi delle altre modifiche, perché chi inizia un focus spesso blocca il telefono un attimo dopo, e da lì i timer sono fermi. All'inizio c'è la fine; in pausa si toglie; con Riprendi e +5 min c'è la fine nuova; con Completa ed Esci si toglie; «Annulla» di Esci la rimette.
+  - Niente elemento in pausa, a tempo finito, per un'attività completata o che non c'è più, o con un id che il server non accetterebbe: con un id sbagliato rifiuterebbe tutto l'elenco. Sta oltre i 100 promemoria: il server ne accetta 200.
+  - **Con Aura davanti alla fine** l'elenco parte subito senza la fine: se il Cron non l'ha ancora mandata, la notifica non arriva. A ogni cambio del focus l'app toglie anche le notifiche della fine già arrivate (`getNotifications()` del service worker), perché ora il focus si vede nell'app.
+  - **Server**: nessun cambio. `cleanReminder()` lo accetta già com'è: l'id rispetta `ITEM_ID`, `fireAt` è uguale ad `at`, l'orario è nel formato HH:MM. Lo fissa un test del server.
+  - **Testo**: il titolo («Tempo finito: …») lo scrive l'app. Il service worker riconosce la notifica dal tag `aura-focus-` e cambia la riga sotto, che dal server arriva come «Adesso, alle 10:25», in «Tocca per completarla o per aggiungere 5 minuti.». Il tocco apre Aura senza `?task=`: il focus si vede già, o si riapre all'avvio.
   - **Pro**: su iPhone è l'unico modo per avvisare a telefono bloccato o con Aura chiusa; usa cose che ci sono già; vale solo per chi ha già attivato i promemoria.
   - **Contro**:
     - il Cron gira ogni minuto, quindi l'avviso può arrivare fino a un minuto dopo;
     - serve internet all'avvio e a ogni cambio; offline resta il suono, ad app aperta;
-    - il titolo dell'attività in focus va al server, come per i promemoria: va aggiornata la nota del foglio "Promemoria e Siri";
+    - il titolo dell'attività in focus va al server, come per i promemoria: lo dicono la nota del foglio «Promemoria e Siri» e il foglio «Privacy»;
     - su iPhone funziona solo con l'app installata e il permesso concesso, come i promemoria;
-    - con Aura aperta alla fine può arrivare la notifica oltre al suono;
+    - con Aura aperta alla fine la notifica di solito non arriva: può arrivare solo se il Cron la manda nell'attimo prima che l'elenco nuovo arrivi al server;
     - i promemoria push sono ancora da provare sull'iPhone, e questa notifica dipende da loro.
 - **Minuti di focus**:
   - alla chiusura della sessione (Completa, Esci, attività completata o eliminata) i minuti effettivi si sommano in `stats.focus`;
@@ -607,7 +626,7 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - **Schema v7**: `migrate()` cambia solo il numero di versione; `sanitizeTask()` aggiunge `repeat: null` e `seriesId: null`, puliti da `Aura.repeat.sanitize()`. Le attività che c'erano non si ripetono.
   - Una sola volta da fare per serie: in Focus o in Agenda si vede come ogni attività, con ↻ sulla card.
   - I backup di tutte le versioni di prima si importano ancora; regole e serie finiscono nel backup.
-- **Sfide di oggi** (P-003, passo 3.5; regole in [punti-e-serie.md](punti-e-serie.md), «Sfide di oggi»): le sfide di ogni giorno in `stats.challenges`: i 30 giorni più recenti e quelli più vecchi che si possono ancora disfare, al massimo 400.
+- **Sfide di oggi** (P-003, passo 3.5; regole in [punti-e-serie.md](punti-e-serie.md), «Sfide di oggi»): le sfide di ogni giorno in `stats.challenges`: i 30 giorni più recenti e quelli più vecchi che si possono ancora disfare.
   - **Schema v8**: `migrate()` cambia solo il numero di versione; `sanitizeStats()` aggiunge `challenges: {}`, pulito da `Aura.challenges.sanitize()`. Quelle di oggi nascono alla prima apertura.
   - I loro punti stanno in `totalPoints`, come quelli dei completamenti: entrano quando una sfida diventa fatta, escono quando torna da fare.
   - I backup di tutte le versioni di prima si importano ancora; le sfide finiscono nel backup.

@@ -2,7 +2,8 @@
  * Aura Tasks — fogli «Cosa faccio adesso?» e Focus a tutto schermo.
  * Tocca la pagina come app.js, che con init() gli passa quello che serve: stato, commit, fogli, avvisi, preferenze.
  * La logica sta in js/suggest.js e js/focus.js; il focus in corso si salva con Aura.storage (aura-tasks:focus),
- * così ricaricando la pagina riprende. L'audio (AudioContext) nasce qui, per il suono di fine; lo usano anche i suoni del
+ * così ricaricando la pagina riprende. A ogni cambio lo dice all'app (ctx.onFocusChange): con i promemoria attivi il
+ * server riceve subito l'ora in cui finisce (fase 2b). L'audio (AudioContext) nasce qui, per il suono di fine; lo usano anche i suoni del
  * focus (js/ui-sound.js), che sanno da qui quando il focus conta il tempo (ctx.onRunning).
  */
 (function (Aura) {
@@ -250,8 +251,18 @@
     if (session) recordMinutes(endSession());
     session = F.start(task, Date.now());
     ended = false;
-    storage.saveFocus(session);
+    persist();
     openFocusSheet();
+  }
+
+  /**
+   * Salva la sessione (o la toglie, a sessione chiusa) e lo dice all'app. Con i promemoria attivi l'elenco va subito al
+   * server, senza aspettare: chi inizia un focus spesso blocca il telefono un attimo dopo, e da lì i timer sono fermi.
+   */
+  function persist() {
+    if (session) storage.saveFocus(session);
+    else storage.clearFocus();
+    ctx.onFocusChange();
   }
 
   function openFocusSheet() {
@@ -392,6 +403,9 @@
         M.flash(els.auroraBloom, 'is-blooming'); // l'aurora si apre in un bagliore, una volta sola
       }
       if (els.focusSheet.open) els.focusComplete.focus({ preventScroll: true });
+      // La fine si vede qui: la notifica della fine, se il server non l'ha ancora mandata, non serve più (e se è già
+      // arrivata, l'app la toglie)
+      ctx.onFocusChange();
     }
     syncRunning();
   }
@@ -401,7 +415,7 @@
     const now = Date.now();
     if (F.isFinished(session, now)) return;
     session = F.isPaused(session) ? F.resume(session, now) : F.pause(session, now);
-    storage.saveFocus(session);
+    persist(); // in pausa la notifica della fine si toglie; con «Riprendi» torna, con la fine nuova
     renderFocus();
     syncRunning();
   }
@@ -411,7 +425,7 @@
     unlockAudio();
     session = F.extend(session, Date.now());
     ended = false;
-    storage.saveFocus(session);
+    persist(); // la fine si sposta di 5 minuti, e la notifica con lei
     renderFocus();
     syncRunning();
   }
@@ -422,7 +436,7 @@
     const result = F.sessionResult(previous, Date.now());
     session = null;
     ended = false;
-    storage.clearFocus();
+    persist(); // niente più notifica della fine
     syncRunning();
     return { ...result, previous };
   }
@@ -472,7 +486,7 @@
     }
     session = previous;
     ended = false;
-    storage.saveFocus(session);
+    persist();
     openFocusSheet();
   }
 
@@ -687,6 +701,7 @@
 
     return {
       openSuggest, startFocus, prepareAudio, sync, resume,
+      getSession: () => session, // per i promemoria: la fine del focus va al server (Aura.reminders.focusReminder)
       // per i suoni del focus (js/ui-sound.js): l'audio, se c'è già, e il suo sblocco dentro un tocco
       getAudio: () => audio, unlockAudio,
       // per l'assistente

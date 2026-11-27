@@ -346,6 +346,45 @@ test('elenco rimandato: un promemoria già inviato non riparte; con un altro ant
   assert.deepEqual(s.rows('SELECT task_id FROM reminders').map(row => row.task_id), ['t3']);
 });
 
+test('fine del focus (tre modalità, fase 2b): l\'elemento «focus-<id>» passa senza cambi, parte alla fine e segue pausa e «+5 min»', async () => {
+  const s = setup();
+  const put = reminders => s.call('PUT', '/api/reminders', { code: CODE_A, body: { reminders } });
+  // Come lo scrive l'app (Aura.reminders.focusReminder): avviso all'ora di fine, con l'id di un'attività vero
+  const id = 'focus-0f8fad5b-d9cb-469f-a165-70867728950e';
+  const end = minutes => reminder(id, minutes, { lead: 0, title: 'Tempo finito: Relazione' });
+  const subscription = await device(s, CODE_A, { reminders: [reminder('t1', 60), end(25)] });
+  assert.deepEqual(s.rows('SELECT task_id, at, fire_at, title, time FROM reminders WHERE task_id = ?', id),
+    [{ task_id: id, at: NOW + 25 * MINUTE, fire_at: NOW + 25 * MINUTE, title: 'Tempo finito: Relazione', time: '09:25' }]);
+  await s.tick();
+  assert.equal(s.pushes.length, 0, 'prima della fine niente');
+
+  // Pausa alle 9:10: l'app lo toglie dall'elenco, e il server lo dimentica
+  s.deps.now = NOW + 10 * MINUTE;
+  assert.equal((await put([reminder('t1', 60)])).status, 200);
+  assert.deepEqual(s.rows('SELECT task_id FROM reminders').map(row => row.task_id), ['t1']);
+  // «Riprendi» dopo 3 minuti e poi «+5 min»: la fine nuova è alle 9:33
+  s.deps.now = NOW + 13 * MINUTE;
+  await put([reminder('t1', 60), end(28)]);
+  await put([reminder('t1', 60), end(33)]);
+  s.deps.now = NOW + 28 * MINUTE;
+  await s.tick();
+  assert.equal(s.pushes.length, 0, 'alla fine di prima niente');
+
+  // Il Cron gira ogni minuto: alle 9:33:40 la manda, una volta sola
+  s.deps.now = NOW + 33 * MINUTE + 40 * 1000;
+  await s.tick();
+  assert.equal(s.pushes.length, 1);
+  assert.deepEqual(JSON.parse(await decryptPayload(s.pushes[0].init.body, subscription)),
+    { title: 'Tempo finito: Relazione', body: 'Adesso, alle 09:33', tag: 'aura-' + id, url: './?task=' + id });
+  s.deps.now += MINUTE;
+  await s.tick();
+  assert.equal(s.pushes.length, 1, 'nessun doppione');
+
+  // «Completata»: l'app rimanda l'elenco senza, e il server lo dimentica
+  await put([reminder('t1', 60)]);
+  assert.deepEqual(s.rows('SELECT task_id FROM reminders').map(row => row.task_id), ['t1']);
+});
+
 test('Cron: sottoscrizione scaduta (410) → via sottoscrizione e promemoria di quel dispositivo', async () => {
   const s = setup();
   await device(s, CODE_A, { reminders: [reminder('a1', 10), reminder('a2', 90)] });

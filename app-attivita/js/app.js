@@ -2185,13 +2185,40 @@
 
   async function sendReminders(force) {
     if (!remote.reminders.enabled || !remote.code || R.availability() !== 'ok' || navigator.onLine === false) return;
-    const list = RM.buildReminders(state.tasks, { lead: remote.reminders.lead, now: Date.now() });
+    // Con il focus in corso c'è anche la sua fine (fase 2b delle tre modalità)
+    const focus = focusCtl ? focusCtl.getSession() : null;
+    const list = RM.buildReminders(state.tasks, { lead: remote.reminders.lead, now: Date.now(), focus });
     const key = RM.listKey(list);
     if (!force && key === remote.sent.key) return;
     const result = await withDevice(code => R.api.putReminders(code, list));
     if (result.ok) {
       remote.sent.key = key;
       saveRemote();
+    }
+  }
+
+  /**
+   * Il focus è cambiato (js/ui-focus.js): iniziato, in pausa, ripreso, «+5 min», chiuso, oppure il tempo è finito con
+   * Aura davanti. L'elenco va subito al server, con la fine nuova o senza; le notifiche della fine già arrivate si tolgono,
+   * perché adesso il focus si vede nell'app.
+   */
+  function onFocusChange() {
+    syncReminders(false); // con i promemoria spenti non fa nulla
+    closeFocusNotices();
+  }
+
+  const FOCUS_TAG = 'aura-' + RM.FOCUS_PREFIX; // il tag che il server dà alla notifica della fine (server/src/index.js)
+
+  async function closeFocusNotices() {
+    if (!('serviceWorker' in navigator) || !('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg || typeof reg.getNotifications !== 'function') return;
+      (await reg.getNotifications()).forEach(notice => {
+        if (typeof notice.tag === 'string' && notice.tag.startsWith(FOCUS_TAG)) notice.close();
+      });
+    } catch (err) {
+      // Restano nel Centro Notifiche: si tolgono a mano, come le altre.
     }
   }
 
@@ -2705,7 +2732,8 @@
     onRunning: running => { if (soundCtl) soundCtl.sync(running); },
     beforeAudio: () => { if (soundCtl) soundCtl.beforeAudio(); },
     onAudioUnlocked: () => { if (soundCtl) soundCtl.refresh(); },
-    onCancel: () => Boolean(soundCtl) && soundCtl.closeMenu()
+    onCancel: () => Boolean(soundCtl) && soundCtl.closeMenu(),
+    onFocusChange // con i promemoria attivi, la fine del focus va al server (fase 2b)
   });
   assistantCtl = AssistantUI.init({
     focusCtl,
