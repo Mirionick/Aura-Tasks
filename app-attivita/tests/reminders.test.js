@@ -85,6 +85,89 @@
     assert(RM.listKey([]).indexOf('0:') === 0, 'elenco vuoto');
   });
 
+  /* ---------- Fine del focus (tre modalità, fase 2b) ---------- */
+
+  const { focus: F } = window.Aura;
+  const NOW_MS = NOW.getTime();
+  // Focus di 25 minuti su «Relazione», iniziato alle 9:00 (adesso)
+  const relazione = task('t1', { title: 'Relazione', duration: 25 });
+  const running = F.start(relazione, NOW_MS);
+  const END = moment(2026, 10, 29, 9, 25);
+
+  test('fine del focus: un avviso all\'ora di fine, con «Tempo finito:» e l\'id «focus-<id>»', () => {
+    assertEqual(RM.focusReminder(running, [relazione], NOW), { id: 'focus-t1', at: END, fireAt: END, title: 'Tempo finito: Relazione', time: '09:25' });
+    assertEqual(RM.focusReminder(running, [relazione], NOW_MS + 60000).at, END, 'adesso anche in millisecondi, e la fine non cambia col tempo');
+    // Iniziato alle 9:00:40: la fine ha i secondi, l'ora scritta resta quella del minuto
+    const late = F.start(relazione, NOW_MS + 40000);
+    assertEqual(RM.focusReminder(late, [relazione], NOW).time, '09:25');
+    assertEqual(RM.focusReminder(late, [relazione], NOW).at, END + 40000);
+  });
+
+  test('fine del focus: in pausa niente; con «Riprendi» e «+5 min» la fine nuova', () => {
+    const paused = F.pause(running, NOW_MS + 10 * 60000); // pausa alle 9:10
+    assertEqual(RM.focusReminder(paused, [relazione], NOW_MS + 12 * 60000), null);
+    const resumed = F.resume(paused, NOW_MS + 13 * 60000); // tre minuti di pausa
+    assertEqual(RM.focusReminder(resumed, [relazione], NOW_MS + 13 * 60000).at, END + 3 * 60000);
+    assertEqual(RM.focusReminder(resumed, [relazione], NOW_MS + 13 * 60000).time, '09:28');
+    const extended = F.extend(running, NOW_MS + 20 * 60000);
+    assertEqual(RM.focusReminder(extended, [relazione], NOW_MS + 20 * 60000).at, END + 5 * 60000);
+    // «+5 min» a tempo finito: i minuti partono da adesso
+    const again = F.extend(running, END + 2 * 60000);
+    assertEqual(RM.focusReminder(again, [relazione], END + 2 * 60000).at, END + 7 * 60000);
+  });
+
+  test('fine del focus: niente a tempo finito, senza focus, per un\'attività completata o che non c\'è più', () => {
+    assertEqual(RM.focusReminder(running, [relazione], END), null, 'alla fine esatta');
+    assertEqual(RM.focusReminder(running, [relazione], END + 1000), null, 'dopo la fine');
+    assertEqual(RM.focusReminder(null, [relazione], NOW), null);
+    assertEqual(RM.focusReminder(running, [{ ...relazione, done: true }], NOW), null);
+    assertEqual(RM.focusReminder(running, [task('altra')], NOW), null);
+  });
+
+  test('fine del focus: un id che il server non accetta resta fuori (rifiuterebbe tutto l\'elenco)', () => {
+    const uuid = task('0f8fad5b-d9cb-469f-a165-70867728950e', { title: 'Con un id vero' });
+    assertEqual(RM.focusReminder(F.start(uuid, NOW_MS), [uuid], NOW).id, 'focus-0f8fad5b-d9cb-469f-a165-70867728950e');
+    const long = task('a'.repeat(59));
+    assertEqual(RM.focusReminder(F.start(long, NOW_MS), [long], NOW), null, '«focus-» + 59 caratteri = 65');
+    const odd = task('id con spazi');
+    assertEqual(RM.focusReminder(F.start(odd, NOW_MS), [odd], NOW), null);
+  });
+
+  test('fine del focus: titolo accorciato a 120 caratteri, «Tempo finito:» compreso', () => {
+    const big = task('a', { title: 'x'.repeat(200) });
+    const reminder = RM.focusReminder(F.start(big, NOW_MS), [big], NOW);
+    assertEqual(reminder.title.length, 120);
+    assert(reminder.title.indexOf('Tempo finito: x') === 0, reminder.title.slice(0, 20));
+  });
+
+  test('fine del focus: nell\'elenco, in ordine di avviso, anche oltre i 100 promemoria', () => {
+    const tasks = [
+      relazione,
+      task('presto', { date: '2026-10-29', time: '09:20' }), // avviso alle 9:10, prima della fine
+      task('tardi', { date: '2026-10-29', time: '10:00' })   // avviso alle 9:50, dopo
+    ];
+    const list = RM.buildReminders(tasks, { lead: 10, now: NOW, focus: running });
+    assertEqual(list.map(r => r.id), ['presto', 'focus-t1', 'tardi']);
+    assertEqual(RM.buildReminders(tasks, { lead: 10, now: NOW }).map(r => r.id), ['presto', 'tardi'], 'senza focus come prima');
+    const many = [relazione];
+    for (let i = 0; i < 120; i++) many.push(task('t' + String(i).padStart(3, '0'), { date: '2026-10-29', time: '09:3' + (i % 10) }));
+    const full = RM.buildReminders(many, { lead: 10, now: NOW, focus: running });
+    assertEqual(full.length, RM.MAX_REMINDERS + 1, '100 promemoria e la fine del focus: il server ne accetta 200');
+    assert(full.some(r => r.id === 'focus-t1'), 'la fine del focus c\'è');
+  });
+
+  test('fine del focus: l\'impronta cambia con la pausa, «Riprendi» e «+5 min», non col tempo', () => {
+    const tasks = [relazione];
+    const key = RM.listKey(RM.buildReminders(tasks, { lead: 10, now: NOW, focus: running }));
+    assertEqual(RM.listKey(RM.buildReminders(tasks, { lead: 10, now: NOW_MS + 5 * 60000, focus: running })), key, 'cinque minuti dopo è uguale');
+    const paused = F.pause(running, NOW_MS + 5 * 60000);
+    const pausedKey = RM.listKey(RM.buildReminders(tasks, { lead: 10, now: NOW_MS + 5 * 60000, focus: paused }));
+    assert(pausedKey !== key, 'in pausa cambia');
+    assertEqual(pausedKey, RM.listKey([]), 'in pausa l\'elenco è vuoto');
+    const resumed = F.resume(paused, NOW_MS + 6 * 60000);
+    assert(RM.listKey(RM.buildReminders(tasks, { lead: 10, now: NOW_MS + 6 * 60000, focus: resumed })) !== key, 'ripreso: un minuto dopo');
+  });
+
   test('promemoria: etichette dell\'anticipo', () => {
     assertEqual([0, 5, 10, 60].map(RM.leadLabel), ['all\'ora esatta', '5 minuti prima', '10 minuti prima', 'un\'ora prima']);
   });

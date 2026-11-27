@@ -8,7 +8,7 @@
 
 // Quando aggiungi, togli o rinomini un file dell'app: aggiorna APP_FILES e aumenta la versione.
 // La stessa versione va in VERSION di js/update.js: la pagina la confronta con le cache (lo controlla la CI).
-const CACHE_VERSION = 'aura-tasks-v28';
+const CACHE_VERSION = 'aura-tasks-v29';
 const APP_FILES = [
   './',
   './index.html',
@@ -142,6 +142,12 @@ function withTimeout(promise, ms) {
 
 /* ---------- Notifiche dei promemoria (Web Push dal server di Aura) ---------- */
 
+// Fine del focus (tre modalità, fase 2b): l'app manda al server un promemoria con id «focus-<id dell'attività>», e il
+// server dà alla notifica il tag «aura-» + id, come agli altri. Dal server la riga sotto il titolo arriva come
+// «Adesso, alle 10:25»: qui diventa questa. Il tocco apre Aura senza ?task=, perché il focus si riapre da solo.
+const FOCUS_TAG = 'aura-focus-';
+const FOCUS_BODY = 'Tocca per completarla o per aggiungere 5 minuti.';
+
 // Ogni push va mostrato: su iPhone un push senza notifica fa perdere la sottoscrizione.
 self.addEventListener('push', event => {
   let message = {};
@@ -150,15 +156,17 @@ self.addEventListener('push', event => {
   } catch (err) {
     message = { body: event.data ? event.data.text() : '' };
   }
+  const focusEnd = typeof message.tag === 'string' && message.tag.startsWith(FOCUS_TAG);
   event.waitUntil(self.registration.showNotification(message.title || 'Aura', {
-    body: message.body || '',
+    body: focusEnd ? FOCUS_BODY : (message.body || ''),
     tag: message.tag || 'aura',
     icon: new URL('icons/icon-192.png', self.registration.scope).href,
-    data: { url: message.url || './' }
+    data: { url: focusEnd ? './' : (message.url || './') }
   }));
 });
 
-// Tocco sulla notifica: porta in primo piano Aura (o la apre) e mostra l'attività.
+// Tocco sulla notifica: porta in primo piano Aura (o la apre) e mostra l'attività. Per la fine del focus basta portarla in
+// primo piano: il focus si vede già (o si riapre all'avvio).
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const target = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope);
