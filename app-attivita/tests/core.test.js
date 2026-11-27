@@ -291,13 +291,13 @@
 
   test('storage.parse: conserva i campi sconosciuti e non abbassa la versione', () => {
     const raw = JSON.stringify({
-      version: 8,
+      version: 9,
       future: { x: 1 },
       stats: { totalPoints: 10, bestStreak: 1, milestones: [], days: { '2026-10-29': { done: 1, points: 10 } }, level: 2 },
       tasks: [{ id: 'a', title: 'X', duration: 10, energy: 'low', date: null, done: false, createdAt: 1, completedAt: null, extra: 'ok' }]
     });
     const state = storage.parse(raw);
-    assertEqual(state.version, 8);
+    assertEqual(state.version, 9);
     assertEqual(state.future, { x: 1 });
     assertEqual([state.stats.totalPoints, state.stats.level], [10, 2], 'registro e suoi campi sconosciuti');
     assertEqual(state.tasks[0].extra, 'ok');

@@ -8,7 +8,7 @@
 (function (Aura) {
   'use strict';
 
-  const { utils, tasks: T, suggest: SG, focus: F, storage, motion: M } = Aura;
+  const { utils, tasks: T, suggest: SG, focus: F, challenges: C, storage, motion: M } = Aura;
 
   const byId = id => document.getElementById(id);
   const TICK_MS = 250;           // aggiornamento del tempo, solo a pagina visibile (il tempo vero viene da Date.now())
@@ -427,15 +427,21 @@
     return { ...result, previous };
   }
 
-  /** Registra i minuti di una sessione chiusa; restituisce quanti ne sono entrati davvero (per «Annulla»). */
+  /**
+   * Registra i minuti di una sessione chiusa. Restituisce { applied, challenge }: quanti minuti sono entrati davvero (per
+   * «Annulla») e il risultato di Aura.challenges.refresh, con la sfida del focus se l'hanno fatta questi minuti (per
+   * l'avviso; null senza minuti).
+   */
   function recordMinutes(result) {
-    if (!result.minutes) return 0;
+    if (!result.minutes) return { applied: 0, challenge: null };
     const state = ctx.getState();
     const before = F.minutesOn(state.stats, result.day);
     const stats = F.recordMinutes(state.stats, result.day, result.minutes);
     const applied = F.minutesOn(stats, result.day) - before;
-    if (applied) ctx.commit(state.tasks, stats);
-    return applied;
+    if (!applied) return { applied: 0, challenge: null };
+    const challenge = C.refresh(stats, state.tasks, Date.now());
+    ctx.commit(state.tasks, challenge.stats);
+    return { applied, challenge };
   }
 
   /** «Esci», Esc o «indietro»: la sessione si chiude e i minuti restano. «Annulla» la riapre com'era. */
@@ -446,8 +452,12 @@
     }
     const result = endSession();
     ctx.closeSheet(els.focusSheet);
-    const applied = recordMinutes(result);
-    ctx.showToast(applied ? 'Focus terminato · ' + utils.formatDuration(applied) : 'Focus terminato', {
+    const { applied, challenge } = recordMinutes(result);
+    // «Focus terminato · 25 min · 🎯 Sfida fatta +10»: la sfida del focus fatta adesso, con i suoi punti
+    const gained = C.gainedText(challenge);
+    let message = applied ? 'Focus terminato · ' + utils.formatDuration(applied) : 'Focus terminato';
+    if (gained) message += ' · ' + gained + ' +' + challenge.points;
+    ctx.showToast(message, {
       action: 'Annulla',
       onAction: () => undoExit(result.previous, result.day, applied)
     });

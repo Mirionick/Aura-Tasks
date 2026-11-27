@@ -375,11 +375,11 @@
   test('readBackup: dati di una versione più nuova, con oggetti che il catalogo non conosce, si leggono senza perdere niente', () => {
     const gold = { id: 'u1', item: 'tema:oro', cost: 300, at: NOW };
     const data = {
-      version: 8, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 500, shop: [repaired(-1), gold] },
+      version: 9, tasks: [], rewards: [], stats: { ...P.emptyStats(), totalPoints: 500, shop: [repaired(-1), gold] },
       look: { aurora: 'aurora', confetti: 'classic', sound: 'brown', at: NOW, tema: 'oro' }
     };
     const { state } = storage.readBackup(JSON.stringify({ format: storage.BACKUP_FORMAT, exportedAt: NOW, data }));
-    assertEqual([state.version, state.stats.shop, state.look], [8, [repaired(-1), gold], data.look]);
+    assertEqual([state.version, state.stats.shop, state.look], [9, [repaired(-1), gold], data.look]);
     assertEqual(R.balance(state.stats), 50, '500 − 150 − 300: niente rimborsato');
   });
 

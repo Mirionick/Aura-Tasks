@@ -13,7 +13,7 @@
   'use strict';
 
   // La versione di questi file: uguale a CACHE_VERSION in sw.js, si cambiano insieme (lo controlla la CI)
-  const VERSION = 'aura-tasks-v27';
+  const VERSION = 'aura-tasks-v28';
 
   const LIMITS = Object.freeze({
     check: 60 * 1000,      // al massimo un controllo al minuto, anche passando spesso da un'app all'altra
