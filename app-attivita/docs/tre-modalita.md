@@ -138,6 +138,8 @@ Ognuno si pubblica da solo, con le sue misure.
   - In Chromium con la CPU 4 volte più lenta, l'apertura costa 316 ms sul thread principale, di cui 85 ms di ricalcolo dello stile in 57 ricalcoli.
   - Serve una traccia dell'apertura per trovare dove va il tempo. I candidati: `resetAddSheet()` e i `sync*()` che ricompilano il modulo a ogni apertura, `showModal()`, `is-locked`.
   - Poi si riduce, con la misura prima e dopo.
+  - **Misura del 27 novembre 2026** (cache v25): Chromium 153 headless con Playwright 1.63, contesto «iPhone 13», CPU 4 volte più lenta, mediana di 8 prove. Fotogrammi persi all'apertura: «Nuova attività» 0,5 (il peggiore di 25 ms), «Modifica attività» 0,5, «Impostazioni» 2 (il peggiore di 50 ms), cambio di scheda 1,5. In tutta l'animazione d'ingresso «Nuova attività» costa 84 ms di thread principale, di cui 22 ms di stile in 25 ricalcoli e 5 ms di layout (mediana di 10 aperture); il primo fotogramma arriva dopo 33 ms. I numeri sopra vengono da un altro computer e non si confrontano: conta l'ordine dei gesti.
+  - **Esito**: il foglio non è più il gesto più pesante, quindi per ora non si cambia. Si riapre se sull'iPhone l'apertura sembra lenta.
 - **«Dimensione testo» dell'iPhone**: oggi il testo ha dimensioni fisse in px.
   - Si passa a `font: -apple-system-body` con il font dell'app, e a dimensioni in rem.
   - I campi restano sempre ad almeno 16 px.
