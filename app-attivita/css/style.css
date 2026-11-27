@@ -2430,6 +2430,9 @@ button {
 .sheet__title { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
 
 .sheet__body {
+  /* I testi .sr-only (position: absolute) restano qui dentro e scorrono con il resto: senza, si appoggiano al foglio,
+     che diventa scorrevole sotto l'intestazione e, portandoli in vista (focus, VoiceOver), nasconde il titolo */
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   padding: 10px 22px 4px;
@@ -2725,9 +2728,60 @@ button.setting:not(:disabled):active { background: var(--hover); }
 
 .remote-footer { text-align: center; }
 
+/* Foglio «Claude» (js/ui-claude.js): i passi con l'indirizzo, il codice in grande, i collegamenti e la conferma */
+.sheet--claude .btn--small { min-height: var(--tap); } /* «Copia», «Nuovo codice», «Scollega Claude»: 44 px da toccare */
+.panel > .panel__title + .claude-steps { margin-top: 8px; }
+.claude-steps__copy { margin-top: 8px; }
+/* L'indirizzo va a capo nei punti scelti da js/ui-claude.js (<wbr>); a metà parola solo se un pezzo non ci sta */
+.claude-url { word-break: normal; overflow-wrap: anywhere; }
+.claude-code {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 16px 12px 14px;
+  border: 1.5px dashed var(--field-border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  text-align: center;
+}
+.claude-code > * { margin: 0; }
+.claude-code__value {
+  color: var(--text);
+  font: 800 clamp(28px, 9vw, 36px)/1.15 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: .08em;
+  -webkit-user-select: all;
+  user-select: all;
+}
+.claude-code__time { color: var(--text-2); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.claude-code .btn { margin-top: 2px; }
+.claude-code__note { max-width: 32ch; color: var(--text-3); font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+.claude-links { display: grid; gap: 8px; padding: 0; list-style: none; }
+.panel > .panel__title + .claude-links { margin-top: 8px; }
+.claude-links > li {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-2);
+  font-size: 14.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.panel > .claude-unlink { margin-left: -12px; } /* il testo in riga con quello del riquadro */
+.claude-confirm { display: grid; gap: 12px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--danger-soft); }
+.claude-confirm > * { margin: 0; }
+.claude-confirm b { color: var(--text); }
+.claude-confirm .btn { flex: 1 1 auto; } /* in riga si dividono lo spazio; su un telefono stretto, uno sotto l'altro */
+/* «Scollega», nella conferma: pieno, come «Elimina» dello scorrimento (--on-swipe è il testo sul rosso, nei due temi) */
+.claude-confirm .btn--danger { color: var(--on-swipe); background: var(--danger); }
+@media (hover: hover) {
+  .claude-confirm .btn--danger:hover { color: var(--on-swipe); background: var(--danger); filter: brightness(1.06); }
+}
+
 /* Foglio "Backup dei dati" */
 .sheet__text { margin: 0 0 14px; font-size: 15px; color: var(--text-2); }
 .sheet__body > .status { margin: 0 0 14px; } /* riga di stato in cima al foglio, fuori dai riquadri */
+/* Fuori dai riquadri il fondo è quello del foglio: la riga neutra prende il grigio dei riquadri, per vedersi */
+.sheet__body > .status[data-tone="off"] { background: var(--field-bg); }
 
 /* Riepilogo prima di sostituire i dati: "Nel file" (o "Nella copia") e "Adesso" */
 .compare { display: grid; gap: 8px; }

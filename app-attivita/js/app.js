@@ -19,7 +19,8 @@
 
   const { utils, repeat: RP, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
     motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
-    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI, swipeUI: SwipeUI, soundUI: SoundUI } = Aura;
+    motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI, swipeUI: SwipeUI, soundUI: SoundUI,
+    claudeUI: ClaudeUI } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -176,6 +177,7 @@
   let focusCtl = null; // fogli «Cosa faccio adesso?» e Focus (js/ui-focus.js), pronti all'avvio
   let assistantCtl = null; // striscia, foglio «Aura» e foglio «Assistente» (js/ui-assistant.js), pronti all'avvio
   let settingsCtl = null; // rotella, foglio «Impostazioni» e foglio «Privacy» (js/ui-settings.js), pronti all'avvio
+  let claudeCtl = null;   // foglio «Claude» e stato dei collegamenti, solo in memoria (js/ui-claude.js), pronti all'avvio
   let agendaCtl = null;   // scheda Agenda a calendario (js/ui-agenda.js), pronta all'avvio
   let motivationCtl = null; // livello, «La tua settimana» e «I tuoi numeri» (js/ui-motivation.js), pronti all'avvio
   let rewardsCtl = null;    // «I tuoi premi» e il foglio del premio (js/ui-rewards.js), pronti all'avvio
@@ -1710,12 +1712,16 @@
     syncRemoteBadges();
   }
 
-  /** Puntino sulla campanella, frase in fondo alla pagina, testo di Siri e righe di «Impostazioni»: dicono se il server è in uso, e per cosa. */
+  /**
+   * Puntino sulla campanella, frase in fondo alla pagina, testo di Siri e righe di «Impostazioni»: dicono se il server è
+   * in uso, e per cosa. Lo chiama anche js/ui-claude.js, quando cambia lo stato dei collegamenti di Claude.
+   */
   function syncRemoteBadges() {
     const assistantOn = Boolean(assistantCtl && assistantCtl.isActive());
+    const claudeOn = Boolean(claudeCtl && claudeCtl.state().links > 0);
     els.remoteButton.classList.toggle('has-dot', remote.reminders.enabled);
     els.remoteButton.setAttribute('aria-label', remote.reminders.enabled ? 'Promemoria e Siri: promemoria attivi' : 'Promemoria e Siri');
-    els.footnoteText.textContent = Settings.privacyLine({ connected: Boolean(remote.code), assistantOn });
+    els.footnoteText.textContent = Settings.privacyLine({ connected: Boolean(remote.code), assistantOn, claudeOn });
     els.siriText.textContent = assistantOn
       ? 'Di\' "Ehi Siri, Aura" e detta l\'impegno: quando apri Aura, l\'assistente lo sistema secondo i suoi permessi.'
       : 'Di\' "Ehi Siri, Aura" e detta l\'impegno: quando apri Aura lo trovi già compilato, da confermare.';
@@ -1887,8 +1893,11 @@
     syncRemoteUI();
   }
 
-  /** Copia negli appunti; restituisce true se ci è riuscito. */
-  async function copyText(text) {
+  /**
+   * Copia negli appunti; restituisce true se ci è riuscito. `host` è il foglio da cui si copia: il campo d'appoggio
+   * del metodo vecchio deve stare lì dentro.
+   */
+  async function copyText(text, host = els.remoteSheet) {
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
@@ -1902,7 +1911,7 @@
     area.value = text;
     area.setAttribute('readonly', '');
     area.className = 'sr-only';
-    els.remoteSheet.appendChild(area);
+    host.appendChild(area);
     area.select();
     let copied = false;
     try {
@@ -1950,9 +1959,10 @@
     remote.reminders.lead = previous.reminders.lead;
     saveRemote();
     messages.siri = null;
+    const hadClaude = claudeCtl ? claudeCtl.forget() : false; // il server ha tolto anche i collegamenti di Claude
     syncRemoteUI();
     syncAfterAssistantChange();
-    showToast('Dispositivo scollegato', { action: 'Annulla', onAction: () => restoreConnection(previous, previousAssistant) });
+    showToast('Dispositivo scollegato', { action: 'Annulla', onAction: () => restoreConnection(previous, previousAssistant, hadClaude) });
     return { ok: true, message: null };
   }
 
@@ -1967,8 +1977,11 @@
     closeAllSheets(); // anche «Impostazioni», se il foglio è stato aperto da lì: l'avviso con «Annulla» sta sotto i fogli
   }
 
-  /** "Annulla" dopo "Scollega": torna lo stesso codice, così il Comando Rapido continua a funzionare; e l'assistente com'era. */
-  async function restoreConnection(previous, previousAssistant) {
+  /**
+   * "Annulla" dopo "Scollega": torna lo stesso codice, così il Comando Rapido continua a funzionare; e l'assistente
+   * com'era. Claude no: i suoi collegamenti il server li ha già tolti, e l'avviso lo dice.
+   */
+  async function restoreConnection(previous, previousAssistant, hadClaude = false) {
     const result = await R.api.register(previous.code);
     if (!result.ok) {
       showToast('Non sono riuscito a ricollegare il dispositivo. ' + R.troubleMessage(result, navigator.onLine), { duration: 5000 });
@@ -1979,11 +1992,12 @@
     if (previousAssistant) setPrefs({ assistant: previousAssistant });
     syncRemoteUI();
     syncAfterAssistantChange();
-    showToast('Dispositivo ricollegato');
+    if (hadClaude) showToast('Dispositivo ricollegato. Claude va ricollegato con un codice nuovo.', { duration: 6000 });
+    else showToast('Dispositivo ricollegato');
     if (remote.reminders.enabled) await refreshPush({ force: true });
   }
 
-  /* ---------- Casella del Comando Rapido di Siri ---------- */
+  /* ---------- Casella del Comando Rapido di Siri (dove arrivano anche le frasi di Claude) ---------- */
 
   const INBOX_INTERVAL_MS = 15 * 1000;
   const ASSISTANT_BUSY = '(assistente)'; // al posto di un id in inboxShowing: l'assistente sta gestendo la coda
@@ -2047,7 +2061,7 @@
     const item = remote.inbox[0];
     const total = inboxShown + remote.inbox.length;
     inboxShowing = item.id;
-    openAddSheet(item.text, total > 1 ? 'Da Siri · ' + (inboxShown + 1) + ' di ' + total : 'Da Siri');
+    openAddSheet(item.text, R.inboxLabel(item, inboxShown + 1, total)); // «Da Siri», «Da Claude · 1 di 3»
   }
 
   /** Frasi gestite: escono dalla coda e restano tra quelle già viste, così il server non le ridà. */
@@ -2158,7 +2172,10 @@
 
   let refreshing = false;
 
-  /** All'avvio, al ritorno nell'app e quando torna internet: casella di Siri e promemoria. Senza codice non fa nulla. */
+  /**
+   * All'avvio, al ritorno nell'app e quando torna internet: casella di Siri e promemoria; all'avvio e quando torna
+   * internet anche lo stato di Claude. Senza codice non fa nulla.
+   */
   async function refreshRemote({ force = false } = {}) {
     if (refreshing || !remote.code || R.availability() !== 'ok' || navigator.onLine === false) return;
     refreshing = true;
@@ -2166,6 +2183,7 @@
       await checkInbox({ force });
       if (remote.reminders.enabled) await refreshPush();
       else if (remote.sent.endpoint) await forgetServerSubscription(); // spegnimento che non era arrivato al server
+      if (force && claudeCtl) await claudeCtl.refresh(); // all'avvio e quando torna internet: Claude è collegato?
     } catch (err) {
       // Problemi di rete: si riprova alla prossima occasione.
     } finally {
@@ -2502,6 +2520,7 @@
       reminders: remote.reminders,
       push: support.ok ? null : support.reason,
       connected: Boolean(remote.code),
+      claude: claudeCtl ? claudeCtl.state() : { links: null, checking: false },
       dataLabel: dataLabel(state)
     };
   }
@@ -2550,6 +2569,19 @@
     withDevice,
     disconnect: disconnectDevice
   });
+  // Il foglio «Claude» (P-006, passo 6.2): i passi, il codice, i collegamenti. Lo stato sta solo in memoria; quando
+  // cambia, si aggiornano le righe di «Impostazioni» e la frase della privacy (syncRemoteBadges).
+  claudeCtl = ClaudeUI.init({
+    getRemote: () => remote,
+    ensureDevice,
+    withDevice,
+    copyText,
+    openSheet,
+    setupSheet,
+    setAutofocus,
+    showPart,
+    onChange: syncRemoteBadges
+  });
   // La rotella e i fogli «Impostazioni» e «Privacy»: un indice che apre i fogli qui sopra.
   settingsCtl = SettingsUI.init({
     getInfo: settingsInfo,
@@ -2561,6 +2593,8 @@
     closeAllSheets,
     openAssistant: part => assistantCtl.openSheet(part),
     openRemote: openRemoteSheet,
+    openClaude: () => claudeCtl.open(),
+    refreshClaude: () => claudeCtl.refresh(),
     openBackup: openBackupSheet,
     disconnect: disconnectDevice
   });

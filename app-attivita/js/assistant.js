@@ -25,7 +25,9 @@
 
   // Scelte di «Quanto tempo hai?» con un numero (senza «120+»): i minuti detti si salvano sulla più vicina per difetto.
   const CHIPS = SG.SUGGEST.minutes.filter(minutes => minutes !== null);
-  const ORIGINS = ['text', 'voice', 'siri'];
+  const ORIGINS = ['text', 'voice', 'siri', 'claude'];
+  // Gli avvisi per le frasi della casella dicono da dove vengono; 'inbox' quando ci sono frasi di Siri e di Claude insieme.
+  const FROM = { siri: 'Da Siri: ', claude: 'Da Claude: ', inbox: 'Da Siri e da Claude: ' };
   const LOG_TYPES = ['add', 'update', 'correct'];
   const DID_TYPES = ['add', 'update', 'suggest', 'ask'];
   const CHANGE_TYPES = ['add', 'update', 'complete', 'delete']; // le azioni che cambiano qualcosa (non le proposte)
@@ -105,7 +107,7 @@
 
   /**
    * La richiesta per POST /api/assistant/chat. Opzioni:
-   * - kind: 'message', 'open' (proposta all'apertura) oppure 'siri';
+   * - kind: 'message', 'open' (proposta all'apertura) oppure 'siri' (una frase della casella, di Siri o di Claude: per il server valgono uguali);
    * - message: il testo dell'utente (vuoto per 'open');
    * - now: l'istante attuale; at: il momento a cui riferire giorno e ora (per Siri, la dettatura). Di base at = now;
    * - context: l'ultima scelta di tempo ed energia { minutes, energy };
@@ -629,12 +631,28 @@
     return verb + ': ' + entry.title + ' · ' + changeParts(entry.before, entry.after, today).join(', ');
   }
 
-  /** L'avviso per più azioni insieme: «Aggiunte 3 attività», «Aggiunte 2 attività e cambiata 1». Da Siri con il prefisso. */
+  /** Da dove vengono le frasi della casella gestite insieme: 'siri', 'claude', oppure 'inbox' se ci sono tutte e due. */
+  function inboxOrigin(origins) {
+    const set = new Set(origins.map(origin => (origin === 'claude' ? 'claude' : 'siri')));
+    if (set.size > 1) return 'inbox';
+    return set.has('claude') ? 'claude' : 'siri';
+  }
+
+  /** «Da Siri: », «Da Claude: », «Da Siri e da Claude: » ('inbox'); '' per le frasi scritte o dette nell'app. */
+  function fromPrefix(origin) {
+    return FROM[origin] || '';
+  }
+
+  /**
+   * L'avviso per più azioni insieme: «Aggiunte 3 attività», «Aggiunte 2 attività e cambiata 1». Per le frasi della
+   * casella (origin 'siri', 'claude' o 'inbox') con il prefisso: «Da Claude: aggiunta «Dentista» · Domani alle 10:00».
+   */
   function summarizeDone(entries, today, origin) {
+    const from = fromPrefix(origin);
     let text;
     if (entries.length === 1) {
       const one = describeDone(entries[0], today);
-      text = origin === 'siri' ? one.replace(/^(\w+): (.*?) · /, (all, verb, title) => lowerFirst(verb) + ' «' + title + '» · ') : one;
+      text = from ? one.replace(/^(\w+): (.*?) · /, (all, verb, title) => lowerFirst(verb) + ' «' + title + '» · ') : one;
     } else {
       const adds = entries.filter(entry => entry.type === 'add').length;
       const changes = entries.length - adds;
@@ -642,9 +660,9 @@
       if (adds) parts.push(adds === 1 ? 'aggiunta 1 attività' : 'aggiunte ' + adds + ' attività');
       if (changes) parts.push(changes === 1 ? 'cambiata 1' : 'cambiate ' + changes);
       text = parts.join(' e ');
-      if (origin !== 'siri') text = text.charAt(0).toUpperCase() + text.slice(1);
+      if (!from) text = text.charAt(0).toUpperCase() + text.slice(1);
     }
-    return origin === 'siri' ? 'Da Siri: ' + lowerFirst(text) : text;
+    return from ? from + lowerFirst(text) : text;
   }
 
   /**
@@ -808,6 +826,8 @@
     whenLabel,
     describeDone,
     summarizeDone,
+    inboxOrigin,
+    fromPrefix,
     recallDone,
     recallReply,
     askText,

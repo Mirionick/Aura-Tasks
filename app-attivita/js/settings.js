@@ -14,7 +14,7 @@
     light: { label: 'Chiaro', hint: 'luminoso, ideale di giorno' },
     dark: { label: 'Scuro', hint: 'riposante per gli occhi, perfetto la sera' }
   };
-  // Senza il server (file aperto dal computer, o server non configurato) promemoria, Siri e assistente non partono.
+  // Senza il server (file aperto dal computer, o server non configurato) promemoria, Siri, Claude e assistente non partono.
   const UNAVAILABLE = { file: 'Solo nell\'app pubblicata', unconfigured: 'Server non configurato' };
   // Perché i promemoria non si possono attivare qui (i motivi di Aura.remote.pushSupport).
   const PUSH_TROUBLE = {
@@ -43,7 +43,9 @@
    * - theme: 'auto', 'light' o 'dark';
    * - assistant: { enabled, autoAdd, autoEdit }; logCount: righe dell'elenco dell'assistente;
    * - reminders: { enabled, lead }; push: null se le notifiche si possono attivare, altrimenti il motivo;
-   * - connected: il dispositivo ha un codice sul server; dataLabel: «12 attività · 340 punti».
+   * - connected: il dispositivo ha un codice sul server; dataLabel: «12 attività · 340 punti»;
+   * - claude: { links, checking } — quanti collegamenti di Claude ci sono (null finché non si sa) e se lo si sta
+   *   chiedendo al server adesso. Lo stato sta solo in memoria (js/ui-claude.js).
    * Restituisce, per ogni riga, `state` (il testo) e dove serve `tone` ('on' = in uso) e `disabled`.
    */
   function describe(info) {
@@ -61,6 +63,16 @@
     if (info.connected) siri = { state: 'Codice creato', tone: 'on' };
     else if (!available) siri = { state: missing, tone: 'off' };
 
+    const claudeOn = claudeLinked(info);
+    let claude = { state: 'Da collegare', tone: 'off', disabled: false };
+    // Senza il server il foglio «Claude» non si apre, come quello dell'assistente: non si potrebbe fare niente.
+    if (!available) claude = { state: missing, tone: 'off', disabled: true };
+    else if (claudeOn) claude = { state: 'Collegato', tone: 'on', disabled: false };
+    else if (info.connected && claudeLinks(info) === null) {
+      const checking = Boolean(info.claude && info.claude.checking);
+      claude = { state: checking ? 'Controllo…' : 'Stato non disponibile', tone: 'off', disabled: false };
+    }
+
     return {
       // Senza server il foglio «Assistente» non si apre, come l'ingranaggio del foglio «Aura».
       assistant: available
@@ -69,28 +81,51 @@
       log: available ? { state: logState(info.logCount), disabled: false } : { state: missing, disabled: true },
       reminders,
       siri,
+      claude,
       theme: { state: theme.label + ': ' + theme.hint },
       backup: { state: info.dataLabel },
       // `line` è la frase intera in cima al foglio «Privacy»; verde ('on') solo quando al server non arriva niente.
       privacy: {
-        state: privacyShort({ connected: info.connected, assistantOn }),
-        line: privacyLine({ connected: info.connected, assistantOn }),
+        state: privacyShort({ connected: info.connected, assistantOn, claudeOn }),
+        line: privacyLine({ connected: info.connected, assistantOn, claudeOn }),
         tone: info.connected || assistantOn ? 'off' : 'on'
       },
-      device: { connected: Boolean(info.connected) }
+      // `claude`: sotto «Scollega questo dispositivo» compare la nota che scollega anche Claude
+      device: { connected: Boolean(info.connected), claude: claudeOn }
     };
   }
 
-  /** Dove stanno i dati, in una frase intera: sta in fondo a Motivazione e in cima al foglio «Privacy». */
-  function privacyLine({ connected, assistantOn }) {
+  /** Quanti collegamenti di Claude ci sono: null finché non si sa (senza dispositivo non ce n'è nessuno). */
+  function claudeLinks(info) {
+    if (!info.connected) return 0;
+    const links = info.claude ? info.claude.links : null;
+    return Number.isInteger(links) && links >= 0 ? links : null;
+  }
+
+  /** Claude è collegato: il dispositivo ha almeno un collegamento, e il server c'è. */
+  function claudeLinked(info) {
+    return info.availability === 'ok' && claudeLinks(info) > 0;
+  }
+
+  /**
+   * Dove stanno i dati, in una frase intera: sta in fondo a Motivazione e in cima al foglio «Privacy».
+   * `claudeOn` vale solo con il dispositivo collegato: le frasi di Claude arrivano nella sua casella.
+   */
+  function privacyLine({ connected, assistantOn, claudeOn = false }) {
+    const claude = connected && claudeOn;
+    if (assistantOn && claude) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria, frasi di Siri e di Claude, e messaggi all\'assistente.';
     if (assistantOn) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria, frasi di Siri e messaggi all\'assistente.';
+    if (claude) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri e di Claude.';
     if (connected) return 'I dati restano su questo dispositivo: al server di Aura arrivano solo promemoria e frasi di Siri.';
     return 'I dati restano solo su questo dispositivo.';
   }
 
   /** La stessa cosa in breve, per la riga «Privacy». */
-  function privacyShort({ connected, assistantOn }) {
+  function privacyShort({ connected, assistantOn, claudeOn = false }) {
+    const claude = connected && claudeOn;
+    if (assistantOn && claude) return 'Al server: promemoria, Siri, Claude e messaggi all\'assistente';
     if (assistantOn) return 'Al server: promemoria, Siri e messaggi all\'assistente';
+    if (claude) return 'Al server: solo promemoria e frasi di Siri e di Claude';
     if (connected) return 'Al server: solo promemoria e frasi di Siri';
     return 'I dati restano solo su questo dispositivo';
   }

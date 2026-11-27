@@ -1,7 +1,8 @@
 /*
  * Aura Tasks — assistente con l'IA: la parte che tocca la pagina (specifica in docs/assistente.md).
  * Striscia in cima a Focus, campo «Scrivi ad Aura…» e conferme nel foglio «Aura» (il foglio di «Cosa faccio adesso?»,
- * che resta di js/ui-focus.js), consenso, foglio «Assistente» con l'elenco, proposta all'apertura, frasi di Siri.
+ * che resta di js/ui-focus.js), consenso, foglio «Assistente» con l'elenco, proposta all'apertura, frasi della casella
+ * (di Siri e di Claude).
  * La logica sta in js/assistant.js; i dati si leggono e si scrivono solo con Aura.storage.
  * Con l'assistente spento, senza consenso o da file:// non parte nessuna richiesta: la striscia mostra la proposta delle regole.
  */
@@ -28,7 +29,7 @@
     down: 'Aura non risponde in questo momento.',
     confused: 'Aura non ha capito la risposta del suo server.',
     addSheet: 'ho compilato il foglio con le regole',
-    siriAsk: 'Da Siri: serve un tuo tocco.',
+    inboxAsk: 'serve un tuo tocco.', // dopo «Da Siri: », «Da Claude: » o «Da Siri e da Claude: »
     changed: 'Non si può più annullare: l\'attività è cambiata.',
     gone: 'Questa attività non c\'è più.'
   };
@@ -499,9 +500,12 @@
     };
   }
 
-  /* ---------- Frasi di Siri ---------- */
+  /* ---------- Frasi della casella (Siri e Claude) ---------- */
 
-  /** Le frasi di Siri passano dall'assistente solo se è acceso e c'è internet; altrimenti tutto come prima. */
+  /**
+   * Le frasi della casella passano dall'assistente solo se è acceso e c'è internet; altrimenti tutto come prima.
+   * Quelle di Claude valgono come quelle di Siri (P-006): cambia solo l'etichetta, «Da Claude».
+   */
   const takesSiri = () => isActive() && online();
 
   /**
@@ -515,12 +519,14 @@
     const fallback = [];
     const autoLog = [];
     const asks = [];
+    const askedFrom = []; // da dove vengono le frasi con una domanda: l'intestazione dice «Da Siri», «Da Claude» o tutti e due
     let stop = false;
     for (const item of items) {
       if (stop || !isActive()) {
         fallback.push(item.id);
         continue;
       }
+      const origin = item.source === 'claude' ? 'claude' : 'siri';
       const at = item.createdAt > 0 && item.createdAt <= Date.now() ? item.createdAt : Date.now();
       const choice = ctx.getPrefs().suggest;
       const { payload, refs } = A.buildRequest(ctx.getState().tasks, { kind: 'siri', message: item.text, now: Date.now(), at, context: choice, memory: store.memory });
@@ -542,13 +548,14 @@
       const did = [];
       let log = [];
       if (plan.auto.length) {
-        const applied = applyAuto(plan.auto, { now, origin: 'siri', said: item.text });
+        const applied = applyAuto(plan.auto, { now, origin, said: item.text });
         log = applied.log;
         autoLog.push(...log);
         did.push(...applied.did);
       }
       plan.ask.forEach(entry => {
         asks.push(entry);
+        askedFrom.push(origin);
         if (entry.taskId) did.push({ type: 'ask', taskId: entry.taskId });
       });
       store.memory = A.addExchange(store.memory, { said: item.text, reply: A.recallReply({ log, ask: plan.ask }, utils.todayISO(now)), did }, now);
@@ -559,14 +566,15 @@
     if (asks.length) {
       // Serve un tocco: il foglio «Aura» con le domande, e le azioni già fatte come righe con «Annulla»
       // (un avviso in basso starebbe sotto il foglio).
-      focusCtl.openSuggest(); // l'apertura azzera frase e righe (sheetOpening), poi arrivano quelle di Siri
+      focusCtl.openSuggest(); // l'apertura azzera frase e righe (sheetOpening), poi arrivano quelle della casella
       els.asks.replaceChildren(
-        ...autoLog.map(entry => doneRow(A.summarizeDone([entry], today, 'siri'), () => undo([entry], { quiet: true }))),
+        ...autoLog.map(entry => doneRow(A.summarizeDone([entry], today, entry.origin), () => undo([entry], { quiet: true }))),
         ...asks.map(entry => askRow(entry, today))
       );
-      setSay(TEXTS.siriAsk);
+      setSay(A.fromPrefix(A.inboxOrigin(autoLog.map(entry => entry.origin).concat(askedFrom))) + TEXTS.inboxAsk);
     } else if (autoLog.length) {
-      ctx.showToast(A.summarizeDone(autoLog, today, 'siri'), { action: 'Annulla', onAction: () => undo(autoLog) });
+      const from = A.inboxOrigin(autoLog.map(entry => entry.origin));
+      ctx.showToast(A.summarizeDone(autoLog, today, from), { action: 'Annulla', onAction: () => undo(autoLog) });
     }
     renderStrip();
     return { done, fallback };
@@ -602,7 +610,7 @@
     els.disconnectNote.hidden = !connected;
   }
 
-  const ORIGIN_LABELS = { text: 'Scritto', voice: 'A voce', siri: 'Da Siri' };
+  const ORIGIN_LABELS = { text: 'Scritto', voice: 'A voce', siri: 'Da Siri', claude: 'Da Claude' };
 
   function renderLog() {
     const now = Date.now();

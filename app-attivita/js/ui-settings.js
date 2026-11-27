@@ -12,10 +12,10 @@
 
   const byId = id => document.getElementById(id);
   const els = {};
-  const ROWS = ['assistant', 'log', 'reminders', 'siri', 'backup', 'privacy'];
+  const ROWS = ['assistant', 'log', 'reminders', 'siri', 'claude', 'backup', 'privacy'];
   // Senza il server queste funzioni non partono: il foglio lo dice in cima, come «Promemoria e Siri».
   const NOTICES = {
-    file: 'Promemoria, Siri e assistente funzionano nell\'app pubblicata (https), non aprendo il file dal computer.',
+    file: 'Promemoria, Siri, Claude e assistente funzionano nell\'app pubblicata (https), non aprendo il file dal computer.',
     unconfigured: 'Il server di Aura non è ancora configurato.'
   };
   let ctx = null;
@@ -62,6 +62,7 @@
     ctx.setAutofocus(els.sheet, focus || els.heading);
     ctx.openSheet(els.sheet);
     ctx.showPart(els.sheet, part);
+    ctx.refreshClaude(); // la riga «Claude» chiede lo stato al server, al massimo ogni 30 secondi (js/ui-claude.js)
   }
 
   function openPrivacy() {
@@ -140,6 +141,7 @@
     els.log.addEventListener('click', () => ctx.openAssistant('log'));
     els.reminders.addEventListener('click', () => ctx.openRemote());
     els.siri.addEventListener('click', () => ctx.openRemote('siri'));
+    els.claude.addEventListener('click', () => ctx.openClaude());
     els.backup.addEventListener('click', () => ctx.openBackup());
     els.privacy.addEventListener('click', openPrivacy);
     els.disconnect.addEventListener('click', onDisconnect);
