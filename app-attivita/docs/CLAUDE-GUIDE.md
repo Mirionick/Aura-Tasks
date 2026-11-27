@@ -399,6 +399,8 @@ Note per i controlli automatici con Edge headless:
 - I service worker vanno provati in tempo reale, su `http://localhost`.
 - La finestra headless è larga almeno 500 px: per simulare un telefono, carica l'app in un `<iframe>` largo 390 px.
 
+**Controlli della CI** (`.github/scripts/`): prima dei test dell'app, `run-frontend-tests.py` controlla che `VERSION` di `js/update.js` sia uguale a `CACHE_VERSION` di `sw.js` (`check_versions()`) e che ogni misura del testo in px di `css/style.css` passi da `var(--px)` o porti il commento `px fisso` (`check_font_sizes()`). I due controlli hanno i loro test in `.github/scripts/test_ci_checks.py`, con file finti: `python3 -B -m unittest discover -s .github/scripts -p "test_*.py"` dalla cartella del repository, senza dipendenze. La CI li esegue prima dei test dell'app.
+
 **Server** (`server/`): `npm test` esegue i test con Node, senza installare altro. Coprono:
 - la cifratura Web Push, confrontata byte per byte con l'esempio della RFC 8291;
 - la firma VAPID;
