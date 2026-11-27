@@ -14,7 +14,8 @@
   const HOUR_MS = 60 * 60 * 1000;
 
   const CHALLENGES = {
-    keepDays: 30,                                  // giorni di sfide conservati, i più recenti
+    keepDays: 30,                                  // giorni di sfide conservati, i più recenti; i più vecchi solo se
+    maxDays: 400,                                  // si possono ancora disfare (vedi stillOpen), al massimo 400 in tutto
     count: { lookback: 7, min: 2, max: 6, fallback: 2 },
     focus: { first: 10, regular: 25 },             // minuti: 10 finché il registro non ha minuti di focus
     oldest: { minAgeDays: 3 },                     // un'attività da fare creata almeno 3 giorni fa
@@ -91,11 +92,28 @@
   const completedOn = (task, day) => task.done && Number.isFinite(task.completedAt) && utils.todayISO(task.completedAt) === day;
 
   /**
+   * Le attività completate, per giorno di completamento, ognuna in ordine di completamento: Map 'AAAA-MM-GG' → [attività].
+   * Si fa una volta per refresh(), così una sfida di un giorno non scorre tutte le attività (con migliaia di completate
+   * e molti giorni il conto diventava di decine di millisecondi a tocco).
+   */
+  function completedByDay(tasks) {
+    const index = new Map();
+    tasks.forEach(task => {
+      if (!task.done || !Number.isFinite(task.completedAt)) return;
+      const day = utils.todayISO(task.completedAt);
+      if (!index.has(day)) index.set(day, []);
+      index.get(day).push(task);
+    });
+    index.forEach(list => list.sort((a, b) => a.completedAt - b.completedAt));
+    return index;
+  }
+
+  /**
    * Se la sfida `item` del giorno `day` vale con i dati di adesso: { ok, by }. `by` è, per `before`, l'attività
    * completata prima dell'ora (la prima). Eliminare non disfa una sfida fatta: se l'attività che l'ha fatta non c'è
-   * più, vale ancora.
+   * più, vale ancora. `index` è completedByDay(tasks).
    */
-  function proof(item, day, stats, tasks, byId) {
+  function proof(item, day, stats, index, byId) {
     switch (item.kind) {
       case 'count': return { ok: doneOn(stats, day) >= item.target };
       case 'any': return { ok: doneOn(stats, day) >= 1 };
@@ -106,9 +124,7 @@
       }
       case 'before': {
         const limit = hourOn(day, item.target);
-        const first = tasks
-          .filter(task => completedOn(task, day) && task.completedAt < limit)
-          .sort((a, b) => a.completedAt - b.completedAt)[0];
+        const first = (index.get(day) || []).find(task => task.completedAt < limit);
         if (first) return { ok: true, by: first.id };
         return { ok: Boolean(item.done && item.by && !byId.has(item.by)), by: item.by };
       }
@@ -126,9 +142,9 @@
    * La sfida rivalutata. Oggi può diventare fatta (con l'istante `now`) o tornare da fare; un altro giorno può solo
    * tornare da fare: dopo la mezzanotte una sfida non fatta resta così. Se non cambia niente, restituisce `item`.
    */
-  function evaluate(item, day, isToday, stats, tasks, byId, now) {
+  function evaluate(item, day, isToday, stats, index, byId, now) {
     if (!item.done && !isToday) return item;
-    const check = proof(item, day, stats, tasks, byId);
+    const check = proof(item, day, stats, index, byId);
     if (item.done) {
       if (!check.ok) return undone(item);
       return item.kind === 'before' && check.by !== item.by ? { ...item, by: check.by } : item;
@@ -138,19 +154,48 @@
   }
 
   /**
-   * Dopo ogni modifica dei dati, all'apertura e a un giorno nuovo: fa nascere le sfide di oggi se mancano (e tiene solo
-   * i 30 giorni più recenti), rivaluta quelle di tutti i giorni e sposta i punti in totalPoints.
+   * Un giorno passato da tenere anche oltre i 30 più recenti: ha una sfida fatta che si può ancora disfare, perché
+   * un'attività completata quel giorno è ancora nell'elenco. Togliendole la spunta, anche dopo mesi, la sfida torna da
+   * fare e i suoi punti escono dal totale, come per un giorno recente. Il focus no: i minuti di un giorno passato non si
+   * tolgono più. `index` è completedByDay(tasks).
+   */
+  function stillOpen(entry, day, index) {
+    return index.has(day) && entry.items.some(item => item.done && item.kind !== 'focus');
+  }
+
+  /**
+   * I giorni da tenere quando nascono le sfide di oggi: oggi, i 30 più recenti e, prima, quelli che si possono ancora
+   * disfare (stillOpen), al massimo 400 in tutto. Un giorno tolto non ha più niente da disfare: i suoi punti restano in
+   * totalPoints.
+   */
+  function keptDays(challenges, today, index) {
+    return Object.keys(challenges).concat(today).sort().reverse()
+      .filter((day, i) => day === today || i < CHALLENGES.keepDays || stillOpen(challenges[day], day, index))
+      .slice(0, CHALLENGES.maxDays);
+  }
+
+  // L'ultimo registro già al passo, con le sue attività e il suo giorno: con gli stessi dati refresh() non cambierebbe
+  // niente (l'ora conta solo per le sfide che diventano fatte), e app.js lo chiede due volte a ogni tocco: prima per
+  // l'avviso, poi in commitState(). I dati non si modificano mai sul posto, quindi bastano gli oggetti.
+  let settled = null;
+
+  /**
+   * Dopo ogni modifica dei dati, all'apertura e a un giorno nuovo: fa nascere le sfide di oggi se mancano (e tiene i
+   * giorni di keptDays), rivaluta quelle di tutti i giorni e sposta i punti in totalPoints.
    * Restituisce { stats, gained, all, points }: `gained` sono le sfide di oggi fatte adesso, `all` è true se adesso sono
    * fatte tutte e tre, `points` i punti aggiunti (o tolti, se negativi). Se non cambia niente, `stats` è lo stesso oggetto.
    */
   function refresh(stats, tasks, now) {
     const today = utils.todayISO(now);
+    if (settled && settled.stats === stats && settled.tasks === tasks && settled.today === today) {
+      return { stats, gained: [], all: false, points: 0 };
+    }
+    const index = completedByDay(tasks);
     let challenges = stats.challenges && typeof stats.challenges === 'object' ? stats.challenges : {};
     let changed = false;
     if (!challenges[today]) {
-      const keep = Object.keys(challenges).concat(today).sort().reverse().slice(0, CHALLENGES.keepDays);
       const next = {};
-      keep.forEach(day => { next[day] = day === today ? create(stats, tasks, now) : challenges[day]; });
+      keptDays(challenges, today, index).forEach(day => { next[day] = day === today ? create(stats, tasks, now) : challenges[day]; });
       challenges = next;
       changed = true;
     }
@@ -160,7 +205,7 @@
     const gained = [];
     Object.keys(challenges).forEach(day => {
       const entry = challenges[day];
-      const items = entry.items.map(item => evaluate(item, day, day === today, stats, tasks, byId, now));
+      const items = entry.items.map(item => evaluate(item, day, day === today, stats, index, byId, now));
       if (items.every((item, i) => item === entry.items[i])) {
         next[day] = entry;
         return;
@@ -170,14 +215,19 @@
       points += P.challengePoints(next[day]) - P.challengePoints(entry);
       if (day === today) items.forEach((item, i) => { if (item.done && !entry.items[i].done) gained.push(item); });
     });
-    if (!changed) return { stats, gained, all: false, points: 0 };
+    if (!changed) {
+      settled = { stats, tasks, today };
+      return { stats, gained, all: false, points: 0 };
+    }
     const all = gained.length > 0 && next[today].items.every(item => item.done);
-    return {
+    const result = {
       stats: { ...stats, challenges: next, totalPoints: Math.max(0, stats.totalPoints + points) },
       gained,
       all,
       points
     };
+    settled = { stats: result.stats, tasks, today };
+    return result;
   }
 
   /* ---------- Pulizia dei dati letti ---------- */
@@ -205,15 +255,15 @@
 
   /**
    * stats.challenges letto (dall'archivio o da un backup) → valido. Tiene un giorno solo se la data è valida, `at` è un
-   * istante e le tre sfide sono valide e in ordine; al massimo i 30 giorni più recenti. Un `done` o un `by` non validi
-   * si tolgono. I campi sconosciuti restano.
+   * istante e le tre sfide sono valide e in ordine; al massimo i 400 giorni più recenti (quali tenere oltre i 30 lo
+   * decide refresh(), che conosce le attività). Un `done` o un `by` non validi si tolgono. I campi sconosciuti restano.
    */
   function sanitize(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
     const days = Object.keys(raw).filter(day => utils.isISODate(day)).sort().reverse();
     const clean = {};
     days.forEach(day => {
-      if (Object.keys(clean).length >= CHALLENGES.keepDays) return;
+      if (Object.keys(clean).length >= CHALLENGES.maxDays) return;
       const entry = raw[day];
       if (!entry || typeof entry !== 'object' || !isInstant(entry.at) || !Array.isArray(entry.items) || entry.items.length !== 3) return;
       const items = entry.items.map(sanitizeItem);

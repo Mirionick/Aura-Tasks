@@ -274,7 +274,7 @@ Fotogrammi persi, mediana di 20 prove (10 in tema chiaro e 10 in tema scuro), a 
   - con Aura aperta, alle 18:01 «Hai tempo fino alle 18» diventa «Entro le 18», senza ricaricare; a mezzanotte nascono e si salvano le sfide del giorno nuovo, e la card le mostra;
   - a 390 e a 320 px, nei due temi, con il testo normale e a 28 px: nessuno scorrimento orizzontale; con il testo grande l'anello resta accanto al testo e va a capo solo «+10»;
   - axe-core con le regole WCAG 2.2 AA e le «best practice», nei due temi, con il testo normale e a 28 px, con una sfida fatta e con tutte e tre: nessun problema; il lettore di schermo legge «Fatte: 1 di 3», «Fatta: Completa 2 attività» e «+10 punti», e salta l'anello;
-  - l'anello si riempie con `stroke-dashoffset`, e i salti usano solo `transform`; con «Riduci movimento» niente salti, e l'anello cambia subito.
+  - l'anello cambia con `stroke-dashoffset` senza transizioni, come quello del focus, e fatto sfuma solo il colore (`--dur-color`); i salti usano solo `transform`; con «Riduci movimento» niente salti.
 
 ### P-004, passo 4.1: negozio
 In Motivazione, dopo «I tuoi premi», la card «Negozio» del passo 4.1 di [P-004](../../docs/proposte/P-004.md): si paga con il saldo da spendere dei premi e si comprano «Ripara la serie», quattro colori dell'aurora e quattro forme dei coriandoli; i pacchetti di punti si vedono, con «Presto». Le regole stanno in [punti-e-serie.md](punti-e-serie.md), «Negozio»; i dati in «Dati», qui sotto. L'ha scritto Claude Project, come prevede la tabella «Ordine» della proposta.
@@ -607,7 +607,7 @@ Non realizzato: P-003 lo ha sostituito (vedi «Rapporto con il piano di prima» 
   - **Schema v7**: `migrate()` cambia solo il numero di versione; `sanitizeTask()` aggiunge `repeat: null` e `seriesId: null`, puliti da `Aura.repeat.sanitize()`. Le attività che c'erano non si ripetono.
   - Una sola volta da fare per serie: in Focus o in Agenda si vede come ogni attività, con ↻ sulla card.
   - I backup di tutte le versioni di prima si importano ancora; regole e serie finiscono nel backup.
-- **Sfide di oggi** (P-003, passo 3.5; regole in [punti-e-serie.md](punti-e-serie.md), «Sfide di oggi»): le sfide di ogni giorno in `stats.challenges`, al massimo i 30 giorni più recenti.
+- **Sfide di oggi** (P-003, passo 3.5; regole in [punti-e-serie.md](punti-e-serie.md), «Sfide di oggi»): le sfide di ogni giorno in `stats.challenges`: i 30 giorni più recenti e quelli più vecchi che si possono ancora disfare, al massimo 400.
   - **Schema v8**: `migrate()` cambia solo il numero di versione; `sanitizeStats()` aggiunge `challenges: {}`, pulito da `Aura.challenges.sanitize()`. Quelle di oggi nascono alla prima apertura.
   - I loro punti stanno in `totalPoints`, come quelli dei completamenti: entrano quando una sfida diventa fatta, escono quando torna da fare.
   - I backup di tutte le versioni di prima si importano ancora; le sfide finiscono nel backup.

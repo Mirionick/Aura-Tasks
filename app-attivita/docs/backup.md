@@ -8,7 +8,7 @@
 - **Ripristina**: visibile **finché esiste** `aura-tasks:before-import`, con "Copia salvata: Oggi alle 10:30".
 - Esiti ed errori vanno nella riga di stato del foglio.
 
-**Esportare**: file `aura-tasks-backup-AAAA-MM-GG.json` (vedi "Modello dati" in `CLAUDE-GUIDE.md`), con tutti i dati: attività, punti e serie, minuti di focus, premi e riscatti (dalla v5, P-003 passo 3.4), acquisti del negozio e colori e coriandoli in uso (dalla v6, P-004 passo 4.1), sfide di oggi e dei giorni prima, al massimo 30 (dalla v8, P-003 passo 3.5). Importando un backup senza le sfide di oggi, nascono subito.
+**Esportare**: file `aura-tasks-backup-AAAA-MM-GG.json` (vedi "Modello dati" in `CLAUDE-GUIDE.md`), con tutti i dati: attività, punti e serie, minuti di focus, premi e riscatti (dalla v5, P-003 passo 3.4), acquisti del negozio e colori e coriandoli in uso (dalla v6, P-004 passo 4.1), sfide di oggi e dei giorni prima: i 30 più recenti e quelli più vecchi che si possono ancora disfare, al massimo 400 (dalla v8, P-003 passo 3.5). Importando un backup senza le sfide di oggi, nascono subito.
 - Su iPhone e iPad si condivide (`navigator.share`), prima come `application/json`, poi come `text/plain` se iOS rifiuta il tipo. Altrove si scarica (vedi "Convenzioni" in `CLAUDE-GUIDE.md`).
 - Chiudere la condivisione senza scegliere non è un errore.
 

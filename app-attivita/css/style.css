@@ -1565,13 +1565,14 @@ button {
 .challenge__track,
 .challenge__arc { fill: none; stroke-width: 3.5; }
 .challenge__track { stroke: var(--border-strong); }
-/* Lunghezza dell'anello: 2π × 15. js/ui-challenges.js sposta stroke-dashoffset quando cambia quanto manca */
+/* Lunghezza dell'anello: 2π × 15. js/ui-challenges.js sposta stroke-dashoffset quando cambia quanto manca, senza
+   transizioni, come l'anello del focus: i movimenti solo con transform e opacity. Sfuma solo il colore, fatta */
 .challenge__arc {
   stroke: var(--accent);
   stroke-linecap: round;
   stroke-dasharray: 94.248;
   stroke-dashoffset: 94.248;
-  transition: stroke-dashoffset var(--dur-reward) var(--ease-out), stroke var(--dur-color) var(--ease-out);
+  transition: stroke var(--dur-color) var(--ease-out);
 }
 .challenge__arc.is-empty { visibility: hidden; }
 .challenge__tick { fill: none; stroke: var(--low); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity var(--dur-quick) var(--ease-out); }

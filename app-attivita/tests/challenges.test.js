@@ -140,6 +140,56 @@
     assertEqual(next.totalPoints, 300, 'i suoi 10 punti restano nel totale');
   });
 
+  /** 30 giorni di sfide non fatte, da ieri indietro: il giorno nuovo (oggi) fa uscire il più vecchio, se può. */
+  function thirtyDays() {
+    const challenges = {};
+    for (let i = 1; i <= 30; i++) {
+      challenges[day(-i)] = { at: at(8, 0, -i), items: [{ kind: 'count', target: 5 }, { kind: 'focus', target: 10 }, { kind: 'any', target: 1 }] };
+    }
+    return challenges;
+  }
+
+  test('refresh: un giorno più vecchio dei 30 resta finché una sua sfida fatta si può disfare, poi esce', () => {
+    const old = day(-40);
+    const challenges = { ...thirtyDays(), [old]: { at: at(8, 0, -40), items: [{ kind: 'count', target: 2, done: at(19, 0, -40) }, { kind: 'focus', target: 10 }, { kind: 'any', target: 1, done: at(18, 0, -40) }] } };
+    const tasks = [
+      task({ id: 'a', done: true, createdAt: at(8, 0, -41), completedAt: at(18, 0, -40), pointsAwarded: 24 }),
+      task({ id: 'b', done: true, createdAt: at(8, 0, -41), completedAt: at(19, 0, -40), pointsAwarded: 24 })
+    ];
+    const stats = { ...P.emptyStats(), totalPoints: 48 + 20, days: { [old]: { done: 2, points: 48 } }, challenges };
+    const born = C.refresh(stats, tasks, NOW).stats;
+    assert(Boolean(born.challenges[old]), 'resta: «a» e «b», completate quel giorno, si possono ancora riaprire');
+    assert(!born.challenges[day(-30)], 'il giorno numero 31, senza niente da disfare, esce');
+    const reopened = setDone({ tasks, stats: born }, 'b', false, NOW);
+    assertEqual(reopened.stats.challenges[old].items.map(item => Boolean(item.done)), [false, false, true], '1 su 2: quante torna da fare');
+    assertEqual(reopened.stats.totalPoints, 24 + 10, '−24 di «b» e −10 della sfida, anche dopo 40 giorni');
+    const withoutA = reopened.tasks.filter(item => item.id !== 'a'); // «a» eliminata: quel giorno non ha più niente da disfare
+    const tomorrow = C.refresh(reopened.stats, withoutA, NOW + utils.DAY_MS).stats;
+    assert(!tomorrow.challenges[old], 'al giorno nuovo esce');
+    assertEqual(tomorrow.totalPoints, 24 + 10, 'e i punti che restano non cambiano');
+  });
+
+  test('refresh: un giorno più vecchio dei 30 con fatto solo il focus esce: i minuti di un giorno passato non si tolgono più', () => {
+    const old = day(-40);
+    const challenges = { ...thirtyDays(), [old]: { at: at(8, 0, -40), items: [{ kind: 'count', target: 5 }, { kind: 'focus', target: 10, done: at(10, 0, -40) }, { kind: 'before', target: 12 }] } };
+    const tasks = [task({ id: 'a', done: true, createdAt: at(8, 0, -41), completedAt: at(18, 0, -40), pointsAwarded: 24 })];
+    const stats = { ...P.emptyStats(), totalPoints: 24 + 10, days: { [old]: { done: 1, points: 24 } }, focus: { [old]: 30 }, challenges };
+    const next = C.refresh(stats, tasks, NOW).stats;
+    assert(!next.challenges[old], 'niente da disfare: esce');
+    assertEqual(next.totalPoints, 24 + 10, 'i 10 punti del focus restano');
+  });
+
+  test('refresh: con gli stessi dati, lo stesso giorno, il conto non si rifà', () => {
+    const tasks = [task({ id: 'a', done: true, completedAt: at(9, 0), pointsAwarded: 24 })];
+    const first = C.refresh(statsWith({ 0: 1 }), tasks, NOW);
+    assert(first.stats.challenges[TODAY].items[2].done === NOW, '«entro le 12» fatta da «a»');
+    const again = C.refresh(first.stats, tasks, NOW + 60e3);
+    assert(again.stats === first.stats, 'stesso oggetto, niente di nuovo');
+    assertEqual([again.gained, again.points], [[], 0]);
+    const reopened = setDone({ tasks, stats: first.stats }, 'a', false, NOW + 120e3);
+    assertEqual([reopened.challenges.points, reopened.stats.challenges[TODAY].items[2].done], [-10, undefined], 'con attività nuove si rifà');
+  });
+
   test('refresh: un giorno passato non guadagna sfide, anche con minuti di focus arrivati dopo', () => {
     const yesterday = { at: at(8, 0, -1), items: [{ kind: 'count', target: 2 }, { kind: 'focus', target: 25 }, { kind: 'any', target: 1 }] };
     const stats = statsWith({ '-1': 3 }, { focus: { [day(-1)]: 40 }, challenges: { [day(-1)]: yesterday } });
@@ -298,8 +348,9 @@
     assertEqual(clean[day(-8)].items, [{ kind: 'count', target: 2 }, { kind: 'focus', target: 10 }, { kind: 'oldest', target: 1, taskId: 'v', done: NOW }]);
     assertEqual([C.sanitize(null), C.sanitize([]), C.sanitize('rotto')], [{}, {}, {}]);
     const many = {};
-    for (let i = 0; i < 35; i++) many[day(-i)] = good;
-    assertEqual(Object.keys(C.sanitize(many)).length, 30, 'al massimo i 30 giorni più recenti');
+    for (let i = 0; i < 405; i++) many[day(-i)] = good;
+    const kept = Object.keys(C.sanitize(many)).sort();
+    assertEqual([kept.length, kept[0]], [400, day(-399)], 'al massimo i 400 giorni più recenti: quali tenere oltre i 30 lo decide refresh()');
   });
 
   test('sanitizeStats: le sfide passano dalla pulizia, e il totale mancante conta anche i loro punti', () => {
