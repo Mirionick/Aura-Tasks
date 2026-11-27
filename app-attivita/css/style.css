@@ -2727,21 +2727,22 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .status[data-tone="busy"] { color: var(--accent-text); background: var(--accent-soft); }
 
 /* Indirizzo e codice da copiare nel Comando Rapido */
-.copy-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } /* con il testo grande «Copia» va sotto */
 .copy-row__value {
   display: block;
+  flex: 1 1 calc(120 * var(--px)); /* almeno una decina di caratteri accanto a «Copia» */
   min-width: 0;
   padding: 10px 12px;
   border: 1.5px solid var(--field-border);
   border-radius: 12px;
   background: var(--surface-raised);
   color: var(--text);
-  font: 14px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font: calc(14 * var(--px))/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   word-break: break-all;
   -webkit-user-select: all;
   user-select: all;
 }
-.copy-row .btn { min-width: 76px; }
+.copy-row .btn { flex: none; min-width: 76px; }
 
 .steps { margin-top: 14px; border-top: 1px solid var(--border); }
 .steps__summary {
@@ -2783,7 +2784,7 @@ button.setting:not(:disabled):active { background: var(--hover); }
 .claude-code > * { margin: 0; }
 .claude-code__value {
   color: var(--text);
-  font: 800 clamp(28px, 9vw, 36px)/1.15 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font: 800 clamp(28px, 9vw, 36px)/1.15 ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* px fisso: il codice segue già lo schermo, come il timer */
   letter-spacing: .08em;
   -webkit-user-select: all;
   user-select: all;

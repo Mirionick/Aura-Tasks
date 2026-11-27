@@ -90,6 +90,75 @@ class FontSizes(FakeApp):
         css = ".a { font-size: calc(15 * var(--px)); } .b { font-size: 14px; }"
         self.assertEqual(self.problems(css), ["riga 1: font-size: 14px"])
 
+    def test_segue_una_dichiarazione_che_va_a_capo(self) -> None:
+        css = "\n".join([
+            ".a {",
+            "  font-size:",
+            "    15px;",
+            "}",
+            ".b {",
+            "  font-size: clamp(12px,",
+            "    3vw, 18px);",
+            "}",
+            ".c {",
+            "  font-size:",
+            "    calc(15 * var(--px));",
+            "}",
+            ".d {",
+            "  font-size:",
+            "    24px; /* px fisso: emoji nel riquadro */",
+            "}",
+            ".e {",
+            "  font-size: /* px fisso: simbolo nel riquadro */",
+            "    20px;",
+            "}",
+        ])
+        self.assertEqual(self.problems(css), [
+            "riga 2: font-size: 15px",
+            "riga 6: font-size: clamp(12px, 3vw, 18px)",
+        ])
+
+    def test_guarda_anche_la_misura_dentro_font(self) -> None:
+        css = "\n".join([
+            ".a { font: 14px/1.4 ui-monospace, monospace; }",
+            ".b { font: 800 calc(14 * var(--px))/1.2 var(--font); }",
+            ".c { font: inherit; }",
+            "@supports (font: -apple-system-body) { html { font: -apple-system-body; } }",
+            ".d { font: 800 clamp(28px, 9vw, 36px)/1.15 monospace; } /* px fisso: segue lo schermo */",
+            ".e { font-family: var(--font); font-weight: 700; font-variant-numeric: tabular-nums; }",
+            "@font-face { font-family: Prova; src: url(prova.woff2); }",
+        ])
+        self.assertEqual(self.problems(css), ["riga 1: font: 14px/1.4 ui-monospace, monospace"])
+
+    def test_guarda_anche_le_variabili_del_testo(self) -> None:
+        css = "\n".join([
+            ":root {",
+            "  --font: system-ui, sans-serif;",
+            "  --titolo-font-size: 20px;",
+            "  --nota-font: 600 13px/1.3 var(--font);",
+            "  --chip-font-size: calc(13 * var(--px-ui));",
+            "  --tap: 44px;",
+            "}",
+        ])
+        self.assertEqual(self.problems(css), [
+            "riga 3: --titolo-font-size: 20px",
+            "riga 4: --nota-font: 600 13px/1.3 var(--font)",
+        ])
+
+    def test_non_legge_il_testo_dei_commenti(self) -> None:
+        css = "\n".join([
+            "/* prima era font-size: 15px; ora cresce con il testo */",
+            ".a { font-size: calc(15 * var(--px)); }",
+            "/*",
+            "  .b { font-size: 13px; }",
+            "*/",
+            ".c {",
+            "  /* px fisso: questo commento è della riga sopra, non della misura */",
+            "  font-size: 12px;",
+            "}",
+        ])
+        self.assertEqual(self.problems(css), ["riga 8: font-size: 12px"])
+
     def test_il_messaggio_spiega_la_regola(self) -> None:
         self.write("css/style.css", ".b { font-size: 15px; }\n")
         message = runner.check_font_sizes()

@@ -55,20 +55,31 @@ def check_versions() -> str | None:
 
 
 def check_font_sizes() -> str | None:
-    """«Dimensione testo»: in css/style.css le misure del testo in px passano da --px (o --px-ui), così crescono con il
-    testo scelto sull'iPhone. Un px fisso voluto (emoji nei riquadri fissi, barra delle schede) dice perché sulla sua
-    riga, con il commento «px fisso: …»."""
+    """«Dimensione testo»: in css/style.css le misure del testo in px (in font-size, dentro font e nelle variabili
+    che finiscono così, come --titolo-font-size) passano da --px (o --px-ui), così crescono con il testo scelto
+    sull'iPhone. Un px fisso voluto (emoji nei riquadri fissi, barra delle schede) dice perché, con il commento
+    «px fisso: …» su una riga della dichiarazione.
+    Una dichiarazione può andare a capo; il testo dei commenti non conta, a parte «px fisso»."""
+    css = (APP_DIR / "css" / "style.css").read_text(encoding="utf-8")
+    lines = css.split("\n")
+    # I commenti diventano spazi e i loro a capo restano: posizioni e numeri di riga sono quelli del file
+    code = re.sub(r"/\*.*?\*/", lambda comment: re.sub(r"[^\n]", " ", comment.group(0)), css, flags=re.DOTALL)
     fixed = []
-    lines = (APP_DIR / "css" / "style.css").read_text(encoding="utf-8").splitlines()
-    for number, line in enumerate(lines, 1):
-        for value in re.findall(r"font-size:\s*([^;}]+)", line):
-            if "px" in value and "var(--px" not in value and "px fisso" not in line:
-                fixed.append(f"  riga {number}: font-size: {value.strip()}")
+    for match in re.finditer(r"((?:--[-\w]*)?font(?:-size)?)\s*:\s*([^;{}]+)", code):
+        prop, value = match.group(1), " ".join(match.group(2).split())
+        if "px" not in value or "var(--px" in value:
+            continue
+        first = code.count("\n", 0, match.start()) + 1
+        last = code.count("\n", 0, match.end()) + 1
+        if any("px fisso" in lines[number - 1] for number in range(first, last + 1)):
+            continue
+        fixed.append(f"  riga {first}: {prop}: {value}")
     if fixed:
         return (
-            "In css/style.css le misure del testo si scrivono calc(N * var(--px)), dove N è la misura in px con il testo "
-            "normale, così seguono «Dimensione testo» dell'iPhone. Un px fisso voluto porta sulla stessa riga il "
-            "commento «px fisso: perché». Da sistemare:\n" + "\n".join(fixed)
+            "In css/style.css le misure del testo (in font-size, dentro font e nelle variabili che finiscono così) si "
+            "scrivono calc(N * var(--px)), dove N è la misura in px con il testo normale, così seguono «Dimensione "
+            "testo» dell'iPhone. Un px fisso voluto porta il commento «px fisso: perché» su una riga della "
+            "dichiarazione. Da sistemare:\n" + "\n".join(fixed)
         )
     return None
 
