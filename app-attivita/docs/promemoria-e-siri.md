@@ -43,9 +43,10 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
   - `at` = ora dell'attività in ora locale (giusta anche nei giorni del cambio d'ora);
   - `fireAt = at − anticipo`;
   - al massimo 100.
+- **Fine del focus** (fase 2b di [tre-modalita.md](tre-modalita.md)): con un focus in corso, `buildReminders(tasks, { lead, now, focus })` aggiunge un elemento per la fine (`focusReminder`): id `focus-<id dell'attività>`, `at` e `fireAt` uguali all'ora in cui finisce il tempo, titolo «Tempo finito: …». Niente in pausa, a tempo finito, per un'attività completata o con un id che il server non accetterebbe. Sta oltre i 100: il server ne accetta 200. Il server non lo distingue dagli altri.
 - **Anticipo**: uno per tutte le attività (`LEADS`: 0, 5, 10, 15, 30, 60; predefinito 10).
 - **Invio dell'elenco**:
-  - l'elenco completo va in `PUT /api/reminders` 2 secondi dopo ogni `commit()`, all'avvio, al ritorno nell'app e quando torna internet;
+  - l'elenco completo va in `PUT /api/reminders` 2 secondi dopo ogni `commit()`, subito a ogni cambio del focus (inizio, pausa, Riprendi, +5 min, chiusura, tempo finito con Aura davanti), all'avvio, al ritorno nell'app e quando torna internet;
   - parte solo se l'impronta (`listKey`) è cambiata, e un invio alla volta;
   - la sottoscrizione si ricontrolla e si rimanda almeno una volta al giorno, e subito se cambia endpoint o chiave del server.
 - **Server**:
@@ -56,7 +57,8 @@ Tutto è **facoltativo**. Finché l'utente non tocca "Attiva i promemoria" o "Cr
   - passati 15 minuti dall'ora dell'attività, il promemoria si scarta.
 - **Notifica**:
   - titolo = titolo dell'attività; testo "Tra 10 minuti, alle 10:00";
-  - toccandola si apre o torna in primo piano Aura con `?task=id`, e la card si evidenzia (`showTask`).
+  - toccandola si apre o torna in primo piano Aura con `?task=id`, e la card si evidenzia (`showTask`);
+  - fine del focus: il service worker la riconosce dal tag `aura-focus-` e cambia la riga in «Tocca per completarla o per aggiungere 5 minuti.»; toccandola Aura si apre senza `?task=`, con il focus. A ogni cambio del focus l'app toglie le notifiche della fine già arrivate.
 - **iPhone**:
   - le notifiche funzionano solo con Aura installata sulla schermata Home e aperta dall'icona, con iOS 16.4 o successivo;
   - `Notification.requestPermission()` va chiamata subito al tocco, senza attese di rete prima: chiave VAPID e service worker si preparano all'apertura del foglio;

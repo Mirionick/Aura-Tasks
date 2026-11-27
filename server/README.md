@@ -13,7 +13,7 @@ Ogni dispositivo ha un **codice segreto casuale**, generato dall'app. Senza un c
 Il server conserva solo:
 - l'**impronta SHA-256** del codice di ogni dispositivo, mai il codice;
 - la **sottoscrizione push** del dispositivo;
-- per ogni promemoria: **titolo, ora e momento dell'avviso**, cancellati quando l'attività è passata;
+- per ogni promemoria: **titolo, ora e momento dell'avviso**, cancellati quando l'attività è passata. Durante un focus l'app manda anche la sua fine, come un promemoria in più (id `focus-<id dell'attività>`, titolo «Tempo finito: …»);
 - le **frasi di Siri**, cancellate quando l'app le ritira (al massimo dopo 30 giorni);
 - per l'assistente: **solo conteggi** per dispositivo e per giorno (messaggi, proposte all'apertura, millisecondi di voce, neuroni), cancellati dopo due giorni;
 - per il connettore di Claude: le **impronte SHA-256** dei token e dei codici, mai i valori; le date del collegamento e dell'ultimo uso; le registrazioni automatiche di Claude (id, indirizzo di ritorno, nome, date); **solo conteggi** delle frasi per dispositivo e per giorno, cancellati dopo due giorni. Le frasi di Claude stanno nella casella di Siri e se ne vanno come quelle.
@@ -101,7 +101,7 @@ Il codice del dispositivo viaggia nell'intestazione `Authorization: Bearer <codi
 | `POST /api/inbox` | Il Comando Rapido scrive una frase (`text` come JSON, modulo o testo semplice). Risponde in testo semplice: "Aggiunto ad Aura: …" oppure l'errore |
 | `GET /api/inbox` · `POST /api/inbox/ack` | L'app ritira le frasi, poi conferma quelle salvate |
 | `PUT /api/push/subscription` · `DELETE` | Sottoscrizione push del dispositivo (solo servizi noti: Apple, Google, Mozilla, Microsoft) |
-| `PUT /api/reminders` | Elenco completo dei promemoria del dispositivo (`id`, `at`, `fireAt`, `title`, `time`) |
+| `PUT /api/reminders` | Elenco completo dei promemoria del dispositivo (`id`, `at`, `fireAt`, `title`, `time`), con la fine del focus in corso |
 | `POST /api/push/test` | "Prova una notifica" |
 | `POST /api/assistant/transcribe` | Trascrive una registrazione. Il **corpo** è l'audio in testo base64 (`Content-Type: text/plain`), il formato sta in `X-Audio-Type` (`audio/mp4`, `audio/webm`…). Il server controlla solo la lunghezza e passa il corpo a Whisper così com'è. Risponde `{ text, seconds }` |
 | `POST /api/assistant/chat` | Risponde a un messaggio: riceve `{ kind, message, now, context, tasks, recent }`, risponde `{ say, context, actions, left }`. Forma e regole in `app-attivita/docs/assistente.md` |
