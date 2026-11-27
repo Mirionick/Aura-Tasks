@@ -13,6 +13,7 @@
  * dal negozio (colori dell'aurora, forma dei coriandoli) si applica qui: data-aurora su <html> e i coriandoli. Il suono in
  * uso lo suona js/ui-sound.js («Suono» nel focus a tutto schermo e l'ascolto di prova nel negozio).
  * Promemoria, casella di Siri e assistente (facoltativi) passano da Aura.remote, che parla con il server di Aura.
+ * Tornando nell'app si guarda anche se è uscita una versione nuova (le regole in js/update.js): l'avviso propone «Aggiorna».
  */
 (function (Aura) {
   'use strict';
@@ -20,7 +21,7 @@
   const { utils, repeat: RP, tasks: T, nlp, points: P, focus: F, rewards: RW, shop: SH, storage, theme, reminders: RM, remote: R,
     motion: M, settings: Settings, focusUI: FocusUI, assistantUI: AssistantUI, settingsUI: SettingsUI, agendaUI: AgendaUI,
     motivationUI: MotivationUI, rewardsUI: RewardsUI, shopUI: ShopUI, musicUI: MusicUI, swipeUI: SwipeUI, soundUI: SoundUI,
-    claudeUI: ClaudeUI } = Aura;
+    claudeUI: ClaudeUI, update: U } = Aura;
 
   const byId = id => document.getElementById(id);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -815,6 +816,9 @@
   let toastTimer = null;    // chiusura automatica (o pulizia del testo dopo la chiusura)
   let announceTimer = null; // riscrittura del testo per i lettori di schermo
   let toastHandler = null;
+  let toastKind = null;     // 'update' mentre si vede l'avviso della versione nuova (vedi offerUpdate)
+  // La versione nuova con l'app rimasta aperta (vedi «Service worker», più sotto): sta qui perché la usano anche avvisi e fogli
+  const updates = { checkedAt: 0, found: false, ready: false, offeredAt: 0, retry: null };
 
   /**
    * L'avviso sta nella pagina oppure dentro `host`, un foglio aperto: un foglio copre la pagina e la rende inerte, quindi
@@ -828,9 +832,12 @@
 
   /**
    * `options`: `action` e `onAction` (il pulsante, per esempio «Annulla»), `duration` (ms) e `host`, un foglio aperto
-   * (vedi hostToast). Quando il foglio comincia a chiudersi, l'avviso torna nella pagina (closeSheet).
+   * (vedi hostToast). Quando il foglio comincia a chiudersi, l'avviso torna nella pagina (closeSheet). `kind: 'update'`
+   * solo per l'avviso della versione nuova: se un altro lo copre prima del suo tempo, torna dopo (updateCovered).
    */
   function showToast(message, options = {}) {
+    if (toastKind === 'update' && options.kind !== 'update' && els.toast.classList.contains('is-visible')) updateCovered();
+    toastKind = options.kind || null;
     hostToast(options.host);
     const action = options.action || null;
     const duration = options.duration || (action ? 5000 : 2600);
@@ -854,6 +861,7 @@
     clearTimeout(toastTimer);
     clearTimeout(announceTimer);
     toastHandler = null;
+    toastKind = null;
     els.toast.classList.remove('is-visible');
     toastTimer = setTimeout(() => { els.toastText.textContent = ''; }, M.ms('move'));
   }
@@ -866,6 +874,11 @@
     const pending = closing.get(dialog);
     if (pending) pending(false); // riaperto mentre si chiudeva: resta aperto
     if (dialog.open) return;
+    // L'avviso della versione nuova resterebbe sotto il foglio, senza che si veda: sparisce e torna a foglio chiuso
+    if (toastKind === 'update') {
+      hideToast();
+      updateCovered();
+    }
     document.documentElement.classList.add('is-locked');
     dialog.showModal();
   }
@@ -2083,6 +2096,7 @@
    */
   function onSheetClosed(dialog) {
     if (els.toast.parentNode === dialog) document.body.appendChild(els.toast); // l'avviso resta, nella pagina
+    if (updates.ready) setTimeout(offerUpdate, 400); // l'avviso della versione nuova, se nel frattempo è pronta
     if (assistantCtl) assistantCtl.sheetClosed(dialog);
     if (settingsCtl) settingsCtl.sync(); // tornando a «Impostazioni» da un altro foglio, le righe sono aggiornate
     if (dialog === els.addSheet && focusAfterEdit) {
@@ -2297,10 +2311,89 @@
     const secure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     if (!('serviceWorker' in navigator) || !secure) return; // da file:// non si può: va bene così
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {
+      navigator.serviceWorker.register('sw.js').then(checkAtStart).catch(() => {
         // Senza service worker l'app funziona lo stesso, solo non offline.
       });
     });
+    // Il service worker nuovo comanda la pagina. Conta solo quello trovato tornando nell'app: alla prima installazione,
+    // o quando arriva all'apertura, la pagina è già quella nuova (prima la rete).
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (updates.found) updateReady();
+    });
+  }
+
+  /*
+   * Versione nuova con l'app rimasta aperta (su iPhone, tornando nell'app, la pagina non si ricarica). Tornando
+   * nell'app, al massimo una volta al minuto, si chiede al browser se sw.js è cambiato. Il service worker nuovo scarica
+   * i file e prende il posto del vecchio da solo; quando comanda, l'avviso propone «Aggiorna», che ricarica la pagina.
+   * Mai sopra un foglio aperto (si perderebbe quello che c'è scritto) né sopra un altro avviso (il suo «Annulla»).
+   * Lo stato sta in `updates`, dichiarato con gli avvisi.
+   */
+  const workersOf = registration => ({ installing: registration.installing, waiting: registration.waiting, active: registration.active });
+
+  /**
+   * All'apertura la pagina arriva dalla rete, quindi è già la più nuova. Si chiede subito al browser se sw.js è cambiato:
+   * così un service worker nuovo arriva adesso, senza avviso, e il primo ritorno nell'app non lo scambia per una
+   * versione uscita dopo. (Il browser lo chiederebbe da solo aprendo la pagina, ma non sempre: Chromium non lo fa a ogni
+   * apertura.) Il prossimo controllo, tornando nell'app, tra almeno un minuto.
+   */
+  function checkAtStart(registration) {
+    updates.checkedAt = Date.now();
+    if (registration && registration.active) registration.update().catch(() => {});
+  }
+
+  async function checkForUpdate() {
+    if (!('serviceWorker' in navigator) || updates.ready) return;
+    const now = Date.now();
+    if (!U.shouldCheck(now, updates.checkedAt)) return;
+    updates.checkedAt = now;
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration || !registration.active) return; // nessuno, o la prima installazione: niente da aggiornare
+      const before = workersOf(registration);
+      await registration.update();
+      if (!U.arrived(before, workersOf(registration))) return;
+      updates.found = true;
+      // Se ha già preso il posto del vecchio, l'evento controllerchange è già passato.
+      const controller = navigator.serviceWorker.controller;
+      if (controller && controller !== before.active) updateReady();
+    } catch (err) {
+      // Senza rete, o con il sito che non risponde: si riprova al prossimo ritorno nell'app.
+    }
+  }
+
+  function updateReady() {
+    updates.ready = true;
+    offerUpdate();
+  }
+
+  /** L'avviso con «Aggiorna», se si può adesso (U.canOffer). Dietro un altro avviso aspetta che sparisca. */
+  function offerUpdate() {
+    clearTimeout(updates.retry);
+    if (toastKind === 'update') return; // si vede già
+    const toastShown = els.toast.classList.contains('is-visible');
+    const now = Date.now();
+    const can = U.canOffer({
+      ready: updates.ready,
+      visible: document.visibilityState === 'visible',
+      sheetOpen: Boolean(document.querySelector('dialog[open]')),
+      toastShown,
+      now,
+      offeredAt: updates.offeredAt
+    });
+    if (!can) {
+      if (toastShown && updates.ready) updates.retry = setTimeout(offerUpdate, 2000);
+      return;
+    }
+    updates.offeredAt = now;
+    showToast('C\'è una versione nuova di Aura', { kind: 'update', action: 'Aggiorna', duration: 8000, onAction: () => location.reload() });
+  }
+
+  /** Un altro avviso ha coperto quello della versione nuova prima del suo tempo: torna quando l'altro sparisce. */
+  function updateCovered() {
+    updates.offeredAt = 0;
+    clearTimeout(updates.retry);
+    updates.retry = setTimeout(offerUpdate, 2000);
   }
 
   /* ---------- Eventi ---------- */
@@ -2474,6 +2567,8 @@
     }
     render();
     refreshRemote();
+    offerUpdate(); // una versione nuova già pronta, con l'avviso passato da almeno 15 minuti
+    checkForUpdate();
   });
   window.addEventListener('pagehide', rememberTab);
   setInterval(() => {
